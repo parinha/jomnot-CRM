@@ -1,28 +1,25 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef } from 'react'
 import {
   loadCompanyProfile,
   saveCompanyProfile,
   loadPaymentInfo,
   savePaymentInfo,
+  useStore,
   type CompanyProfile,
   type PaymentInfo,
 } from '../AppStore'
 
 export default function SettingsView() {
-  const [profile, setProfile] = useState<CompanyProfile>({ name: '', logo: '', address: '', phone: '', website: '' })
-  const [payment, setPayment] = useState<PaymentInfo>({ abaSwift: '', accountNumber: '', accountName: '', qrImage: '' })
+  const { scopeOfWork, setScopeOfWork } = useStore()
+  const [profile, setProfile] = useState<CompanyProfile>(() => loadCompanyProfile())
+  const [payment, setPayment] = useState<PaymentInfo>(() => loadPaymentInfo())
   const [savedProfile, setSavedProfile] = useState(false)
   const [savedPayment, setSavedPayment] = useState(false)
 
   const logoInputRef = useRef<HTMLInputElement>(null)
   const qrInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    setProfile(loadCompanyProfile())
-    setPayment(loadPaymentInfo())
-  }, [])
 
   function setP<K extends keyof CompanyProfile>(k: K, v: CompanyProfile[K]) {
     setProfile((prev) => ({ ...prev, [k]: v }))
@@ -63,7 +60,7 @@ export default function SettingsView() {
       </div>
 
       {/* Company Profile */}
-      <section className="bg-white rounded-xl border border-zinc-200 p-6">
+      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-zinc-900 mb-5">Company Profile</h2>
 
         <div className="flex flex-col gap-4">
@@ -120,14 +117,14 @@ export default function SettingsView() {
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
           {savedProfile && <span className="text-xs text-green-600 font-medium">Saved</span>}
-          <button onClick={handleSaveProfile} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition">
+          <button onClick={handleSaveProfile} className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">
             Save profile
           </button>
         </div>
       </section>
 
       {/* Payment Information */}
-      <section className="bg-white rounded-xl border border-zinc-200 p-6">
+      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-zinc-900 mb-1">Payment Information</h2>
         <p className="text-xs text-zinc-400 mb-5">Shown at the bottom of every invoice so clients know how to pay.</p>
 
@@ -184,11 +181,199 @@ export default function SettingsView() {
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
           {savedPayment && <span className="text-xs text-green-600 font-medium">Saved</span>}
-          <button onClick={handleSavePayment} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition">
+          <button onClick={handleSavePayment} className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">
             Save payment info
           </button>
         </div>
       </section>
+
+      {/* Scope of Work */}
+      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
+        <h2 className="text-sm font-semibold text-zinc-900 mb-1">Scope of Work Suggestions</h2>
+        <p className="text-xs text-zinc-400 mb-5">These appear as autocomplete suggestions when adding line items to invoices.</p>
+        <ScopeList scopes={scopeOfWork} onChange={setScopeOfWork} />
+      </section>
+
+      {/* Seed data */}
+      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
+        <h2 className="text-sm font-semibold text-zinc-900 mb-1">Sample Data</h2>
+        <p className="text-xs text-zinc-400 mb-4">
+          Populate the app with demo clients, invoices, and company info so you can see how everything looks.
+          This will overwrite any existing data.
+        </p>
+        <SeedButton onSeeded={() => { setProfile(loadCompanyProfile()); setPayment(loadPaymentInfo()) }} />
+      </section>
+    </div>
+  )
+}
+
+function SeedButton({ onSeeded }: { onSeeded: () => void }) {
+  const [done, setDone] = useState(false)
+
+  function seed() {
+    const clientIds = ['c1', 'c2', 'c3', 'c4']
+
+    const clients = [
+      { id: 'c1', name: 'Skyline Media Co., Ltd.', phone: '+66 2 123 4567', address: '88 Silom Road, Bangkok 10500', email: 'billing@skylinemedia.co.th' },
+      { id: 'c2', name: 'Nomad Creative Agency', phone: '+66 81 234 5678', address: '42 Nimman Road, Chiang Mai 50200', email: 'finance@nomadcreative.com' },
+      { id: 'c3', name: 'TrueVision Productions', phone: '+66 2 987 6543', address: '9 Rama IX Road, Bangkok 10310', email: 'ap@truevision.th' },
+      { id: 'c4', name: 'Pulse Digital Studio', phone: '+66 93 456 7890', address: '15 Sukhumvit Soi 11, Bangkok 10110', email: 'accounts@pulsedigital.io' },
+    ]
+
+    const invoices = [
+      {
+        id: 'i1', number: 'INV-2026-001', date: '2026-01-15', paymentTerms: 'Net 30', status: 'paid',
+        clientId: clientIds[0],
+        items: [
+          { id: 'li1', description: 'Brand video production (2-min corporate film)', qty: 1, unitPrice: 85000 },
+          { id: 'li2', description: 'Post-production & color grading', qty: 1, unitPrice: 25000 },
+        ],
+        wht: true, notes: 'Payment received via bank transfer. Thank you!',
+      },
+      {
+        id: 'i2', number: 'INV-2026-002', date: '2026-02-03', paymentTerms: 'Net 15', status: 'sent',
+        clientId: clientIds[1],
+        items: [
+          { id: 'li3', description: 'Photography — product shoot (full day)', qty: 1, unitPrice: 35000 },
+          { id: 'li4', description: 'Photo editing & retouching (50 images)', qty: 50, unitPrice: 300 },
+        ],
+        wht: false, notes: 'Please include invoice number in payment reference.',
+      },
+      {
+        id: 'i3', number: 'INV-2026-003', date: '2026-02-20', paymentTerms: 'Net 30', status: 'overdue',
+        clientId: clientIds[2],
+        items: [
+          { id: 'li5', description: 'Social media content package (March)', qty: 1, unitPrice: 45000 },
+          { id: 'li6', description: 'Reel editing — 4 videos', qty: 4, unitPrice: 5000 },
+        ],
+        wht: true, notes: '',
+      },
+      {
+        id: 'i4', number: 'INV-2026-004', date: '2026-03-10', paymentTerms: 'Due on receipt', status: 'draft',
+        clientId: clientIds[3],
+        items: [
+          { id: 'li7', description: 'Event photography — half day (4 hrs)', qty: 4, unitPrice: 4500 },
+          { id: 'li8', description: 'Same-day highlight reel', qty: 1, unitPrice: 15000 },
+          { id: 'li9', description: 'Travel & accommodation', qty: 1, unitPrice: 3500 },
+        ],
+        wht: false, notes: 'Draft — pending client approval on scope.',
+      },
+    ]
+
+    const company = {
+      name: 'Frame & Light Studio Co., Ltd.',
+      logo: '',
+      address: '12/4 Charoennakorn Road, Klongsan\nBangkok 10600, Thailand\nTax ID: 0105560123456',
+      phone: '+66 2 456 7890',
+      website: 'www.frameandlight.studio',
+    }
+
+    const payment = {
+      abaSwift: 'KASITHBK',
+      accountNumber: '123-4-56789-0',
+      accountName: 'Frame & Light Studio Co., Ltd.',
+      qrImage: '',
+    }
+
+    localStorage.setItem('app_clients', JSON.stringify(clients))
+    localStorage.setItem('app_invoices', JSON.stringify(invoices))
+    localStorage.setItem('company_profile', JSON.stringify(company))
+    localStorage.setItem('payment_info', JSON.stringify(payment))
+
+    onSeeded()
+    setDone(true)
+    setTimeout(() => setDone(false), 3000)
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={seed}
+        className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+      >
+        Load sample data
+      </button>
+      {done && (
+        <span className="text-xs text-green-600 font-medium">
+          Done — go check Clients and Invoices
+        </span>
+      )}
+    </div>
+  )
+}
+
+function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: string[]) => void }) {
+  const [editingIdx, setEditingIdx] = useState<number | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [newValue, setNewValue] = useState('')
+
+  const inputCls = 'h-9 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition'
+
+  function startEdit(i: number) {
+    setEditingIdx(i)
+    setEditValue(scopes[i])
+  }
+
+  function commitEdit(i: number) {
+    if (!editValue.trim()) { setEditingIdx(null); return }
+    const next = scopes.map((s, idx) => (idx === i ? editValue.trim() : s))
+    onChange(next)
+    setEditingIdx(null)
+  }
+
+  function deleteScope(i: number) {
+    onChange(scopes.filter((_, idx) => idx !== i))
+  }
+
+  function addScope() {
+    if (!newValue.trim()) return
+    onChange([...scopes, newValue.trim()])
+    setNewValue('')
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {scopes.map((s, i) => (
+        <div key={i} className="flex items-center gap-2">
+          {editingIdx === i ? (
+            <>
+              <input
+                autoFocus
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(i); if (e.key === 'Escape') setEditingIdx(null) }}
+                className={`${inputCls} flex-1`}
+              />
+              <button onClick={() => commitEdit(i)} className="h-9 px-3 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">Save</button>
+              <button onClick={() => setEditingIdx(null)} className="h-9 px-3 rounded-lg border border-zinc-200 text-sm text-zinc-600 hover:bg-zinc-50 transition">Cancel</button>
+            </>
+          ) : (
+            <>
+              <span className="flex-1 text-sm text-zinc-700 py-2 px-3 bg-zinc-50 rounded-lg border border-zinc-200 truncate">{s}</span>
+              <button onClick={() => startEdit(i)} className="h-9 px-3 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-100 transition shrink-0">Edit</button>
+              <button onClick={() => deleteScope(i)} className="h-9 px-3 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 transition shrink-0">Delete</button>
+            </>
+          )}
+        </div>
+      ))}
+
+      {/* Add new */}
+      <div className="flex items-center gap-2 mt-1 pt-3 border-t border-zinc-100">
+        <input
+          value={newValue}
+          onChange={(e) => setNewValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') addScope() }}
+          placeholder="Add new scope…"
+          className={`${inputCls} flex-1`}
+        />
+        <button
+          onClick={addScope}
+          disabled={!newValue.trim()}
+          className="h-9 px-3 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover disabled:opacity-40 transition shrink-0"
+        >
+          Add
+        </button>
+      </div>
     </div>
   )
 }
@@ -202,7 +387,7 @@ function Field({
   placeholder?: string
   textarea?: boolean
 }) {
-  const cls = 'rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition w-full'
+  const cls = 'rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full'
   return (
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-medium text-zinc-700">{label}</label>

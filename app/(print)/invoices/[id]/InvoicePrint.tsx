@@ -7,7 +7,7 @@ import { loadCompanyProfile, loadPaymentInfo } from '@/app/dashboard/AppStore'
 const WHT_RATE = 0.15
 
 function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 interface PrintData {
@@ -180,8 +180,8 @@ function Sheet({
             <tr key={item.id} style={{ backgroundColor: i % 2 === 1 ? '#fafafa' : 'white' }}>
               <td style={{ padding: '6px 10px', color: '#27272a' }}>{item.description}</td>
               <td style={{ padding: '6px 10px', textAlign: 'center', color: '#3f3f46' }}>{item.qty}</td>
-              <td style={{ padding: '6px 10px', textAlign: 'right', color: '#3f3f46' }}>${fmt(item.unitPrice)}</td>
-              <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>${fmt(item.qty * item.unitPrice)}</td>
+              <td style={{ padding: '6px 10px', textAlign: 'right', color: '#3f3f46' }}>{fmt(item.unitPrice)}</td>
+              <td style={{ padding: '6px 10px', textAlign: 'right', fontWeight: 600 }}>{fmt(item.qty * item.unitPrice)}</td>
             </tr>
           ))}
         </tbody>
@@ -192,17 +192,17 @@ function Sheet({
         <div style={{ width: '240px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e4e4e7', color: '#52525b' }}>
             <span>Subtotal</span>
-            <span style={{ fontWeight: 600, color: '#18181b' }}>${fmt(subtotal)}</span>
+            <span style={{ fontWeight: 600, color: '#18181b' }}>{fmt(subtotal)}</span>
           </div>
           {invoice.wht && (
             <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e4e4e7', color: '#92400e' }}>
               <span>Withholding Tax (15%)</span>
-              <span style={{ fontWeight: 600 }}>+ ${fmt(whtAmount)}</span>
+              <span style={{ fontWeight: 600 }}>+ {fmt(whtAmount)}</span>
             </div>
           )}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '2px solid #18181b', marginTop: '2px' }}>
             <span style={{ fontWeight: 700, fontSize: '13px' }}>Grand Total</span>
-            <span style={{ fontWeight: 800, fontSize: '13px' }}>${fmt(grandTotal)}</span>
+            <span style={{ fontWeight: 800, fontSize: '13px' }}>{fmt(grandTotal)}</span>
           </div>
         </div>
       </div>
@@ -212,9 +212,9 @@ function Sheet({
         <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '6px', border: '1px solid #fcd34d', backgroundColor: '#fffbeb', color: '#92400e', fontSize: '10px' }}>
           <p style={{ fontWeight: 700, marginBottom: '3px' }}>Withholding Tax Notice</p>
           <p>
-            Net amount payable to us: <strong>${fmt(subtotal)}</strong>.
-            WHT of <strong>${fmt(whtAmount)}</strong> (15%) is to be remitted to the Revenue Department by the client.
-            Total amount payable by client: <strong>${fmt(grandTotal)}</strong>.
+            Net amount payable to us: <strong>{fmt(subtotal)}</strong>.
+            WHT of <strong>{fmt(whtAmount)}</strong> (15%) is to be remitted to the Revenue Department by the client.
+            Total amount payable by client: <strong>{fmt(grandTotal)}</strong>.
           </p>
         </div>
       )}
@@ -226,6 +226,15 @@ function Sheet({
           <p style={{ color: '#52525b', whiteSpace: 'pre-wrap', fontSize: '10px' }}>{invoice.notes}</p>
         </div>
       )}
+
+      {/* ── Usage Rights ── */}
+      <div style={{ marginBottom: '16px', padding: '9px 12px', borderRadius: '6px', border: '1px solid #e4e4e7', backgroundColor: '#fafafa', fontSize: '9.5px', color: '#52525b' }}>
+        <p style={{ fontWeight: 700, marginBottom: '3px', color: '#3f3f46' }}>Usage Rights</p>
+        <p>
+          The work delivered under this invoice is <strong>non-exclusive</strong>. The client may use the materials within the agreed scope of work for publishing and promotional boosting for a period of <strong>3 months</strong> from the invoice date.
+          Any usage, re-use, or boosting beyond this period will require an additional service fee.
+        </p>
+      </div>
 
       {/* ── Payment Info ── */}
       {hasPaymentInfo && (

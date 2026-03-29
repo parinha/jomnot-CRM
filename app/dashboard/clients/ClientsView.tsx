@@ -10,7 +10,20 @@ function generateId() {
 }
 
 export default function ClientsView() {
-  const { clients, setClients } = useStore()
+  const { clients, setClients, invoices } = useStore()
+
+  function clientStats(clientId: string) {
+    const clientInvoices = invoices.filter((inv) => inv.clientId === clientId)
+    const earned = clientInvoices.reduce(
+      (sum, inv) => sum + inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0),
+      0
+    )
+    return { count: clientInvoices.length, earned }
+  }
+
+  function fmtUSD(n: number) {
+    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  }
   const [modalOpen, setModalOpen] = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
   const [form, setForm] = useState(EMPTY_FORM)
@@ -65,7 +78,7 @@ export default function ClientsView() {
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -74,7 +87,7 @@ export default function ClientsView() {
         </button>
       </div>
 
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
         {clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <svg className="w-10 h-10 mb-3 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -87,9 +100,11 @@ export default function ClientsView() {
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Name</th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Email</th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Phone</th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Address</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Phone</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden lg:table-cell">Address</th>
+                <th className="text-center px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Invoices</th>
+                <th className="text-right px-4 py-3 font-medium text-zinc-500">Earned</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -100,9 +115,10 @@ export default function ClientsView() {
                   className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
                 >
                   <td className="px-4 py-3 font-medium text-zinc-900">{client.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">{client.email}</td>
-                  <td className="px-4 py-3 text-zinc-600">{client.phone || '—'}</td>
-                  <td className="px-4 py-3 text-zinc-600 max-w-xs truncate">{client.address || '—'}</td>
+                  <td className="px-4 py-3 text-zinc-600 hidden sm:table-cell">{client.email}</td>
+                  <td className="px-4 py-3 text-zinc-600 hidden md:table-cell">{client.phone || '—'}</td>
+                  <td className="px-4 py-3 text-zinc-600 max-w-xs truncate hidden lg:table-cell">{client.address || '—'}</td>
+                  <ClientStatsCells clientId={client.id} invoices={invoices} fmtUSD={fmtUSD} />
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2">
                       <button
@@ -142,7 +158,7 @@ export default function ClientsView() {
             {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
             <div className="flex gap-3 mt-6 justify-end">
               <button onClick={closeModal} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
-              <button onClick={handleSave} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition">
+              <button onClick={handleSave} className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">
                 {editingClient ? 'Save changes' : 'Add client'}
               </button>
             </div>
@@ -167,6 +183,26 @@ export default function ClientsView() {
   )
 }
 
+import type { Invoice } from '../AppStore'
+
+function ClientStatsCells({ clientId, invoices, fmtUSD }: { clientId: string; invoices: Invoice[]; fmtUSD: (n: number) => string }) {
+  const clientInvoices = invoices.filter((inv) => inv.clientId === clientId)
+  const count = clientInvoices.length
+  const earned = clientInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0), 0)
+  return (
+    <>
+      <td className="px-4 py-3 text-center hidden sm:table-cell">
+        {count > 0
+          ? <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700">{count}</span>
+          : <span className="text-zinc-300 text-xs">—</span>}
+      </td>
+      <td className="px-4 py-3 text-right font-medium text-zinc-900">
+        {count > 0 ? fmtUSD(earned) : <span className="text-zinc-300 text-xs">—</span>}
+      </td>
+    </>
+  )
+}
+
 function Field({ label, id, value, onChange, placeholder, type = 'text' }: {
   label: string; id: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
 }) {
@@ -175,7 +211,7 @@ function Field({ label, id, value, onChange, placeholder, type = 'text' }: {
       <label htmlFor={id} className="text-sm font-medium text-zinc-700">{label}</label>
       <input
         id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition"
+        className="h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition"
       />
     </div>
   )

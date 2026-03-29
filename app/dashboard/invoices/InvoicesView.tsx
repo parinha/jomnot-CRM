@@ -27,16 +27,17 @@ function emptyItem(): LineItem {
 }
 
 function fmt(n: number) {
-  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 type FormState = Omit<Invoice, 'id'>
 
 export default function InvoicesView() {
-  const { clients, invoices, setInvoices } = useStore()
+  const { clients, invoices, setInvoices, scopeOfWork } = useStore()
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [statusChange, setStatusChange] = useState<{ id: string; from: InvoiceStatus; to: InvoiceStatus } | null>(null)
   const [formError, setFormError] = useState('')
 
   const blankForm = (): FormState => ({
@@ -115,8 +116,10 @@ export default function InvoicesView() {
     setDeleteId(null)
   }
 
-  function updateStatus(id: string, status: InvoiceStatus) {
-    setInvoices(invoices.map((inv) => (inv.id === id ? { ...inv, status } : inv)))
+  function confirmStatusChange() {
+    if (!statusChange) return
+    setInvoices(invoices.map((inv) => (inv.id === statusChange.id ? { ...inv, status: statusChange.to } : inv)))
+    setStatusChange(null)
   }
 
   const subtotal = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
@@ -133,7 +136,7 @@ export default function InvoicesView() {
         </div>
         <button
           onClick={openNew}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition"
+          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -143,7 +146,7 @@ export default function InvoicesView() {
       </div>
 
       {/* Invoice list */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
         {invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
             <svg className="w-10 h-10 mb-3 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -157,10 +160,10 @@ export default function InvoicesView() {
               <tr className="border-b border-zinc-200 bg-zinc-50">
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Invoice #</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Client</th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Date</th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Terms</th>
-                <th className="text-right px-4 py-3 font-medium text-zinc-500">Grand Total</th>
-                <th className="text-center px-4 py-3 font-medium text-zinc-500">WHT</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Date</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Terms</th>
+                <th className="text-right px-4 py-3 font-medium text-zinc-500">Amount</th>
+                <th className="text-right px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Billed total</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Status</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -169,25 +172,30 @@ export default function InvoicesView() {
               {invoices.map((inv, i) => {
                 const client = clients.find((c) => c.id === inv.clientId)
                 const sub = inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
-                const gt = inv.wht ? sub * 1.15 : sub
+                const clientTotal = inv.wht ? sub * (1 + WHT_RATE) : sub
                 const status: InvoiceStatus = inv.status ?? 'draft'
                 const sc = STATUS_CONFIG[status]
                 return (
                   <tr key={inv.id} className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}>
-                    <td className="px-4 py-3 font-medium text-zinc-900">{inv.number}</td>
-                    <td className="px-4 py-3 text-zinc-600">{client?.name ?? '—'}</td>
-                    <td className="px-4 py-3 text-zinc-500">{inv.date}</td>
-                    <td className="px-4 py-3 text-zinc-500 text-xs">{inv.paymentTerms ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-medium text-zinc-900">${fmt(gt)}</td>
-                    <td className="px-4 py-3 text-center">
-                      {inv.wht && (
-                        <span className="inline-block px-2 py-0.5 rounded-full text-xs bg-amber-100 text-amber-700 font-medium">15%</span>
+                    <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{inv.number}</td>
+                    <td className="px-4 py-3 text-zinc-600 max-w-[120px] truncate">{client?.name ?? '—'}</td>
+                    <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">{inv.date}</td>
+                    <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap hidden md:table-cell">{inv.paymentTerms ?? '—'}</td>
+                    <td className="px-4 py-3 text-right font-medium text-zinc-900 whitespace-nowrap">{fmt(sub)}</td>
+                    <td className="px-4 py-3 text-right hidden md:table-cell">
+                      {inv.wht ? (
+                        <span className="text-amber-700 font-medium whitespace-nowrap">{fmt(clientTotal)}</span>
+                      ) : (
+                        <span className="text-zinc-400 text-xs">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <select
                         value={status}
-                        onChange={(e) => updateStatus(inv.id, e.target.value as InvoiceStatus)}
+                        onChange={(e) => {
+                          const next = e.target.value as InvoiceStatus
+                          if (next !== status) setStatusChange({ id: inv.id, from: status, to: next })
+                        }}
                         className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-400 ${sc.cls}`}
                       >
                         {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => (
@@ -196,26 +204,35 @@ export default function InvoicesView() {
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <a
                           href={`/invoices/${inv.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-xs px-3 py-1.5 rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 transition"
+                          className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition"
+                          title="PDF"
                         >
-                          PDF
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                          </svg>
                         </a>
                         <button
                           onClick={() => openEdit(inv)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 transition"
+                          className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition"
+                          title="Edit"
                         >
-                          Edit
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
                         <button
                           onClick={() => setDeleteId(inv.id)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition"
+                          className="p-1.5 rounded-md border border-red-200 text-red-500 hover:bg-red-50 transition"
+                          title="Delete"
                         >
-                          Delete
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
                         </button>
                       </div>
                     </td>
@@ -231,7 +248,7 @@ export default function InvoicesView() {
       {panelOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/30" onClick={closePanel} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white shadow-2xl flex flex-col">
+          <div className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-white shadow-2xl flex flex-col">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
               <h2 className="text-lg font-semibold text-zinc-900">{editingId ? 'Edit invoice' : 'New invoice'}</h2>
               <button onClick={closePanel} className="text-zinc-400 hover:text-zinc-700 transition">
@@ -307,9 +324,13 @@ export default function InvoicesView() {
                     <div className="bg-zinc-50 px-3 py-2 text-right">Total</div>
                     <div className="bg-zinc-50" />
                   </div>
+                <datalist id="scope-suggestions">
+                  {scopeOfWork.map((s) => <option key={s} value={s} />)}
+                </datalist>
                   {form.items.map((item) => (
                     <div key={item.id} className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-zinc-200">
                       <input
+                        list="scope-suggestions"
                         value={item.description}
                         onChange={(e) => updateItem(item.id, { description: e.target.value })}
                         placeholder="Scope of work…"
@@ -347,17 +368,17 @@ export default function InvoicesView() {
                 <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
                   <div className="flex gap-8">
                     <span className="text-zinc-500">Subtotal</span>
-                    <span className="font-medium text-zinc-900 w-28 text-right">${fmt(subtotal)}</span>
+                    <span className="font-medium text-zinc-900 w-28 text-right">{fmt(subtotal)}</span>
                   </div>
                   {form.wht && (
                     <div className="flex gap-8 text-amber-700">
                       <span>WHT 15%</span>
-                      <span className="font-medium w-28 text-right">+ ${fmt(whtAmount)}</span>
+                      <span className="font-medium w-28 text-right">+ {fmt(whtAmount)}</span>
                     </div>
                   )}
                   <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5">
                     <span className="font-semibold text-zinc-700">Grand Total</span>
-                    <span className="font-bold text-zinc-900 w-28 text-right">${fmt(grandTotal)}</span>
+                    <span className="font-bold text-zinc-900 w-28 text-right">{fmt(grandTotal)}</span>
                   </div>
                 </div>
               </div>
@@ -393,13 +414,36 @@ export default function InvoicesView() {
               {formError ? <p className="text-sm text-red-600">{formError}</p> : <span />}
               <div className="flex gap-3">
                 <button onClick={closePanel} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
-                <button onClick={handleSave} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-700 transition">
+                <button onClick={handleSave} className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">
                   {editingId ? 'Save changes' : 'Create invoice'}
                 </button>
               </div>
             </div>
           </div>
         </>
+      )}
+
+      {/* Status change confirm */}
+      {statusChange && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">Change status?</h2>
+            <p className="text-sm text-zinc-500 mb-6">
+              Move from{' '}
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[statusChange.from].cls}`}>
+                {STATUS_CONFIG[statusChange.from].label}
+              </span>
+              {' '}to{' '}
+              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[statusChange.to].cls}`}>
+                {STATUS_CONFIG[statusChange.to].label}
+              </span>
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setStatusChange(null)} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
+              <button onClick={confirmStatusChange} className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition">Confirm</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete confirm */}
@@ -430,4 +474,4 @@ function PanelField({ label, required, children }: { label: string; required?: b
   )
 }
 
-const inputCls = 'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent transition w-full bg-white'
+const inputCls = 'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white'

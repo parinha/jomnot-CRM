@@ -46,11 +46,21 @@ export interface PaymentInfo {
   qrImage: string     // base64 data URL or ''
 }
 
+const DEFAULT_SCOPES = [
+  'Video content',
+  'Photo album (5–10 photos)',
+  'Joining event — shoutout photo/video',
+  'Short reel with music',
+  'Story',
+]
+
 interface AppStore {
   clients: Client[]
   setClients: (c: Client[]) => void
   invoices: Invoice[]
   setInvoices: (inv: Invoice[]) => void
+  scopeOfWork: string[]
+  setScopeOfWork: (s: string[]) => void
 }
 
 const StoreCtx = createContext<AppStore | null>(null)
@@ -58,13 +68,16 @@ const StoreCtx = createContext<AppStore | null>(null)
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [clients, setClientsState] = useState<Client[]>([])
   const [invoices, setInvoicesState] = useState<Invoice[]>([])
+  const [scopeOfWork, setScopeOfWorkState] = useState<string[]>(DEFAULT_SCOPES)
 
   useEffect(() => {
     try {
       const c = localStorage.getItem('app_clients')
       const i = localStorage.getItem('app_invoices')
+      const s = localStorage.getItem('app_scopes')
       if (c) setClientsState(JSON.parse(c))
       if (i) setInvoicesState(JSON.parse(i))
+      if (s) setScopeOfWorkState(JSON.parse(s))
     } catch {}
   }, [])
 
@@ -78,8 +91,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('app_invoices', JSON.stringify(inv))
   }
 
+  function setScopeOfWork(s: string[]) {
+    setScopeOfWorkState(s)
+    localStorage.setItem('app_scopes', JSON.stringify(s))
+  }
+
   return (
-    <StoreCtx.Provider value={{ clients, setClients, invoices, setInvoices }}>
+    <StoreCtx.Provider value={{ clients, setClients, invoices, setInvoices, scopeOfWork, setScopeOfWork }}>
       {children}
     </StoreCtx.Provider>
   )
@@ -92,21 +110,26 @@ export function useStore() {
 }
 
 // Helpers for settings stored outside the React tree (used by print page too)
+function safeGet(key: string): string | null {
+  if (typeof window === 'undefined') return null
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
 export function loadCompanyProfile(): CompanyProfile {
   try {
-    const raw = localStorage.getItem('company_profile')
+    const raw = safeGet('company_profile')
     if (raw) return JSON.parse(raw)
   } catch {}
   return { name: '', logo: '', address: '', phone: '', website: '' }
 }
 
 export function saveCompanyProfile(p: CompanyProfile) {
-  localStorage.setItem('company_profile', JSON.stringify(p))
+  try { localStorage.setItem('company_profile', JSON.stringify(p)) } catch {}
 }
 
 export function loadPaymentInfo(): PaymentInfo {
   try {
-    const raw = localStorage.getItem('payment_info')
+    const raw = safeGet('payment_info')
     if (raw) return JSON.parse(raw)
   } catch {}
   return { abaSwift: '', accountNumber: '', accountName: '', qrImage: '' }
