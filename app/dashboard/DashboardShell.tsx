@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import SidebarHeader from './SidebarHeader'
 import { useStore, type InvoiceStatus } from './AppStore'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
@@ -15,6 +15,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const { clients, invoices } = useStore()
   const router = useRouter()
+  const pathname = usePathname()
   const [query, setQuery] = useState('')
   const [showResults, setShowResults] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
@@ -97,14 +98,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <SidebarHeader />
 
         <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
-          <NavItem href="/dashboard/clients"  label="Clients"  onClick={close} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          <NavItem href="/dashboard/invoices" label="Invoices" onClick={close} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          <NavItem href="/dashboard/projects" label="Projects" onClick={close} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
-          <NavItem href="/dashboard/reports"  label="Reports"  onClick={close} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          <NavItem href="/dashboard/clients"  label="Clients"  onClick={close} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" pathname={pathname} />
+          <NavItem href="/dashboard/invoices" label="Invoices" onClick={close} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" pathname={pathname} />
+          <NavItem href="/dashboard/projects" label="Projects" onClick={close} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" pathname={pathname} />
+          <NavItem href="/dashboard/reports"  label="Reports"  onClick={close} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" pathname={pathname} />
         </nav>
 
         <div className="p-3 border-t border-zinc-100 shrink-0">
-          <NavItem href="/dashboard/settings" label="Settings" onClick={close} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          <NavItem href="/dashboard/settings" label="Settings" onClick={close} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" pathname={pathname} />
         </div>
       </aside>
 
@@ -213,14 +214,20 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   )
 }
 
-function NavItem({ href, label, d, onClick }: { href: string; label: string; d: string; onClick: () => void }) {
+function NavItem({ href, label, d, onClick, pathname }: { href: string; label: string; d: string; onClick: () => void; pathname: string | null }) {
+  const active = pathname === href
   return (
     <Link
       href={href}
       onClick={onClick}
-      className="flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium text-zinc-700 hover:bg-amber-50 hover:text-zinc-900 active:bg-amber-100 transition"
+      className={[
+        'flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium transition',
+        active
+          ? 'bg-amber-100 text-zinc-900'
+          : 'text-zinc-700 hover:bg-amber-50 hover:text-zinc-900 active:bg-amber-100',
+      ].join(' ')}
     >
-      <svg className="w-4 h-4 text-zinc-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <svg className={['w-4 h-4 shrink-0', active ? 'text-amber-600' : 'text-zinc-500'].join(' ')} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d={d} />
       </svg>
       {label}
