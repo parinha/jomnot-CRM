@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react'
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/app/dashboard/AppStore'
 import { loadCompanyProfile, loadPaymentInfo } from '@/app/dashboard/AppStore'
-
-const WHT_RATE = 0.15
-
-function fmt(n: number) {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
+import { WHT_RATE } from '@/app/_config/constants'
+import { fmtUSD as fmt } from '@/app/_lib/formatters'
+import { getInvoices } from '@/app/_services/invoiceService'
+import { getClients } from '@/app/_services/clientService'
 
 interface PrintData {
   invoice: Invoice
@@ -23,8 +21,8 @@ export default function InvoicePrint({ id }: { id: string }) {
 
   useEffect(() => {
     try {
-      const invoices: Invoice[] = JSON.parse(localStorage.getItem('app_invoices') ?? '[]')
-      const clients: Client[] = JSON.parse(localStorage.getItem('app_clients') ?? '[]')
+      const invoices = getInvoices()
+      const clients = getClients()
       const inv = invoices.find((i) => i.id === id)
       if (!inv) { setNotFound(true); return }
       setData({
@@ -49,6 +47,8 @@ export default function InvoicePrint({ id }: { id: string }) {
   const subtotal = invoice.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
   const whtAmount = subtotal * WHT_RATE
   const grandTotal = invoice.wht ? subtotal + whtAmount : subtotal
+  const depositAmount = invoice.depositPercent != null ? grandTotal * (invoice.depositPercent / 100) : null
+  const balanceDue = depositAmount != null ? grandTotal - depositAmount : null
 
   return (
     <>
@@ -68,12 +68,12 @@ export default function InvoicePrint({ id }: { id: string }) {
 
       {/* Screen preview */}
       <div className="no-print pt-14 min-h-screen bg-zinc-300 flex justify-center py-10 px-4">
-        <Sheet invoice={invoice} client={client} company={company} payment={payment} subtotal={subtotal} whtAmount={whtAmount} grandTotal={grandTotal} />
+        <Sheet invoice={invoice} client={client} company={company} payment={payment} subtotal={subtotal} whtAmount={whtAmount} grandTotal={grandTotal} depositAmount={depositAmount} balanceDue={balanceDue} />
       </div>
 
       {/* Print-only output */}
       <div className="print-only">
-        <Sheet invoice={invoice} client={client} company={company} payment={payment} subtotal={subtotal} whtAmount={whtAmount} grandTotal={grandTotal} />
+        <Sheet invoice={invoice} client={client} company={company} payment={payment} subtotal={subtotal} whtAmount={whtAmount} grandTotal={grandTotal} depositAmount={depositAmount} balanceDue={balanceDue} />
       </div>
 
       <style>{`
@@ -92,7 +92,7 @@ export default function InvoicePrint({ id }: { id: string }) {
 }
 
 function Sheet({
-  invoice, client, company, payment, subtotal, whtAmount, grandTotal,
+  invoice, client, company, payment, subtotal, whtAmount, grandTotal, depositAmount, balanceDue,
 }: {
   invoice: Invoice
   client: Client | null
@@ -101,6 +101,8 @@ function Sheet({
   subtotal: number
   whtAmount: number
   grandTotal: number
+  depositAmount: number | null
+  balanceDue: number | null
 }) {
   const hasPaymentInfo = payment.accountName || payment.accountNumber || payment.abaSwift || payment.qrImage
 
@@ -204,6 +206,18 @@ function Sheet({
             <span style={{ fontWeight: 700, fontSize: '13px' }}>Grand Total</span>
             <span style={{ fontWeight: 800, fontSize: '13px' }}>{fmt(grandTotal)}</span>
           </div>
+          {depositAmount != null && balanceDue != null && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #e4e4e7', color: '#166534' }}>
+                <span>Deposit ({invoice.depositPercent}%)</span>
+                <span style={{ fontWeight: 600 }}>− {fmt(depositAmount)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderTop: '2px solid #166534', marginTop: '2px' }}>
+                <span style={{ fontWeight: 700, fontSize: '13px', color: '#166534' }}>Balance Due</span>
+                <span style={{ fontWeight: 800, fontSize: '13px', color: '#166534' }}>{fmt(balanceDue)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

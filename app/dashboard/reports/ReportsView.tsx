@@ -2,24 +2,11 @@
 
 import { useState } from 'react'
 import { useStore, type Invoice, type InvoiceStatus } from '../AppStore'
+import { STATUS_CONFIG } from '@/app/_config/statusConfig'
+import { fmtUSD as fmt, fmtShort } from '@/app/_lib/formatters'
+import { calcSubtotal } from '@/app/_services/invoiceService'
 
 type Period = 'weekly' | 'monthly' | 'yearly'
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function net(inv: Invoice): number {
-  return inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
-}
-
-function fmt(n: number): string {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-}
-
-function fmtShort(n: number): string {
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}k`
-  return fmt(n)
-}
 
 function invPeriodKey(inv: Invoice, period: Period): string {
   const d = new Date(inv.date)
@@ -56,13 +43,6 @@ function generateBuckets(period: Period): { key: string; label: string }[] {
   })
 }
 
-const STATUS_META: Record<InvoiceStatus, { label: string; color: string; bg: string; bar: string }> = {
-  paid:    { label: 'Paid',    color: 'text-green-700', bg: 'bg-green-50 border-green-200',  bar: 'bg-green-500' },
-  sent:    { label: 'Sent',    color: 'text-blue-700',  bg: 'bg-blue-50 border-blue-200',    bar: 'bg-blue-500' },
-  overdue: { label: 'Overdue', color: 'text-red-700',   bg: 'bg-red-50 border-red-200',      bar: 'bg-red-500' },
-  draft:   { label: 'Draft',   color: 'text-zinc-600',  bg: 'bg-zinc-50 border-zinc-200',    bar: 'bg-zinc-400' },
-}
-
 const BAR_COLORS = ['#FFC206', '#E5AE00', '#71717a', '#a1a1aa', '#d4d4d8']
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -75,18 +55,18 @@ export default function ReportsView() {
   const base = clientFilter === 'all' ? invoices : invoices.filter((inv) => inv.clientId === clientFilter)
 
   // Summary
-  const totalEarned  = base.reduce((s, inv) => s + net(inv), 0)
-  const paidAmount   = base.filter((inv) => (inv.status ?? 'draft') === 'paid').reduce((s, inv) => s + net(inv), 0)
-  const outstanding  = base.filter((inv) => ['sent', 'overdue'].includes(inv.status ?? 'draft')).reduce((s, inv) => s + net(inv), 0)
+  const totalEarned  = base.reduce((s, inv) => s + calcSubtotal(inv), 0)
+  const paidAmount   = base.filter((inv) => (inv.status ?? 'draft') === 'paid').reduce((s, inv) => s + calcSubtotal(inv), 0)
+  const outstanding  = base.filter((inv) => ['sent', 'overdue'].includes(inv.status ?? 'draft')).reduce((s, inv) => s + calcSubtotal(inv), 0)
   const overdueCount = base.filter((inv) => (inv.status ?? 'draft') === 'overdue').length
   const whtInvoices  = base.filter((inv) => inv.wht)
-  const whtTax       = whtInvoices.reduce((s, inv) => s + net(inv) * 0.15, 0)
+  const whtTax       = whtInvoices.reduce((s, inv) => s + calcSubtotal(inv) * 0.15, 0)
 
   // Bar chart
   const buckets   = generateBuckets(period)
   const bucketData = buckets.map((b) => {
     const matched = base.filter((inv) => invPeriodKey(inv, period) === b.key)
-    return { ...b, revenue: matched.reduce((s, inv) => s + net(inv), 0), count: matched.length }
+    return { ...b, revenue: matched.reduce((s, inv) => s + calcSubtotal(inv), 0), count: matched.length }
   })
   const maxRevenue = Math.max(...bucketData.map((b) => b.revenue), 1)
 
@@ -94,7 +74,7 @@ export default function ReportsView() {
   const clientData = clients
     .map((c) => {
       const byClient = base.filter((inv) => inv.clientId === c.id)
-      return { id: c.id, name: c.name, revenue: byClient.reduce((s, inv) => s + net(inv), 0), count: byClient.length }
+      return { id: c.id, name: c.name, revenue: byClient.reduce((s, inv) => s + calcSubtotal(inv), 0), count: byClient.length }
     })
     .filter((c) => c.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
@@ -103,7 +83,7 @@ export default function ReportsView() {
   // Status breakdown
   const statusData = (['paid', 'sent', 'overdue', 'draft'] as InvoiceStatus[]).map((s) => {
     const matched = base.filter((inv) => (inv.status ?? 'draft') === s)
-    return { status: s, count: matched.length, revenue: matched.reduce((sum, inv) => sum + net(inv), 0) }
+    return { status: s, count: matched.length, revenue: matched.reduce((sum, inv) => sum + calcSubtotal(inv), 0) }
   })
 
   // Top scopes of work
@@ -229,7 +209,7 @@ export default function ReportsView() {
           <h2 className="text-sm font-semibold text-zinc-900 mb-4">Invoice status</h2>
           <div className="flex flex-col gap-3">
             {statusData.map(({ status, count, revenue }) => {
-              const meta = STATUS_META[status]
+              const meta = STATUS_CONFIG[status]
               const pct = base.length > 0 ? (count / base.length) * 100 : 0
               return (
                 <div key={status}>

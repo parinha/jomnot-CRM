@@ -1,6 +1,13 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { DEFAULT_SCOPES } from '@/app/_config/constants'
+import { getClients,  saveClients  } from '@/app/_services/clientService'
+import { getInvoices, saveInvoices } from '@/app/_services/invoiceService'
+import { getProjects, saveProjects } from '@/app/_services/projectService'
+import { getScopes,   saveScopes   } from '@/app/_services/scopeService'
+
+// ── Domain types ──────────────────────────────────────────────────────────────
 
 export interface Client {
   id: string
@@ -17,7 +24,7 @@ export interface LineItem {
   unitPrice: number
 }
 
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue'
+export type InvoiceStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'overdue'
 
 export interface Invoice {
   id: string
@@ -29,11 +36,12 @@ export interface Invoice {
   items: LineItem[]
   wht: boolean
   notes: string
+  depositPercent?: number
 }
 
 export interface CompanyProfile {
   name: string
-  logo: string        // base64 data URL or ''
+  logo: string
   address: string
   phone: string
   website: string
@@ -43,22 +51,38 @@ export interface PaymentInfo {
   abaSwift: string
   accountNumber: string
   accountName: string
-  qrImage: string     // base64 data URL or ''
+  qrImage: string
 }
 
-const DEFAULT_SCOPES = [
-  'Video content',
-  'Photo album (5–10 photos)',
-  'Joining event — shoutout photo/video',
-  'Short reel with music',
-  'Story',
-]
+export type ProjectItemStatus = 'todo' | 'in-progress' | 'done'
+
+export interface ProjectItem {
+  id: string
+  description: string
+  status: ProjectItemStatus
+}
+
+export type ProjectStatus = 'active' | 'completed' | 'on-hold'
+
+export interface Project {
+  id: string
+  name: string
+  clientId: string
+  invoiceIds: string[]
+  items: ProjectItem[]
+  status: ProjectStatus
+  createdAt: string
+}
+
+// ── Store interface ───────────────────────────────────────────────────────────
 
 interface AppStore {
   clients: Client[]
   setClients: (c: Client[]) => void
   invoices: Invoice[]
   setInvoices: (inv: Invoice[]) => void
+  projects: Project[]
+  setProjects: (p: Project[]) => void
   scopeOfWork: string[]
   setScopeOfWork: (s: string[]) => void
 }
@@ -66,38 +90,41 @@ interface AppStore {
 const StoreCtx = createContext<AppStore | null>(null)
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
-  const [clients, setClientsState] = useState<Client[]>([])
-  const [invoices, setInvoicesState] = useState<Invoice[]>([])
+  const [clients,     setClientsState]     = useState<Client[]>([])
+  const [invoices,    setInvoicesState]    = useState<Invoice[]>([])
+  const [projects,    setProjectsState]    = useState<Project[]>([])
   const [scopeOfWork, setScopeOfWorkState] = useState<string[]>(DEFAULT_SCOPES)
 
+  // Initial hydration from storage (swap getClients() for Firestore queries when migrating)
   useEffect(() => {
-    try {
-      const c = localStorage.getItem('app_clients')
-      const i = localStorage.getItem('app_invoices')
-      const s = localStorage.getItem('app_scopes')
-      if (c) setClientsState(JSON.parse(c))
-      if (i) setInvoicesState(JSON.parse(i))
-      if (s) setScopeOfWorkState(JSON.parse(s))
-    } catch {}
+    setClientsState(getClients())
+    setInvoicesState(getInvoices())
+    setProjectsState(getProjects())
+    setScopeOfWorkState(getScopes())
   }, [])
 
   function setClients(c: Client[]) {
     setClientsState(c)
-    localStorage.setItem('app_clients', JSON.stringify(c))
+    saveClients(c)
   }
 
   function setInvoices(inv: Invoice[]) {
     setInvoicesState(inv)
-    localStorage.setItem('app_invoices', JSON.stringify(inv))
+    saveInvoices(inv)
+  }
+
+  function setProjects(p: Project[]) {
+    setProjectsState(p)
+    saveProjects(p)
   }
 
   function setScopeOfWork(s: string[]) {
     setScopeOfWorkState(s)
-    localStorage.setItem('app_scopes', JSON.stringify(s))
+    saveScopes(s)
   }
 
   return (
-    <StoreCtx.Provider value={{ clients, setClients, invoices, setInvoices, scopeOfWork, setScopeOfWork }}>
+    <StoreCtx.Provider value={{ clients, setClients, invoices, setInvoices, projects, setProjects, scopeOfWork, setScopeOfWork }}>
       {children}
     </StoreCtx.Provider>
   )
@@ -109,32 +136,8 @@ export function useStore() {
   return ctx
 }
 
-// Helpers for settings stored outside the React tree (used by print page too)
-function safeGet(key: string): string | null {
-  if (typeof window === 'undefined') return null
-  try { return localStorage.getItem(key) } catch { return null }
-}
-
-export function loadCompanyProfile(): CompanyProfile {
-  try {
-    const raw = safeGet('company_profile')
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { name: '', logo: '', address: '', phone: '', website: '' }
-}
-
-export function saveCompanyProfile(p: CompanyProfile) {
-  try { localStorage.setItem('company_profile', JSON.stringify(p)) } catch {}
-}
-
-export function loadPaymentInfo(): PaymentInfo {
-  try {
-    const raw = safeGet('payment_info')
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { abaSwift: '', accountNumber: '', accountName: '', qrImage: '' }
-}
-
-export function savePaymentInfo(p: PaymentInfo) {
-  localStorage.setItem('payment_info', JSON.stringify(p))
-}
+// ── Settings helpers (re-exported from settingsService for backward compat) ───
+export { getCompanyProfile  as loadCompanyProfile  } from '@/app/_services/settingsService'
+export { saveCompanyProfile                        } from '@/app/_services/settingsService'
+export { getPaymentInfo     as loadPaymentInfo     } from '@/app/_services/settingsService'
+export { savePaymentInfo                           } from '@/app/_services/settingsService'

@@ -1,65 +1,111 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore, type Client } from '../AppStore'
+import { calcInvoiceTotal } from '@/app/_services/invoiceService'
+import { fmtUSD } from '@/app/_lib/formatters'
+import { uid } from '@/app/_lib/id'
+import { PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants'
+import { PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig'
+import SortTh      from '@/app/_components/SortTh'
+import SearchInput from '@/app/_components/SearchInput'
+import Pagination  from '@/app/_components/Pagination'
+import FormField   from '@/app/_components/FormField'
+import ModalShell  from '@/app/_components/ModalShell'
 
 const EMPTY_FORM: Omit<Client, 'id'> = { name: '', phone: '', address: '', email: '' }
 
-function generateId() {
-  return Math.random().toString(36).slice(2, 10)
-}
+type CliSortCol = 'name' | 'invoices' | 'earned'
 
 export default function ClientsView() {
-  const { clients, setClients, invoices } = useStore()
+  const { clients, setClients, invoices, projects } = useStore()
 
-  function clientStats(clientId: string) {
-    const clientInvoices = invoices.filter((inv) => inv.clientId === clientId)
-    const earned = clientInvoices.reduce(
-      (sum, inv) => sum + inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0),
-      0
-    )
-    return { count: clientInvoices.length, earned }
+  const [search, setSearch] = useState('')
+
+  const filteredClients = search.trim()
+    ? clients.filter((c) => {
+        const q = search.toLowerCase()
+        return (
+          c.name.toLowerCase().includes(q) ||
+          c.email.toLowerCase().includes(q) ||
+          c.phone.toLowerCase().includes(q) ||
+          c.address.toLowerCase().includes(q)
+        )
+      })
+    : clients
+
+  // ── Sort ────────────────────────────────────────────────────────────────────
+  const [sortCol, setSortCol] = useState<CliSortCol>(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(STORAGE_KEYS.tableCliCol) as CliSortCol) ?? 'name' : 'name'
+  )
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() =>
+    typeof window !== 'undefined' ? (localStorage.getItem(STORAGE_KEYS.tableCliDir) as 'asc' | 'desc') ?? 'asc' : 'asc'
+  )
+  const [page, setPage] = useState<number>(() =>
+    typeof window !== 'undefined' ? parseInt(localStorage.getItem(STORAGE_KEYS.tableCliPage) ?? '1') || 1 : 1
+  )
+
+  function handleSort(col: string) {
+    const nextDir = sortCol === col && sortDir === 'asc' ? 'desc' : 'asc'
+    setSortCol(col as CliSortCol); setSortDir(nextDir); setPage(1)
+    localStorage.setItem(STORAGE_KEYS.tableCliCol, col)
+    localStorage.setItem(STORAGE_KEYS.tableCliDir, nextDir)
+    localStorage.setItem(STORAGE_KEYS.tableCliPage, '1')
   }
 
-  function fmtUSD(n: number) {
-    return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+  function goToPage(p: number) {
+    setPage(p)
+    localStorage.setItem(STORAGE_KEYS.tableCliPage, String(p))
   }
-  const [modalOpen, setModalOpen] = useState(false)
+
+  // Precompute stats for sorting — use calcInvoiceTotal so WHT invoices are counted correctly
+  const statsMap = new Map(clients.map((c) => {
+    const ci     = invoices.filter((inv) => inv.clientId === c.id)
+    const earned = ci.reduce((s, inv) => s + calcInvoiceTotal(inv), 0)
+    return [c.id, { count: ci.length, earned }]
+  }))
+
+  const sortedClients = [...filteredClients].sort((a, b) => {
+    let cmp = 0
+    if (sortCol === 'name')     cmp = a.name.localeCompare(b.name)
+    if (sortCol === 'invoices') cmp = (statsMap.get(a.id)?.count ?? 0)  - (statsMap.get(b.id)?.count ?? 0)
+    if (sortCol === 'earned')   cmp = (statsMap.get(a.id)?.earned ?? 0) - (statsMap.get(b.id)?.earned ?? 0)
+    return sortDir === 'asc' ? cmp : -cmp
+  })
+
+  const totalPages  = Math.max(1, Math.ceil(sortedClients.length / PAGE_SIZE))
+  const safePage    = Math.min(page, totalPages)
+  const pagedClients = sortedClients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
+  useEffect(() => { goToPage(1) }, [clients.length, search]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Modal state ─────────────────────────────────────────────────────────────
+  const [modalOpen, setModalOpen]     = useState(false)
   const [editingClient, setEditingClient] = useState<Client | null>(null)
-  const [form, setForm] = useState(EMPTY_FORM)
-  const [deleteId, setDeleteId] = useState<string | null>(null)
-  const [formError, setFormError] = useState('')
+  const [form, setForm]               = useState(EMPTY_FORM)
+  const [formError, setFormError]     = useState('')
+  const [deleteId, setDeleteId]       = useState<string | null>(null)
+  const [projectsClientId, setProjectsClientId] = useState<string | null>(null)
 
   function openAdd() {
-    setEditingClient(null)
-    setForm(EMPTY_FORM)
-    setFormError('')
-    setModalOpen(true)
+    setEditingClient(null); setForm(EMPTY_FORM); setFormError(''); setModalOpen(true)
   }
-
   function openEdit(client: Client) {
     setEditingClient(client)
     setForm({ name: client.name, phone: client.phone, address: client.address, email: client.email })
     setFormError('')
     setModalOpen(true)
   }
-
   function closeModal() {
-    setModalOpen(false)
-    setEditingClient(null)
-    setForm(EMPTY_FORM)
-    setFormError('')
+    setModalOpen(false); setEditingClient(null); setForm(EMPTY_FORM); setFormError('')
   }
 
   function handleSave() {
-    if (!form.name.trim() || !form.email.trim()) {
-      setFormError('Name and email are required.')
-      return
-    }
+    if (!form.name.trim() || !form.email.trim()) { setFormError('Name and email are required.'); return }
     if (editingClient) {
       setClients(clients.map((c) => (c.id === editingClient.id ? { ...editingClient, ...form } : c)))
     } else {
-      setClients([...clients, { id: generateId(), ...form }])
+      setClients([...clients, { id: uid(), ...form }])
     }
     closeModal()
   }
@@ -87,6 +133,13 @@ export default function ClientsView() {
         </button>
       </div>
 
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by name, email, phone, address…"
+        className="mb-3"
+      />
+
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
         {clients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
@@ -95,65 +148,84 @@ export default function ClientsView() {
             </svg>
             <p className="text-sm">No clients yet. Add your first one.</p>
           </div>
+        ) : sortedClients.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-14 text-zinc-400">
+            <p className="text-sm">No clients match your search.</p>
+            <button onClick={() => setSearch('')} className="mt-2 text-xs text-brand hover:underline">Clear search</button>
+          </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Name</th>
+                <SortTh col="name"     active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3">Name</SortTh>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Email</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Phone</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden lg:table-cell">Address</th>
-                <th className="text-center px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Invoices</th>
-                <th className="text-right px-4 py-3 font-medium text-zinc-500">Earned</th>
+                <SortTh col="invoices" active={sortCol} dir={sortDir} onSort={handleSort} className="text-center px-4 py-3 hidden sm:table-cell">Invoices</SortTh>
+                <th className="text-center px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Projects</th>
+                <SortTh col="earned"   active={sortCol} dir={sortDir} onSort={handleSort} className="text-right px-4 py-3">Earned</SortTh>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {clients.map((client, i) => (
-                <tr
-                  key={client.id}
-                  className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
-                >
-                  <td className="px-4 py-3 font-medium text-zinc-900">{client.name}</td>
-                  <td className="px-4 py-3 text-zinc-600 hidden sm:table-cell">{client.email}</td>
-                  <td className="px-4 py-3 text-zinc-600 hidden md:table-cell">{client.phone || '—'}</td>
-                  <td className="px-4 py-3 text-zinc-600 max-w-xs truncate hidden lg:table-cell">{client.address || '—'}</td>
-                  <ClientStatsCells clientId={client.id} invoices={invoices} fmtUSD={fmtUSD} />
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => openEdit(client)}
-                        className="text-xs px-3 py-1.5 rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 transition"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(client.id)}
-                        className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {pagedClients.map((client, i) => {
+                const stats        = statsMap.get(client.id)
+                const projectCount = projects.filter((p) => p.clientId === client.id).length
+                return (
+                  <tr
+                    key={client.id}
+                    className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
+                  >
+                    <td className="px-4 py-3 font-medium text-zinc-900">{client.name}</td>
+                    <td className="px-4 py-3 text-zinc-600 hidden sm:table-cell">{client.email}</td>
+                    <td className="px-4 py-3 text-zinc-600 hidden md:table-cell">{client.phone || '—'}</td>
+                    <td className="px-4 py-3 text-zinc-600 max-w-xs truncate hidden lg:table-cell">{client.address || '—'}</td>
+                    <td className="px-4 py-3 text-center hidden sm:table-cell">
+                      {stats && stats.count > 0
+                        ? <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700">{stats.count}</span>
+                        : <span className="text-zinc-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-center hidden md:table-cell">
+                      {projectCount > 0
+                        ? (
+                          <button
+                            onClick={() => setProjectsClientId(client.id)}
+                            className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 hover:bg-blue-100 transition"
+                          >
+                            {projectCount}
+                          </button>
+                        )
+                        : <span className="text-zinc-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-zinc-900">
+                      {stats && stats.count > 0 ? fmtUSD(stats.earned) : <span className="text-zinc-300 text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openEdit(client)} className="text-xs px-3 py-1.5 rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 transition">Edit</button>
+                        <button onClick={() => setDeleteId(client.id)} className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}
       </div>
 
-      {/* Add / Edit Modal */}
+      <Pagination page={safePage} totalPages={totalPages} totalItems={sortedClients.length} pageSize={PAGE_SIZE} onPageChange={goToPage} />
+
+      {/* ── Add / Edit modal ──────────────────────────────────────────────────── */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 mb-5">
-              {editingClient ? 'Edit client' : 'Add client'}
-            </h2>
+        <ModalShell onClose={closeModal}>
+          <div className="p-6">
+            <h2 className="text-lg font-semibold text-zinc-900 mb-5">{editingClient ? 'Edit client' : 'Add client'}</h2>
             <div className="flex flex-col gap-4">
-              <Field label="Name *" id="name" value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} placeholder="Jane Doe" />
-              <Field label="Email *" id="email" type="email" value={form.email} onChange={(v) => setForm((p) => ({ ...p, email: v }))} placeholder="jane@example.com" />
-              <Field label="Phone" id="phone" value={form.phone} onChange={(v) => setForm((p) => ({ ...p, phone: v }))} placeholder="+1 555 000 0000" />
-              <Field label="Address" id="address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} placeholder="123 Main St, City" />
+              <FormField label="Name" id="name" required value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} placeholder="Jane Doe" />
+              <FormField label="Email" id="email" type="email" required value={form.email} onChange={(v) => setForm((p) => ({ ...p, email: v }))} placeholder="jane@example.com" />
+              <FormField label="Phone" id="phone" value={form.phone} onChange={(v) => setForm((p) => ({ ...p, phone: v }))} placeholder="+1 555 000 0000" />
+              <FormField label="Address" id="address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} placeholder="123 Main St, City" />
             </div>
             {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
             <div className="flex gap-3 mt-6 justify-end">
@@ -163,13 +235,13 @@ export default function ClientsView() {
               </button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
 
-      {/* Delete Confirm */}
+      {/* ── Delete confirm ────────────────────────────────────────────────────── */}
       {deleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-          <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6">
+        <ModalShell onClose={() => setDeleteId(null)} maxWidth="max-w-sm">
+          <div className="p-6">
             <h2 className="text-lg font-semibold text-zinc-900 mb-2">Delete client?</h2>
             <p className="text-sm text-zinc-500 mb-6">This action cannot be undone.</p>
             <div className="flex gap-3 justify-end">
@@ -177,42 +249,66 @@ export default function ClientsView() {
               <button onClick={() => handleDelete(deleteId)} className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition">Delete</button>
             </div>
           </div>
-        </div>
+        </ModalShell>
       )}
+
+      {/* ── Client projects popup ─────────────────────────────────────────────── */}
+      {projectsClientId && (() => {
+        const client         = clients.find((c) => c.id === projectsClientId)
+        const clientProjects = projects.filter((p) => p.clientId === projectsClientId)
+        return (
+          <ModalShell onClose={() => setProjectsClientId(null)} maxWidth="max-w-lg">
+            <div className="flex flex-col max-h-[85vh]">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+                <div>
+                  <h2 className="text-lg font-semibold text-zinc-900">{client?.name}</h2>
+                  <p className="text-sm text-zinc-500 mt-0.5">{clientProjects.length} project{clientProjects.length !== 1 ? 's' : ''}</p>
+                </div>
+                <button onClick={() => setProjectsClientId(null)} className="text-zinc-400 hover:text-zinc-700 transition">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-3">
+                {clientProjects.map((project) => {
+                  const linkedInvs = project.invoiceIds.map((id) => invoices.find((i) => i.id === id)).filter(Boolean)
+                  // earned = gross total paid by client (including WHT where applicable)
+                  const earned     = linkedInvs.reduce((sum, inv) => sum + (inv ? calcInvoiceTotal(inv) : 0), 0)
+                  const doneCount  = project.items.filter((it) => it.status === 'done').length
+                  const totalItems = project.items.length
+                  const pct        = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
+                  const sc         = PROJECT_STATUS_CONFIG[project.status]
+                  return (
+                    <div key={project.id} className="rounded-xl border border-zinc-200 p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="min-w-0">
+                          <p className="font-medium text-zinc-900 truncate">{project.name}</p>
+                          {linkedInvs.length > 0 && (
+                            <p className="text-xs text-zinc-400 mt-0.5">{linkedInvs.map((inv) => inv?.number).join(', ')}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}>{sc.label}</span>
+                          {earned > 0 && <span className="text-sm font-semibold text-zinc-900">{fmtUSD(earned)}</span>}
+                        </div>
+                      </div>
+                      {totalItems > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full bg-zinc-100 overflow-hidden">
+                            <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                          <span className="text-xs text-zinc-500 shrink-0">{doneCount}/{totalItems} done</span>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-zinc-400">No scope items</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </ModalShell>
+        )
+      })()}
     </>
-  )
-}
-
-import type { Invoice } from '../AppStore'
-
-function ClientStatsCells({ clientId, invoices, fmtUSD }: { clientId: string; invoices: Invoice[]; fmtUSD: (n: number) => string }) {
-  const clientInvoices = invoices.filter((inv) => inv.clientId === clientId)
-  const count = clientInvoices.length
-  const earned = clientInvoices.reduce((sum, inv) => sum + inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0), 0)
-  return (
-    <>
-      <td className="px-4 py-3 text-center hidden sm:table-cell">
-        {count > 0
-          ? <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700">{count}</span>
-          : <span className="text-zinc-300 text-xs">—</span>}
-      </td>
-      <td className="px-4 py-3 text-right font-medium text-zinc-900">
-        {count > 0 ? fmtUSD(earned) : <span className="text-zinc-300 text-xs">—</span>}
-      </td>
-    </>
-  )
-}
-
-function Field({ label, id, value, onChange, placeholder, type = 'text' }: {
-  label: string; id: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string
-}) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-zinc-700">{label}</label>
-      <input
-        id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        className="h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition"
-      />
-    </div>
   )
 }

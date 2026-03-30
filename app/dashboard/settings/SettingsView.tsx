@@ -10,6 +10,9 @@ import {
   type CompanyProfile,
   type PaymentInfo,
 } from '../AppStore'
+import { saveClients } from '@/app/_services/clientService'
+import { saveInvoices } from '@/app/_services/invoiceService'
+import FormField from '@/app/_components/FormField'
 
 export default function SettingsView() {
   const { scopeOfWork, setScopeOfWork } = useStore()
@@ -109,10 +112,10 @@ export default function SettingsView() {
             </div>
           </div>
 
-          <Field label="Company Name" value={profile.name} onChange={(v) => setP('name', v)} placeholder="Acme Studio Co., Ltd." />
-          <Field label="Address" value={profile.address} onChange={(v) => setP('address', v)} placeholder="123 Studio Street, Bangkok 10110" textarea />
-          <Field label="Phone" value={profile.phone} onChange={(v) => setP('phone', v)} placeholder="+66 2 000 0000" />
-          <Field label="Website" value={profile.website} onChange={(v) => setP('website', v)} placeholder="www.yourstudio.com" />
+          <FormField label="Company Name" value={profile.name} onChange={(v) => setP('name', v)} placeholder="Acme Studio Co., Ltd." />
+          <FormField label="Address" value={profile.address} onChange={(v) => setP('address', v)} placeholder="123 Studio Street, Bangkok 10110" textarea />
+          <FormField label="Phone" value={profile.phone} onChange={(v) => setP('phone', v)} placeholder="+66 2 000 0000" />
+          <FormField label="Website" value={profile.website} onChange={(v) => setP('website', v)} placeholder="www.yourstudio.com" />
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
@@ -129,9 +132,9 @@ export default function SettingsView() {
         <p className="text-xs text-zinc-400 mb-5">Shown at the bottom of every invoice so clients know how to pay.</p>
 
         <div className="flex flex-col gap-4">
-          <Field label="Account Name" value={payment.accountName} onChange={(v) => setPay('accountName', v)} placeholder="Acme Studio Co., Ltd." />
-          <Field label="Account Number" value={payment.accountNumber} onChange={(v) => setPay('accountNumber', v)} placeholder="000-0-00000-0" />
-          <Field label="ABA / SWIFT Code" value={payment.abaSwift} onChange={(v) => setPay('abaSwift', v)} placeholder="KASITHBK" />
+          <FormField label="Account Name" value={payment.accountName} onChange={(v) => setPay('accountName', v)} placeholder="Acme Studio Co., Ltd." />
+          <FormField label="Account Number" value={payment.accountNumber} onChange={(v) => setPay('accountNumber', v)} placeholder="000-0-00000-0" />
+          <FormField label="ABA / SWIFT Code" value={payment.abaSwift} onChange={(v) => setPay('abaSwift', v)} placeholder="KASITHBK" />
 
           {/* QR Code */}
           <div className="flex flex-col gap-1.5">
@@ -275,10 +278,10 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
       qrImage: '',
     }
 
-    localStorage.setItem('app_clients', JSON.stringify(clients))
-    localStorage.setItem('app_invoices', JSON.stringify(invoices))
-    localStorage.setItem('company_profile', JSON.stringify(company))
-    localStorage.setItem('payment_info', JSON.stringify(payment))
+    saveClients(clients)
+    saveInvoices(invoices as import('@/app/dashboard/AppStore').Invoice[])
+    saveCompanyProfile(company)
+    savePaymentInfo(payment)
 
     onSeeded()
     setDone(true)
@@ -378,24 +381,3 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
   )
 }
 
-function Field({
-  label, value, onChange, placeholder, textarea,
-}: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  placeholder?: string
-  textarea?: boolean
-}) {
-  const cls = 'rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full'
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-zinc-700">{label}</label>
-      {textarea ? (
-        <textarea rows={2} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`${cls} resize-none`} />
-      ) : (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={`${cls} h-10`} />
-      )}
-    </div>
-  )
-}
