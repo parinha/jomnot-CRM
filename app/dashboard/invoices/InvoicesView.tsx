@@ -16,9 +16,14 @@ import ProjectDetailModal from '@/app/_components/ProjectDetailModal'
 const fmt = fmtUSD
 
 function nextInvoiceNumber(invoices: Invoice[]): string {
-  const year  = new Date().getFullYear()
-  const count = invoices.filter((inv) => inv.number.startsWith(`INV-${year}`)).length
-  return `INV-${year}-${String(count + 1).padStart(3, '0')}`
+  const year   = new Date().getFullYear()
+  const prefix = `INV-${year}-`
+  const max    = invoices.reduce((m, inv) => {
+    if (!inv.number.startsWith(prefix)) return m
+    const n = parseInt(inv.number.slice(prefix.length), 10)
+    return isNaN(n) ? m : Math.max(m, n)
+  }, 0)
+  return `${prefix}${String(max + 1).padStart(3, '0')}`
 }
 
 function emptyItem(): LineItem {
@@ -100,6 +105,8 @@ export default function InvoicesView() {
   function handleSave() {
     if (!form.clientId)  { setFormError('Please select a client.'); return }
     if (!form.number.trim()) { setFormError('Invoice number is required.'); return }
+    const duplicate = invoices.find((inv) => inv.number === form.number.trim() && inv.id !== editingId)
+    if (duplicate) { setFormError(`Invoice number "${form.number.trim()}" is already used.`); return }
     if (form.items.some((it) => !it.description.trim())) { setFormError('All line items need a description.'); return }
     if (editingId) {
       setInvoices(invoices.map((inv) => (inv.id === editingId ? { id: editingId, ...form } : inv)))
