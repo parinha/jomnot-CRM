@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useStore, type Invoice, type LineItem, type InvoiceStatus, type Client, type ProjectItemStatus } from '../AppStore'
 import { calcInvoiceTotal, calcSubtotal } from '@/app/_services/invoiceService'
 import { fmtUSD } from '@/app/_lib/formatters'
@@ -37,6 +38,9 @@ const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '',
 
 export default function InvoicesView() {
   const { clients, setClients, invoices, setInvoices, projects, setProjects, scopeOfWork } = useStore()
+  const searchParams = useSearchParams()
+  const router       = useRouter()
+  const didAutoOpen  = useRef(false)
 
   // ── Summary stats ──────────────────────────────────────────────────────────
   const paidInvoices    = invoices.filter((inv) => inv.status === 'paid')
@@ -74,6 +78,15 @@ export default function InvoicesView() {
     setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
     setPanelOpen(true)
   }
+
+  useEffect(() => {
+    if (didAutoOpen.current) return
+    if (searchParams.get('new') === '1') {
+      didAutoOpen.current = true
+      openNew()
+      router.replace('/dashboard/invoices')
+    }
+  }, [searchParams])
   function openEdit(inv: Invoice) {
     setEditingId(inv.id)
     setForm({ number: inv.number, date: inv.date, paymentTerms: inv.paymentTerms ?? 'Due on receipt', status: inv.status ?? 'draft', clientId: inv.clientId, projectName: inv.projectName ?? '', items: inv.items, notes: inv.notes, depositPercent: inv.depositPercent })

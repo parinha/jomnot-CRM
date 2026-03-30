@@ -29,7 +29,8 @@ export default function ClientsView() {
     ? clients.filter((c) => {
         const q = search.toLowerCase()
         return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) ||
-               c.phone.toLowerCase().includes(q) || c.address.toLowerCase().includes(q)
+               c.phone.toLowerCase().includes(q) || c.address.toLowerCase().includes(q) ||
+               (c.note ?? '').toLowerCase().includes(q)
       })
     : clients
 
