@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/app/dashboard/AppStore'
-import { loadCompanyProfile, loadPaymentInfo } from '@/app/dashboard/AppStore'
 import { fmtUSD as fmt } from '@/app/_lib/formatters'
 import { getInvoices } from '@/app/_services/invoiceService'
 import { getClients } from '@/app/_services/clientService'
+import { getCompanyProfile, getPaymentInfo } from '@/app/_services/settingsService'
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const DARK   = '#1a1a1a'
@@ -25,16 +25,25 @@ export default function InvoicePrint({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    try {
-      const inv = getInvoices().find((i) => i.id === id)
-      if (!inv) { setNotFound(true); return }
-      setData({
-        invoice: inv,
-        client:  getClients().find((c) => c.id === inv.clientId) ?? null,
-        company: loadCompanyProfile(),
-        payment: loadPaymentInfo(),
-      })
-    } catch { setNotFound(true) }
+    async function load() {
+      try {
+        const [invoices, clients, company, payment] = await Promise.all([
+          getInvoices(),
+          getClients(),
+          getCompanyProfile(),
+          getPaymentInfo(),
+        ])
+        const inv = invoices.find((i) => i.id === id)
+        if (!inv) { setNotFound(true); return }
+        setData({
+          invoice: inv,
+          client:  clients.find((c) => c.id === inv.clientId) ?? null,
+          company,
+          payment,
+        })
+      } catch { setNotFound(true) }
+    }
+    load()
   }, [id])
 
   if (notFound) return (

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import SidebarHeader from './SidebarHeader'
 import { useStore, type InvoiceStatus } from './AppStore'
+import { useAuth } from '@/app/_context/AuthContext'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { calcInvoiceTotal } from '@/app/_services/invoiceService'
@@ -12,6 +13,7 @@ import { calcInvoiceTotal } from '@/app/_services/invoiceService'
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false)
   const close = () => setOpen(false)
+  const { signOut } = useAuth()
 
   const { clients, invoices } = useStore()
   const router = useRouter()
@@ -205,9 +207,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             )}
           </div>
 
-          <Link href="/login" className="text-sm text-zinc-500 hover:text-zinc-900 transition shrink-0 ml-auto">
+          <button
+            onClick={async () => { await signOut(); router.replace('/login') }}
+            className="text-sm text-zinc-500 hover:text-zinc-900 transition shrink-0 ml-auto"
+          >
             Sign out
-          </Link>
+          </button>
         </header>
 
         <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>

@@ -1,13 +1,10 @@
-import { storageGet, storageSet } from '@/app/_lib/storage'
-import { STORAGE_KEYS } from '@/app/_config/constants'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/app/_lib/firebase'
 import type { Invoice } from '@/app/dashboard/AppStore'
 
-export function getInvoices(): Invoice[] {
-  return storageGet<Invoice[]>(STORAGE_KEYS.invoices, [])
-}
-
-export function saveInvoices(invoices: Invoice[]): void {
-  storageSet(STORAGE_KEYS.invoices, invoices)
+export async function getInvoices(): Promise<Invoice[]> {
+  const snap = await getDocs(collection(db, 'invoices'))
+  return snap.docs.map((d) => d.data() as Invoice)
 }
 
 /** Net line-item total. */

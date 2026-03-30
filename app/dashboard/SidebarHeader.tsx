@@ -1,10 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { loadCompanyProfile } from './AppStore'
+import { useStore } from './AppStore'
 
 export default function SidebarHeader() {
-  const [profile] = useState(() => loadCompanyProfile())
+  const { companyProfile: profile } = useStore()
   const initial = (profile.name || 'S').charAt(0).toUpperCase()
 
   return (
@@ -15,14 +14,13 @@ export default function SidebarHeader() {
           src={profile.logo}
           alt="Logo"
           className="h-8 w-8 object-contain rounded"
-          suppressHydrationWarning
         />
       ) : (
-        <div className="h-8 w-8 rounded-lg bg-brand flex items-center justify-center text-zinc-900 text-xs font-bold shrink-0" suppressHydrationWarning>
+        <div className="h-8 w-8 rounded-lg bg-brand flex items-center justify-center text-zinc-900 text-xs font-bold shrink-0">
           {initial}
         </div>
       )}
-      <span className="text-sm font-semibold text-zinc-900 truncate" suppressHydrationWarning>
+      <span className="text-sm font-semibold text-zinc-900 truncate">
         {profile.name || 'Studio'}
       </span>
     </div>

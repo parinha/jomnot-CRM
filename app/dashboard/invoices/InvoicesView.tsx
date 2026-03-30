@@ -164,7 +164,7 @@ export default function InvoicesView() {
   }
   function goToPage(p: number) { setPage(p); localStorage.setItem(STORAGE_KEYS.tableInvPage, String(p)) }
 
-  useEffect(() => { goToPage(1) }, [search, statusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { goToPage(1) }, [search, statusFilter])  
 
   const filteredInvoices = invoices.filter((inv) => {
     if (statusFilter === 'active' && inv.status !== 'sent' && inv.status !== 'partial') return false
@@ -338,7 +338,7 @@ export default function InvoicesView() {
                             onClick={() => setInvoices(invoices.map((i) => i.id === inv.id ? { ...i, status: 'sent' } : i))}
                             className="h-7 px-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
                           >
-                            Mark as sent
+                            Mark Sent
                           </button>
                         )}
                         {/* Mobile project button */}

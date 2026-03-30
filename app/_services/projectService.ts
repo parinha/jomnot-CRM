@@ -1,11 +1,8 @@
-import { storageGet, storageSet } from '@/app/_lib/storage'
-import { STORAGE_KEYS } from '@/app/_config/constants'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/app/_lib/firebase'
 import type { Project } from '@/app/dashboard/AppStore'
 
-export function getProjects(): Project[] {
-  return storageGet<Project[]>(STORAGE_KEYS.projects, [])
-}
-
-export function saveProjects(projects: Project[]): void {
-  storageSet(STORAGE_KEYS.projects, projects)
+export async function getProjects(): Promise<Project[]> {
+  const snap = await getDocs(collection(db, 'projects'))
+  return snap.docs.map((d) => d.data() as Project)
 }

@@ -1,30 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { AuthProvider, useAuth } from '@/app/_context/AuthContext'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const { user, loading, signIn } = useAuth()
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error,    setError]    = useState('')
+  const [busy,     setBusy]     = useState(false)
 
-  function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (!loading && user) router.replace('/dashboard/clients')
+  }, [user, loading, router])
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
-
-    if (!email || !password) {
-      setError('Please fill in all fields.')
-      return
+    if (!email || !password) { setError('Please fill in all fields.'); return }
+    setBusy(true)
+    try {
+      await signIn(email, password)
+      router.replace('/dashboard/clients')
+    } catch {
+      setError('Invalid email or password.')
+    } finally {
+      setBusy(false)
     }
+  }
 
-    setLoading(true)
-    // Simulate auth — any credentials work for UI demo
-    setTimeout(() => {
-      setLoading(false)
-      router.push('/dashboard/clients')
-    }, 600)
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-zinc-100">
+        <div className="w-6 h-6 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+      </div>
+    )
   }
 
   return (
@@ -37,9 +49,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-zinc-700">
-              Email
-            </label>
+            <label htmlFor="email" className="text-sm font-medium text-zinc-700">Email</label>
             <input
               id="email"
               type="email"
@@ -52,9 +62,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-zinc-700">
-              Password
-            </label>
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">Password</label>
             <input
               id="password"
               type="password"
@@ -66,19 +74,25 @@ export default function LoginPage() {
             />
           </div>
 
-          {error && (
-            <p className="text-sm text-red-600">{error}</p>
-          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={busy}
             className="mt-2 h-10 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover disabled:opacity-60 transition"
           >
-            {loading ? 'Signing in…' : 'Sign in'}
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <AuthProvider>
+      <LoginForm />
+    </AuthProvider>
   )
 }

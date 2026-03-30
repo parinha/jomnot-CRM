@@ -1,11 +1,8 @@
-import { storageGet, storageSet } from '@/app/_lib/storage'
-import { STORAGE_KEYS } from '@/app/_config/constants'
+import { collection, getDocs } from 'firebase/firestore'
+import { db } from '@/app/_lib/firebase'
 import type { Client } from '@/app/dashboard/AppStore'
 
-export function getClients(): Client[] {
-  return storageGet<Client[]>(STORAGE_KEYS.clients, [])
-}
-
-export function saveClients(clients: Client[]): void {
-  storageSet(STORAGE_KEYS.clients, clients)
+export async function getClients(): Promise<Client[]> {
+  const snap = await getDocs(collection(db, 'clients'))
+  return snap.docs.map((d) => d.data() as Client)
 }
