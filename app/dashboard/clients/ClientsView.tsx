@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useStore, type Client, type Invoice, type InvoiceStatus, type ProjectItemStatus } from '../AppStore'
-import { calcEarned, calcInvoiceTotal, calcSubtotal } from '@/app/_services/invoiceService'
+import { calcEarned, calcSubtotal } from '@/app/_services/invoiceService'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { uid } from '@/app/_lib/id'
 import { PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants'
@@ -16,7 +16,7 @@ import InvoicePreviewModal  from '@/app/_components/InvoicePreviewModal'
 import ProjectDetailModal   from '@/app/_components/ProjectDetailModal'
 
 const fmt = fmtUSD
-const EMPTY_FORM: Omit<Client, 'id'> = { name: '', phone: '', address: '', email: '' }
+const EMPTY_FORM: Omit<Client, 'id'> = { name: '', contactPerson: '', phone: '', address: '', email: '' }
 type CliSortCol = 'name' | 'invoices' | 'earned'
 
 const inputCls = 'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white'
@@ -85,7 +85,7 @@ export default function ClientsView() {
   function openAdd()  { setEditingClient(null); setForm(EMPTY_FORM); setFormError(''); setModalOpen(true) }
   function openEdit(client: Client) {
     setEditingClient(client)
-    setForm({ name: client.name, phone: client.phone, address: client.address, email: client.email })
+    setForm({ name: client.name, contactPerson: client.contactPerson ?? '', phone: client.phone, address: client.address, email: client.email })
     setFormError(''); setModalOpen(true)
   }
   function closeModal() { setModalOpen(false); setEditingClient(null); setForm(EMPTY_FORM); setFormError('') }
@@ -259,10 +259,11 @@ export default function ClientsView() {
           <div className="p-6">
             <h2 className="text-lg font-semibold text-zinc-900 mb-5">{editingClient ? 'Edit client' : 'Add client'}</h2>
             <div className="flex flex-col gap-4">
-              <FormField label="Name"    id="name"    required value={form.name}    onChange={(v) => setForm((p) => ({ ...p, name: v }))}    placeholder="Jane Doe" />
-              <FormField label="Email"   id="email"   type="email" value={form.email}   onChange={(v) => setForm((p) => ({ ...p, email: v }))}   placeholder="jane@example.com" />
-              <FormField label="Phone"   id="phone"   value={form.phone}   onChange={(v) => setForm((p) => ({ ...p, phone: v }))}   placeholder="+66 00 000 0000" />
-              <FormField label="Address" id="address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} placeholder="123 Main St, City" />
+              <FormField label="Company Name" id="name" required value={form.name} onChange={(v) => setForm((p) => ({ ...p, name: v }))} placeholder="ANYMIND (Cambodia) CO.,LTD" />
+              <FormField label="Contact Person (To)" id="contactPerson" value={form.contactPerson ?? ''} onChange={(v) => setForm((p) => ({ ...p, contactPerson: v }))} placeholder="Mr. Siv Chinh" />
+              <FormField label="Email" id="email" type="email" value={form.email} onChange={(v) => setForm((p) => ({ ...p, email: v }))} placeholder="billing@example.com" />
+              <FormField label="Phone" id="phone" value={form.phone} onChange={(v) => setForm((p) => ({ ...p, phone: v }))} placeholder="+855 23 901 415" />
+              <FormField label="Address" id="address" value={form.address} onChange={(v) => setForm((p) => ({ ...p, address: v }))} placeholder="16/F, Phnom Penh Tower, No 445, St. Monivong, Phnom Penh, Cambodia" />
             </div>
             {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
             <div className="flex gap-3 mt-6 justify-end">
@@ -322,9 +323,8 @@ export default function ClientsView() {
                     </thead>
                     <tbody>
                       {clientInvs.map((inv, i) => {
-                        const sub           = calcSubtotal(inv)
-                        const total         = calcInvoiceTotal(inv)
-                        const sc            = STATUS_CONFIG[inv.status ?? 'draft']
+                        const sub = calcSubtotal(inv)
+                        const sc  = STATUS_CONFIG[inv.status ?? 'draft']
                         const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id))
                         const doneCount     = linkedProject?.items.filter((it) => it.status === 'done').length ?? 0
                         const totalItems    = linkedProject?.items.length ?? 0
@@ -343,7 +343,6 @@ export default function ClientsView() {
                             <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">{inv.date}</td>
                             <td className="px-4 py-3 text-right whitespace-nowrap">
                               <span className="font-medium text-zinc-900">{fmt(sub)}</span>
-                              {inv.wht && <div className="text-xs text-amber-700">{fmt(total)} w/WHT</div>}
                             </td>
                             {/* Project column */}
                             <td className="px-4 py-3 hidden md:table-cell">

@@ -12,6 +12,7 @@ import { getScopes,   saveScopes   } from '@/app/_services/scopeService'
 export interface Client {
   id: string
   name: string
+  contactPerson?: string
   phone: string
   address: string
   email: string
@@ -33,8 +34,8 @@ export interface Invoice {
   paymentTerms: string
   status: InvoiceStatus
   clientId: string
+  projectName?: string
   items: LineItem[]
-  wht: boolean
   notes: string
   depositPercent?: number
 }
@@ -45,12 +46,16 @@ export interface CompanyProfile {
   address: string
   phone: string
   website: string
+  signatoryName?: string
+  signatorySignature?: string
 }
 
 export interface PaymentInfo {
-  abaSwift: string
-  accountNumber: string
+  bankName: string
   accountName: string
+  accountNumber: string
+  swiftCode: string
+  currency: string
   qrImage: string
 }
 

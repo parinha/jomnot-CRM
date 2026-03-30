@@ -2,8 +2,8 @@ import { storageGet, storageSet } from '@/app/_lib/storage'
 import { STORAGE_KEYS } from '@/app/_config/constants'
 import type { CompanyProfile, PaymentInfo } from '@/app/dashboard/AppStore'
 
-const EMPTY_PROFILE: CompanyProfile = { name: '', logo: '', address: '', phone: '', website: '' }
-const EMPTY_PAYMENT: PaymentInfo    = { abaSwift: '', accountNumber: '', accountName: '', qrImage: '' }
+const EMPTY_PROFILE: CompanyProfile = { name: '', logo: '', address: '', phone: '', website: '', signatoryName: '', signatorySignature: '' }
+const EMPTY_PAYMENT: PaymentInfo    = { bankName: '', accountName: '', accountNumber: '', swiftCode: '', currency: '', qrImage: '' }
 
 export function getCompanyProfile(): CompanyProfile {
   return storageGet<CompanyProfile>(STORAGE_KEYS.companyProfile, EMPTY_PROFILE)

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useStore, type Invoice, type Client, type InvoiceStatus } from '../AppStore'
-import { calcInvoiceTotal, calcSubtotal, calcEarned, calcBalance } from '@/app/_services/invoiceService'
+import { calcSubtotal, calcEarned, calcBalance } from '@/app/_services/invoiceService'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
 import ModalShell from '@/app/_components/ModalShell'
@@ -14,6 +14,16 @@ const fmt = fmtUSD
 
 function PaymentActions({ inv, onAction }: { inv: Invoice; onAction: (id: string, from: InvoiceStatus, to: InvoiceStatus) => void }) {
   const status = inv.status ?? 'draft'
+  if (status === 'draft') {
+    return (
+      <button
+        onClick={() => onAction(inv.id, 'draft', 'sent')}
+        className="h-7 px-3 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
+      >
+        Mark as sent
+      </button>
+    )
+  }
   if (status === 'sent' && inv.depositPercent != null) {
     return (
       <button
@@ -69,9 +79,8 @@ function InvoiceRow({ inv, clients, showReceived, showBalance, onAction, onPrevi
 }) {
   const client      = clients.find((c) => c.id === inv.clientId)
   const sub        = calcSubtotal(inv)
-  const total      = calcInvoiceTotal(inv)
-  const invDeposit = inv.depositPercent != null ? total * (inv.depositPercent / 100) : null
-  const invBalance = invDeposit != null ? total - invDeposit : null
+  const invDeposit = inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null
+  const invBalance = invDeposit != null ? sub - invDeposit : null
   const received    = calcEarned(inv)
   const balance     = calcBalance(inv)
   const sc          = STATUS_CONFIG[inv.status ?? 'draft']
@@ -87,10 +96,9 @@ function InvoiceRow({ inv, clients, showReceived, showBalance, onAction, onPrevi
       <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">{inv.date}</td>
       <td className="px-4 py-3 text-right whitespace-nowrap">
         <span className="font-medium text-zinc-900">{fmt(sub)}</span>
-        {(inv.wht || invBalance != null) && (
+        {invBalance != null && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
-            {inv.wht && <span className="text-amber-700 text-xs">{fmt(total)} w/WHT</span>}
-            {invBalance != null && <span className="text-xs text-zinc-400">{fmt(invDeposit!)} dep · {fmt(invBalance)} bal</span>}
+            <span className="text-xs text-zinc-400">{fmt(invDeposit!)} dep · {fmt(invBalance)} bal</span>
           </div>
         )}
       </td>

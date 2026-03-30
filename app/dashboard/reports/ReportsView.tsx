@@ -59,8 +59,6 @@ export default function ReportsView() {
   const totalInvoiced = base.reduce((s, inv) => s + calcInvoiceTotal(inv), 0)
   const outstanding   = base.filter((inv) => ['sent', 'overdue', 'partial'].includes(inv.status ?? 'draft')).reduce((s, inv) => s + calcBalance(inv), 0)
   const overdueCount  = base.filter((inv) => (inv.status ?? 'draft') === 'overdue').length
-  const whtInvoices   = base.filter((inv) => inv.wht)
-  const whtTax        = whtInvoices.reduce((s, inv) => s + calcSubtotal(inv) * 0.15, 0)
 
   // Bar chart
   const buckets   = generateBuckets(period)
@@ -138,7 +136,6 @@ export default function ReportsView() {
         <StatCard label="Received"      value={fmt(totalReceived)} sub={`of ${fmt(totalInvoiced)} invoiced`} accent="green" />
         <StatCard label="Outstanding"   value={fmt(outstanding)} sub={`${overdueCount} overdue · incl. partial balance`} accent={overdueCount > 0 ? 'red' : undefined} />
         <StatCard label="Total invoiced" value={fmt(totalInvoiced)} sub={`${base.length} invoice${base.length !== 1 ? 's' : ''}`} />
-        <StatCard label="WHT invoices"  value={String(whtInvoices.length)} sub={`${fmt(whtTax)} tax`} />
       </div>
 
       {/* Revenue over time */}

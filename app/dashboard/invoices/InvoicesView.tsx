@@ -5,7 +5,7 @@ import { useStore, type Invoice, type LineItem, type InvoiceStatus, type Client,
 import { calcInvoiceTotal, calcSubtotal } from '@/app/_services/invoiceService'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { uid } from '@/app/_lib/id'
-import { WHT_RATE, PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants'
+import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
 import SortTh            from '@/app/_components/SortTh'
 import SearchInput       from '@/app/_components/SearchInput'
@@ -28,7 +28,7 @@ function emptyItem(): LineItem {
 type FormState = Omit<Invoice, 'id'>
 
 const inputCls = 'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white'
-const EMPTY_CLIENT_FORM = { name: '', phone: '', address: '', email: '' }
+const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' }
 
 export default function InvoicesView() {
   const { clients, setClients, invoices, setInvoices, projects, setProjects, scopeOfWork } = useStore()
@@ -43,6 +43,7 @@ export default function InvoicesView() {
   const [panelOpen, setPanelOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
+  const [customScope, setCustomScope] = useState<Record<string, string>>({})
 
   const blankForm = (): FormState => ({
     number: nextInvoiceNumber(invoices),
@@ -50,8 +51,8 @@ export default function InvoicesView() {
     paymentTerms: 'Due on receipt',
     status: 'draft',
     clientId: '',
+    projectName: '',
     items: [emptyItem()],
-    wht: false,
     notes: '',
     depositPercent: undefined,
   })
@@ -70,7 +71,7 @@ export default function InvoicesView() {
   }
   function openEdit(inv: Invoice) {
     setEditingId(inv.id)
-    setForm({ number: inv.number, date: inv.date, paymentTerms: inv.paymentTerms ?? 'Due on receipt', status: inv.status ?? 'draft', clientId: inv.clientId, items: inv.items, wht: inv.wht, notes: inv.notes, depositPercent: inv.depositPercent })
+    setForm({ number: inv.number, date: inv.date, paymentTerms: inv.paymentTerms ?? 'Due on receipt', status: inv.status ?? 'draft', clientId: inv.clientId, projectName: inv.projectName ?? '', items: inv.items, notes: inv.notes, depositPercent: inv.depositPercent })
     setFormError(''); setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
     setPanelOpen(true)
   }
@@ -109,10 +110,8 @@ export default function InvoicesView() {
   }
 
   const subtotal      = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
-  const whtAmount     = subtotal * WHT_RATE
-  const grandTotal    = form.wht ? subtotal + whtAmount : subtotal
-  const depositAmount = form.depositPercent != null ? grandTotal * (form.depositPercent / 100) : 0
-  const balanceDue    = grandTotal - depositAmount
+  const depositAmount = form.depositPercent != null ? subtotal * (form.depositPercent / 100) : 0
+  const balanceDue    = subtotal - depositAmount
 
   // ── Modals ─────────────────────────────────────────────────────────────────
   const [deleteId, setDeleteId]             = useState<string | null>(null)
@@ -130,7 +129,7 @@ export default function InvoicesView() {
     const client         = clients.find((c) => c.id === inv.clientId)
     const clientProjects = projects.filter((p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id))
     setCpMode(clientProjects.length > 0 ? 'link' : 'create')
-    setCpName(client?.name ?? '')
+    setCpName(inv.projectName || client?.name || '')
     setCpItems(inv.items.filter((it) => it.description.trim()).map((it) => ({ id: uid(), description: it.description, status: 'todo' as ProjectItemStatus })))
     setCpExcluded(new Set())
     setCpLinkId(clientProjects[0]?.id ?? '')
@@ -277,10 +276,9 @@ export default function InvoicesView() {
             <tbody>
               {pagedInvoices.map((inv, i) => {
                 const client        = clients.find((c) => c.id === inv.clientId)
-                const sub           = calcSubtotal(inv)
-                const clientTotal   = calcInvoiceTotal(inv)
-                const invDeposit    = inv.depositPercent != null ? clientTotal * (inv.depositPercent / 100) : null
-                const invBalance    = invDeposit != null ? clientTotal - invDeposit : null
+                const sub        = calcSubtotal(inv)
+                const invDeposit = inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null
+                const invBalance = invDeposit != null ? sub - invDeposit : null
                 const status        = (inv.status ?? 'draft') as InvoiceStatus
                 const sc            = STATUS_CONFIG[status]
                 const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id))
@@ -295,10 +293,9 @@ export default function InvoicesView() {
                     <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">{inv.date}</td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <span className="font-medium text-zinc-900">{fmt(sub)}</span>
-                      {(inv.wht || invBalance != null) && (
+                      {invBalance != null && (
                         <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                          {inv.wht && <span className="text-amber-700 text-xs">{fmt(clientTotal)} w/WHT</span>}
-                          {invBalance != null && <span className="text-xs text-zinc-400">{fmt(invDeposit!)} dep · {fmt(invBalance)} bal</span>}
+                          <span className="text-xs text-zinc-400">{fmt(invDeposit!)} dep · {fmt(invBalance)} bal</span>
                         </div>
                       )}
                     </td>
@@ -336,6 +333,14 @@ export default function InvoicesView() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
+                        {status === 'draft' && (
+                          <button
+                            onClick={() => setInvoices(invoices.map((i) => i.id === inv.id ? { ...i, status: 'sent' } : i))}
+                            className="h-7 px-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
+                          >
+                            Mark as sent
+                          </button>
+                        )}
                         {/* Mobile project button */}
                         <button
                           onClick={() => linkedProject ? setViewProjectId(linkedProject.id) : openLinkProject(inv)}
@@ -387,6 +392,10 @@ export default function InvoicesView() {
                 </PanelField>
               </div>
 
+              <PanelField label="Project / Campaign Name">
+                <input value={form.projectName ?? ''} onChange={(e) => setField('projectName', e.target.value)} className={inputCls} placeholder="Citra Campaign" />
+              </PanelField>
+
               {/* Client field + inline create */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
@@ -411,20 +420,24 @@ export default function InvoicesView() {
                     <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Create new client</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Name <span className="text-red-500">*</span></label>
-                        <input value={clientForm.name} onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))} placeholder="Jane Doe" className={inputCls} />
+                        <label className="text-xs text-zinc-500">Company Name <span className="text-red-500">*</span></label>
+                        <input value={clientForm.name} onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))} placeholder="ANYMIND (Cambodia) CO.,LTD" className={inputCls} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Contact Person (To)</label>
+                        <input value={clientForm.contactPerson} onChange={(e) => setClientForm((p) => ({ ...p, contactPerson: e.target.value }))} placeholder="Mr. Siv Chinh" className={inputCls} />
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-zinc-500">Email <span className="text-red-500">*</span></label>
-                        <input type="email" value={clientForm.email} onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))} placeholder="jane@example.com" className={inputCls} />
+                        <input type="email" value={clientForm.email} onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))} placeholder="billing@example.com" className={inputCls} />
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-zinc-500">Phone</label>
-                        <input value={clientForm.phone} onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+66 00 000 0000" className={inputCls} />
+                        <input value={clientForm.phone} onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+855 23 901 415" className={inputCls} />
                       </div>
-                      <div className="flex flex-col gap-1">
+                      <div className="col-span-2 flex flex-col gap-1">
                         <label className="text-xs text-zinc-500">Address</label>
-                        <input value={clientForm.address} onChange={(e) => setClientForm((p) => ({ ...p, address: e.target.value }))} placeholder="123 Main St" className={inputCls} />
+                        <input value={clientForm.address} onChange={(e) => setClientForm((p) => ({ ...p, address: e.target.value }))} placeholder="16/F, Phnom Penh Tower, No 445, St. Monivong, Phnom Penh, Cambodia" className={inputCls} />
                       </div>
                     </div>
                     {clientFormError && <p className="text-xs text-red-600">{clientFormError}</p>}
@@ -473,25 +486,110 @@ export default function InvoicesView() {
                     <div className="bg-zinc-50 px-3 py-2 text-right">Total</div>
                     <div className="bg-zinc-50" />
                   </div>
-                  <datalist id="scope-suggestions">
-                    {scopeOfWork.map((s) => <option key={s} value={s} />)}
-                  </datalist>
-                  {form.items.map((item) => (
-                    <div key={item.id} className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-zinc-200">
-                      <input list="scope-suggestions" value={item.description} onChange={(e) => updateItem(item.id, { description: e.target.value })} placeholder="Scope of work…" className="bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:bg-zinc-50" />
-                      <input type="number" min={0} value={item.qty === 0 ? '' : item.qty} onChange={(e) => updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })} className="bg-white px-3 py-2 text-sm text-center text-zinc-900 focus:outline-none focus:bg-zinc-50" />
-                      <input type="number" min={0} value={item.unitPrice === 0 ? '' : item.unitPrice} onChange={(e) => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} className="bg-white px-3 py-2 text-sm text-right text-zinc-900 focus:outline-none focus:bg-zinc-50" />
-                      <div className="bg-white px-3 py-2 text-sm text-right text-zinc-700 font-medium">{fmt(item.qty * item.unitPrice)}</div>
-                      <button onClick={() => removeItem(item.id)} disabled={form.items.length === 1} className="bg-white flex items-center justify-center text-zinc-300 hover:text-red-500 disabled:opacity-0 transition">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                      </button>
-                    </div>
-                  ))}
+                  {form.items.map((item) => {
+                    const nlIdx = item.description.indexOf('\n')
+                    const title = nlIdx === -1 ? item.description : item.description.slice(0, nlIdx)
+                    const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1)
+                    const scopeLines = scope.split('\n').map(s => s.trim()).filter(Boolean)
+                    const setTitle = (t: string) => updateItem(item.id, { description: t + (scope ? '\n' + scope : '') })
+                    const addScopeLine = (line: string) => {
+                      const trimmed = line.trim()
+                      if (!trimmed || scopeLines.includes(trimmed)) return
+                      const next = [...scopeLines, trimmed].join('\n')
+                      updateItem(item.id, { description: title + '\n' + next })
+                    }
+                    const removeScopeLine = (line: string) => {
+                      const next = scopeLines.filter(s => s !== line).join('\n')
+                      updateItem(item.id, { description: title + (next ? '\n' + next : '') })
+                    }
+                    const customVal = customScope[item.id] ?? ''
+                    return (
+                      <div key={item.id} className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-zinc-200 items-start">
+                        <div className="bg-white flex flex-col gap-0">
+                          {/* Title */}
+                          <input
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            placeholder={form.projectName || 'Project / event title…'}
+                            className="px-3 pt-2.5 pb-2 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:bg-zinc-50 w-full bg-transparent"
+                          />
+                          {/* Scope chips area */}
+                          <div className="px-3 pb-2.5 border-t border-zinc-100">
+                            {/* Added scope chips */}
+                            {scopeLines.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
+                                {scopeLines.map((line) => (
+                                  <span key={line} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-white text-xs font-medium">
+                                    {line}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeScopeLine(line)}
+                                      className="ml-0.5 text-zinc-400 hover:text-white transition"
+                                    >
+                                      <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {/* Suggestion chips */}
+                            {scopeOfWork.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5 pt-1.5">
+                                {scopeOfWork.filter(s => !scopeLines.includes(s)).map((sug) => (
+                                  <button
+                                    key={sug}
+                                    type="button"
+                                    onClick={() => addScopeLine(sug)}
+                                    className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-xs hover:bg-zinc-200 hover:text-zinc-800 transition"
+                                  >
+                                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                                    {sug}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                            {/* Custom scope input */}
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <input
+                                value={customVal}
+                                onChange={(e) => setCustomScope(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    addScopeLine(customVal)
+                                    setCustomScope(prev => ({ ...prev, [item.id]: '' }))
+                                  }
+                                }}
+                                placeholder="Custom scope… (Enter to add)"
+                                className="flex-1 h-6 text-xs text-zinc-600 placeholder:text-zinc-300 focus:outline-none bg-transparent"
+                              />
+                              {customVal.trim() && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    addScopeLine(customVal)
+                                    setCustomScope(prev => ({ ...prev, [item.id]: '' }))
+                                  }}
+                                  className="text-xs text-zinc-400 hover:text-zinc-700 transition px-1"
+                                >
+                                  Add
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <input type="number" min={0} value={item.qty === 0 ? '' : item.qty} onChange={(e) => updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })} className="bg-white px-3 py-2 text-sm text-center text-zinc-900 focus:outline-none focus:bg-zinc-50" />
+                        <input type="number" min={0} value={item.unitPrice === 0 ? '' : item.unitPrice} onChange={(e) => updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })} className="bg-white px-3 py-2 text-sm text-right text-zinc-900 focus:outline-none focus:bg-zinc-50" />
+                        <div className="bg-white px-3 py-2 text-sm text-right text-zinc-700 font-medium">{fmt(item.qty * item.unitPrice)}</div>
+                        <button onClick={() => removeItem(item.id)} disabled={form.items.length === 1} className="bg-white flex items-center justify-center text-zinc-300 hover:text-red-500 disabled:opacity-0 transition pt-2.5">
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
                 <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
-                  <div className="flex gap-8"><span className="text-zinc-500">Subtotal</span><span className="font-medium text-zinc-900 w-28 text-right">{fmt(subtotal)}</span></div>
-                  {form.wht && <div className="flex gap-8 text-amber-700"><span>WHT 15%</span><span className="font-medium w-28 text-right">+ {fmt(whtAmount)}</span></div>}
-                  <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5"><span className="font-semibold text-zinc-700">Grand Total</span><span className="font-bold text-zinc-900 w-28 text-right">{fmt(grandTotal)}</span></div>
+                  <div className="flex gap-8 pt-1.5 border-t border-zinc-200"><span className="font-semibold text-zinc-700">Total</span><span className="font-bold text-zinc-900 w-28 text-right">{fmt(subtotal)}</span></div>
                   {form.depositPercent != null && (
                     <>
                       <div className="flex gap-8 text-green-700"><span>Deposit ({form.depositPercent}%)</span><span className="font-medium w-28 text-right">− {fmt(depositAmount)}</span></div>
@@ -499,17 +597,6 @@ export default function InvoicesView() {
                     </>
                   )}
                 </div>
-              </div>
-
-              {/* WHT toggle */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-800">Withholding Tax (WHT)</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Client pays net + 15% WHT on top. You receive the full net — client remits WHT to Revenue Department.</p>
-                </div>
-                <button onClick={() => setField('wht', !form.wht)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.wht ? 'bg-amber-500' : 'bg-zinc-300'}`}>
-                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.wht ? 'translate-x-6' : 'translate-x-1'}`} />
-                </button>
               </div>
 
               {/* Deposit toggle */}

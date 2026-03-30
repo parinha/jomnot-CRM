@@ -116,6 +116,49 @@ export default function SettingsView() {
           <FormField label="Address" value={profile.address} onChange={(v) => setP('address', v)} placeholder="123 Studio Street, Bangkok 10110" textarea />
           <FormField label="Phone" value={profile.phone} onChange={(v) => setP('phone', v)} placeholder="+66 2 000 0000" />
           <FormField label="Website" value={profile.website} onChange={(v) => setP('website', v)} placeholder="www.yourstudio.com" />
+          <FormField label="Authorized Signatory Name" value={profile.signatoryName ?? ''} onChange={(v) => setP('signatoryName', v)} placeholder="UM Kannika" />
+
+          {/* Signatory Signature */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-zinc-700">Signatory Signature</label>
+            <div className="flex items-center gap-4">
+              {profile.signatorySignature ? (
+                <div className="relative group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={profile.signatorySignature} alt="Signature" className="h-14 max-w-[180px] object-contain rounded border border-zinc-200 bg-zinc-50 p-1" />
+                  <button
+                    onClick={() => setP('signatorySignature', '')}
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-800 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div className="h-14 w-36 rounded border-2 border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-zinc-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                  </svg>
+                </div>
+              )}
+              <div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="sig-upload"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) handleImageUpload(f, (b64) => setP('signatorySignature', b64))
+                    e.target.value = ''
+                  }}
+                />
+                <label htmlFor="sig-upload" className="cursor-pointer text-sm text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50 transition inline-block">
+                  {profile.signatorySignature ? 'Replace' : 'Upload signature'}
+                </label>
+                <p className="text-xs text-zinc-400 mt-1">Shown on printed invoices</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
@@ -132,9 +175,11 @@ export default function SettingsView() {
         <p className="text-xs text-zinc-400 mb-5">Shown at the bottom of every invoice so clients know how to pay.</p>
 
         <div className="flex flex-col gap-4">
-          <FormField label="Account Name" value={payment.accountName} onChange={(v) => setPay('accountName', v)} placeholder="Acme Studio Co., Ltd." />
-          <FormField label="Account Number" value={payment.accountNumber} onChange={(v) => setPay('accountNumber', v)} placeholder="000-0-00000-0" />
-          <FormField label="ABA / SWIFT Code" value={payment.abaSwift} onChange={(v) => setPay('abaSwift', v)} placeholder="KASITHBK" />
+          <FormField label="Bank Name" value={payment.bankName} onChange={(v) => setPay('bankName', v)} placeholder="Advanced Bank Of Asia Ltd. (ABA Bank)" />
+          <FormField label="Account Name" value={payment.accountName} onChange={(v) => setPay('accountName', v)} placeholder="OR SEREIPARINHA AND UM KANNIKA" />
+          <FormField label="Account Number" value={payment.accountNumber} onChange={(v) => setPay('accountNumber', v)} placeholder="002 575 816" />
+          <FormField label="SWIFT Code" value={payment.swiftCode} onChange={(v) => setPay('swiftCode', v)} placeholder="ABAAKHPP" />
+          <FormField label="Currency" value={payment.currency} onChange={(v) => setPay('currency', v)} placeholder="United States Dollars" />
 
           {/* QR Code */}
           <div className="flex flex-col gap-1.5">
@@ -231,7 +276,7 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
           { id: 'li1', description: 'Brand video production (2-min corporate film)', qty: 1, unitPrice: 85000 },
           { id: 'li2', description: 'Post-production & color grading', qty: 1, unitPrice: 25000 },
         ],
-        wht: true, notes: 'Payment received via bank transfer. Thank you!',
+         notes: 'Payment received via bank transfer. Thank you!',
       },
       {
         id: 'i2', number: 'INV-2026-002', date: '2026-02-03', paymentTerms: 'Net 15', status: 'sent',
@@ -240,7 +285,7 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
           { id: 'li3', description: 'Photography — product shoot (full day)', qty: 1, unitPrice: 35000 },
           { id: 'li4', description: 'Photo editing & retouching (50 images)', qty: 50, unitPrice: 300 },
         ],
-        wht: false, notes: 'Please include invoice number in payment reference.',
+         notes: 'Please include invoice number in payment reference.',
       },
       {
         id: 'i3', number: 'INV-2026-003', date: '2026-02-20', paymentTerms: 'Net 30', status: 'overdue',
@@ -249,7 +294,7 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
           { id: 'li5', description: 'Social media content package (March)', qty: 1, unitPrice: 45000 },
           { id: 'li6', description: 'Reel editing — 4 videos', qty: 4, unitPrice: 5000 },
         ],
-        wht: true, notes: '',
+         notes: '',
       },
       {
         id: 'i4', number: 'INV-2026-004', date: '2026-03-10', paymentTerms: 'Due on receipt', status: 'draft',
@@ -259,7 +304,7 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
           { id: 'li8', description: 'Same-day highlight reel', qty: 1, unitPrice: 15000 },
           { id: 'li9', description: 'Travel & accommodation', qty: 1, unitPrice: 3500 },
         ],
-        wht: false, notes: 'Draft — pending client approval on scope.',
+         notes: 'Draft — pending client approval on scope.',
       },
     ]
 
@@ -272,9 +317,11 @@ function SeedButton({ onSeeded }: { onSeeded: () => void }) {
     }
 
     const payment = {
-      abaSwift: 'KASITHBK',
-      accountNumber: '123-4-56789-0',
+      bankName: 'Kasikorn Bank (KBank)',
       accountName: 'Frame & Light Studio Co., Ltd.',
+      accountNumber: '123-4-56789-0',
+      swiftCode: 'KASITHBK',
+      currency: 'Thai Baht',
       qrImage: '',
     }
 

@@ -1,7 +1,6 @@
 'use client'
 
 import { useStore } from '@/app/dashboard/AppStore'
-import { WHT_RATE } from '@/app/_config/constants'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
 import ModalShell from './ModalShell'
@@ -20,10 +19,8 @@ export default function InvoicePreviewModal({ invId, onClose }: { invId: string;
   )
 
   const subtotal      = inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
-  const whtAmount     = subtotal * WHT_RATE
-  const grandTotal    = inv.wht ? subtotal + whtAmount : subtotal
-  const depositAmount = inv.depositPercent != null ? grandTotal * (inv.depositPercent / 100) : null
-  const balanceDue    = depositAmount != null ? grandTotal - depositAmount : null
+  const depositAmount = inv.depositPercent != null ? subtotal * (inv.depositPercent / 100) : null
+  const balanceDue    = depositAmount != null ? subtotal - depositAmount : null
   const sc            = STATUS_CONFIG[inv.status ?? 'draft']
 
   return (
@@ -91,19 +88,9 @@ export default function InvoicePreviewModal({ invId, onClose }: { invId: string;
 
           {/* Totals */}
           <div className="flex flex-col items-end gap-1.5 text-sm">
-            <div className="flex gap-8">
-              <span className="text-zinc-500">Subtotal</span>
-              <span className="font-medium text-zinc-900 w-28 text-right">{fmt(subtotal)}</span>
-            </div>
-            {inv.wht && (
-              <div className="flex gap-8 text-amber-700">
-                <span>WHT 15%</span>
-                <span className="font-medium w-28 text-right">+ {fmt(whtAmount)}</span>
-              </div>
-            )}
-            <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5">
-              <span className="font-semibold text-zinc-700">Grand Total</span>
-              <span className="font-bold text-zinc-900 w-28 text-right">{fmt(grandTotal)}</span>
+            <div className="flex gap-8 pt-1.5 border-t border-zinc-200">
+              <span className="font-semibold text-zinc-700">Total</span>
+              <span className="font-bold text-zinc-900 w-28 text-right">{fmt(subtotal)}</span>
             </div>
             {depositAmount != null && balanceDue != null && (
               <>
