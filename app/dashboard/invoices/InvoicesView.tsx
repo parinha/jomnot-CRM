@@ -1,18 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useStore, type Invoice, type LineItem, type InvoiceStatus, type ProjectItemStatus } from '../AppStore'
+import { useStore, type Invoice, type LineItem, type InvoiceStatus, type Client, type ProjectItemStatus } from '../AppStore'
 import { calcInvoiceTotal, calcSubtotal } from '@/app/_services/invoiceService'
 import { fmtUSD } from '@/app/_lib/formatters'
 import { uid } from '@/app/_lib/id'
 import { WHT_RATE, PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants'
-import { STATUS_CONFIG, ITEM_STATUS_CONFIG, ITEM_STATUS_NEXT } from '@/app/_config/statusConfig'
-import SortTh      from '@/app/_components/SortTh'
-import SearchInput from '@/app/_components/SearchInput'
-import Pagination  from '@/app/_components/Pagination'
-import ModalShell  from '@/app/_components/ModalShell'
+import { STATUS_CONFIG } from '@/app/_config/statusConfig'
+import SortTh            from '@/app/_components/SortTh'
+import SearchInput       from '@/app/_components/SearchInput'
+import Pagination        from '@/app/_components/Pagination'
+import ModalShell        from '@/app/_components/ModalShell'
+import ProjectDetailModal from '@/app/_components/ProjectDetailModal'
 
-// ── Local helpers ─────────────────────────────────────────────────────────────
 const fmt = fmtUSD
 
 function nextInvoiceNumber(invoices: Invoice[]): string {
@@ -28,26 +28,21 @@ function emptyItem(): LineItem {
 type FormState = Omit<Invoice, 'id'>
 
 const inputCls = 'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white'
+const EMPTY_CLIENT_FORM = { name: '', phone: '', address: '', email: '' }
 
-// ── Component ─────────────────────────────────────────────────────────────────
 export default function InvoicesView() {
-  const { clients, invoices, setInvoices, projects, setProjects, scopeOfWork } = useStore()
+  const { clients, setClients, invoices, setInvoices, projects, setProjects, scopeOfWork } = useStore()
 
-  // ── Summary stats ─────────────────────────────────────────────────────────
-  const totalCount      = invoices.length
+  // ── Summary stats ──────────────────────────────────────────────────────────
   const paidInvoices    = invoices.filter((inv) => inv.status === 'paid')
-  const depositInvoices = invoices.filter((inv) => inv.depositPercent != null)
-  const noDepositInvoices = invoices.filter((inv) => inv.depositPercent == null)
   const awaitingBalance = invoices.filter((inv) => inv.status === 'partial')
-  const paidRevenue     = paidInvoices.reduce((s, inv) => s + calcInvoiceTotal(inv), 0)
-  const depositRevenue  = awaitingBalance.reduce((s, inv) => {
-    return s + calcInvoiceTotal(inv) * ((inv.depositPercent ?? 0) / 100)
-  }, 0)
+  const paidRevenue     = paidInvoices.reduce((s, inv) => s + calcSubtotal(inv), 0)
+  const depositRevenue  = awaitingBalance.reduce((s, inv) => s + calcSubtotal(inv) * ((inv.depositPercent ?? 0) / 100), 0)
 
-  // ── Panel (add / edit invoice) ─────────────────────────────────────────────
-  const [panelOpen, setPanelOpen]   = useState(false)
-  const [editingId, setEditingId]   = useState<string | null>(null)
-  const [formError, setFormError]   = useState('')
+  // ── Invoice form panel ─────────────────────────────────────────────────────
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [formError, setFormError] = useState('')
 
   const blankForm = (): FormState => ({
     number: nextInvoiceNumber(invoices),
@@ -63,24 +58,42 @@ export default function InvoicesView() {
 
   const [form, setForm] = useState<FormState>(blankForm)
 
+  // Inline client creation
+  const [showClientForm, setShowClientForm] = useState(false)
+  const [clientForm, setClientForm]         = useState(EMPTY_CLIENT_FORM)
+  const [clientFormError, setClientFormError] = useState('')
+
   function openNew() {
-    setEditingId(null); setForm(blankForm()); setFormError(''); setPanelOpen(true)
+    setEditingId(null); setForm(blankForm()); setFormError('')
+    setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
+    setPanelOpen(true)
   }
   function openEdit(inv: Invoice) {
     setEditingId(inv.id)
     setForm({ number: inv.number, date: inv.date, paymentTerms: inv.paymentTerms ?? 'Due on receipt', status: inv.status ?? 'draft', clientId: inv.clientId, items: inv.items, wht: inv.wht, notes: inv.notes, depositPercent: inv.depositPercent })
-    setFormError('')
+    setFormError(''); setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
     setPanelOpen(true)
   }
-  function closePanel() { setPanelOpen(false); setEditingId(null); setFormError('') }
+  function closePanel() {
+    setPanelOpen(false); setEditingId(null); setFormError('')
+    setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
+  }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
-  function addItem()               { setField('items', [...form.items, emptyItem()]) }
-  function removeItem(id: string)  { if (form.items.length > 1) setField('items', form.items.filter((it) => it.id !== id)) }
+  function addItem()              { setField('items', [...form.items, emptyItem()]) }
+  function removeItem(id: string) { if (form.items.length > 1) setField('items', form.items.filter((it) => it.id !== id)) }
   function updateItem(id: string, patch: Partial<LineItem>) {
     setField('items', form.items.map((it) => (it.id === id ? { ...it, ...patch } : it)))
+  }
+
+  function saveNewClient() {
+    if (!clientForm.name.trim() || !clientForm.email.trim()) { setClientFormError('Name and email are required.'); return }
+    const newClient: Client = { id: uid(), ...clientForm }
+    setClients([...clients, newClient])
+    setField('clientId', newClient.id)
+    setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
   }
 
   function handleSave() {
@@ -95,36 +108,44 @@ export default function InvoicesView() {
     closePanel()
   }
 
-  const subtotal     = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
-  const whtAmount    = subtotal * WHT_RATE
-  const grandTotal   = form.wht ? subtotal + whtAmount : subtotal
+  const subtotal      = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0)
+  const whtAmount     = subtotal * WHT_RATE
+  const grandTotal    = form.wht ? subtotal + whtAmount : subtotal
   const depositAmount = form.depositPercent != null ? grandTotal * (form.depositPercent / 100) : 0
-  const balanceDue   = grandTotal - depositAmount
+  const balanceDue    = grandTotal - depositAmount
 
   // ── Modals ─────────────────────────────────────────────────────────────────
-  const [deleteId, setDeleteId]       = useState<string | null>(null)
-  const [statusChange, setStatusChange] = useState<{ id: string; from: InvoiceStatus; to: InvoiceStatus } | null>(null)
+  const [deleteId, setDeleteId]             = useState<string | null>(null)
+  const [linkProjectInvId, setLinkProjectInvId] = useState<string | null>(null)
+  const [viewProjectId, setViewProjectId]   = useState<string | null>(null)
 
-  const [createProjectInvId, setCreateProjectInvId] = useState<string | null>(null)
-  const [cpName,    setCpName]    = useState('')
-  const [cpItems,   setCpItems]   = useState<{ id: string; description: string; status: ProjectItemStatus }[]>([])
+  // Link/create project state
+  const [cpMode,     setCpMode]     = useState<'create' | 'link'>('create')
+  const [cpName,     setCpName]     = useState('')
+  const [cpItems,    setCpItems]    = useState<{ id: string; description: string; status: ProjectItemStatus }[]>([])
   const [cpExcluded, setCpExcluded] = useState<Set<string>>(new Set())
-  const [viewProjectId, setViewProjectId] = useState<string | null>(null)
+  const [cpLinkId,   setCpLinkId]   = useState('')
+
+  function openLinkProject(inv: Invoice) {
+    const client         = clients.find((c) => c.id === inv.clientId)
+    const clientProjects = projects.filter((p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id))
+    setCpMode(clientProjects.length > 0 ? 'link' : 'create')
+    setCpName(client?.name ?? '')
+    setCpItems(inv.items.filter((it) => it.description.trim()).map((it) => ({ id: uid(), description: it.description, status: 'todo' as ProjectItemStatus })))
+    setCpExcluded(new Set())
+    setCpLinkId(clientProjects[0]?.id ?? '')
+    setLinkProjectInvId(inv.id)
+  }
 
   function handleDelete(id: string) {
     setInvoices(invoices.filter((inv) => inv.id !== id)); setDeleteId(null)
   }
-  function confirmStatusChange() {
-    if (!statusChange) return
-    setInvoices(invoices.map((inv) => (inv.id === statusChange.id ? { ...inv, status: statusChange.to } : inv)))
-    setStatusChange(null)
-  }
 
-  // ── Filter / sort / paginate ────────────────────────────────────────────────
-  const [search, setSearch]           = useState('')
+  // ── Filter / sort / paginate ───────────────────────────────────────────────
+  const [search, setSearch]             = useState('')
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all' | 'active'>('all')
 
-  type InvSortCol = 'number' | 'date' | 'paymentTerms' | 'amount'
+  type InvSortCol = 'number' | 'date' | 'amount'
   const [sortCol, setSortCol] = useState<InvSortCol>(() =>
     typeof window !== 'undefined' ? (localStorage.getItem(STORAGE_KEYS.tableInvCol) as InvSortCol) ?? 'number' : 'number'
   )
@@ -150,15 +171,9 @@ export default function InvoicesView() {
     if (statusFilter === 'active' && inv.status !== 'sent' && inv.status !== 'partial') return false
     if (statusFilter !== 'all' && statusFilter !== 'active' && inv.status !== statusFilter) return false
     if (search.trim()) {
-      const q       = search.toLowerCase()
-      const client  = clients.find((c) => c.id === inv.clientId)
-      const sub     = calcSubtotal(inv)
-      const total   = calcInvoiceTotal(inv)
-      const depAmt  = inv.depositPercent != null ? total * (inv.depositPercent / 100) : null
-      const balance = depAmt != null ? total - depAmt : total
-      const haystack = [inv.number, client?.name ?? '', client?.phone ?? '', client?.email ?? '',
-        fmt(sub), fmt(total), depAmt != null ? fmt(depAmt) : '', fmt(balance)].join(' ').toLowerCase()
-      if (!haystack.includes(q)) return false
+      const q      = search.toLowerCase()
+      const client = clients.find((c) => c.id === inv.clientId)
+      if (![inv.number, client?.name ?? '', fmt(calcSubtotal(inv)), inv.status].join(' ').toLowerCase().includes(q)) return false
     }
     return true
   })
@@ -170,20 +185,19 @@ export default function InvoicesView() {
       cmp = n(a.number) < n(b.number) ? -1 : n(a.number) > n(b.number) ? 1 : 0
     } else if (sortCol === 'date') {
       cmp = a.date.localeCompare(b.date)
-    } else if (sortCol === 'paymentTerms') {
-      cmp = (a.paymentTerms ?? '').localeCompare(b.paymentTerms ?? '')
     } else if (sortCol === 'amount') {
       cmp = calcSubtotal(a) - calcSubtotal(b)
     }
     return sortDir === 'asc' ? cmp : -cmp
   })
+
   const totalPages    = Math.max(1, Math.ceil(sortedInvoices.length / PAGE_SIZE))
   const safePage      = Math.min(page, totalPages)
   const pagedInvoices = sortedInvoices.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   return (
     <>
-      {/* Page header */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-zinc-900">Invoices</h1>
@@ -196,50 +210,26 @@ export default function InvoicesView() {
       </div>
 
       {/* Summary widgets */}
-      {totalCount > 0 && (
+      {invoices.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">Completed</p>
-            <p className="text-2xl font-bold text-zinc-900">{paidInvoices.length}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">{fmt(paidRevenue)} received</p>
-            <div className="mt-2 inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">Paid</div>
-          </div>
-          <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">With Deposit</p>
-            <p className="text-2xl font-bold text-zinc-900">{depositInvoices.length}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">{awaitingBalance.length} awaiting balance</p>
-            <div className="mt-2 inline-flex px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium">{fmt(depositRevenue)} collected</div>
-          </div>
-          <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">Pay on Delivery</p>
-            <p className="text-2xl font-bold text-zinc-900">{noDepositInvoices.length}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">no upfront deposit</p>
-            <div className="mt-2 inline-flex px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 text-xs font-medium">Full on finish</div>
-          </div>
-          <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
-            <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">All Invoices</p>
-            <p className="text-2xl font-bold text-zinc-900">{totalCount}</p>
-            <p className="text-xs text-zinc-500 mt-0.5">
-              {invoices.filter((i) => i.status === 'overdue').length} overdue · {invoices.filter((i) => i.status === 'draft').length} draft
-            </p>
-            <div className="mt-2 inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
-              {invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length} active
-            </div>
-          </div>
+          <SummaryCard label="Paid" value={String(paidInvoices.length)} sub={`${fmt(paidRevenue)} received`} />
+          <SummaryCard label="Deposit Rcvd" value={String(awaitingBalance.length)} sub={`${fmt(depositRevenue)} collected`} accent="amber" />
+          <SummaryCard label="Active" value={String(invoices.filter(i => i.status === 'sent' || i.status === 'partial').length)} sub={`${invoices.filter(i => i.status === 'overdue').length} overdue`} accent={invoices.some(i => i.status === 'overdue') ? 'red' : undefined} />
+          <SummaryCard label="Draft" value={String(invoices.filter(i => i.status === 'draft').length)} sub="not yet sent" />
         </div>
       )}
 
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-3 mb-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search by invoice #, client name, amount…" className="flex-1" />
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by invoice #, client, amount…" className="flex-1" />
         <div className="flex gap-1.5 flex-wrap">
           {([
-            { key: 'all',    label: 'All' },
-            { key: 'active', label: 'Active' },
+            { key: 'all',     label: 'All' },
+            { key: 'active',  label: 'Active' },
             { key: 'partial', label: 'Deposit Rcvd' },
-            { key: 'paid',   label: 'Paid' },
+            { key: 'paid',    label: 'Paid' },
             { key: 'overdue', label: 'Overdue' },
-            { key: 'draft',  label: 'Draft' },
+            { key: 'draft',   label: 'Draft' },
           ] as const).map(({ key, label }) => (
             <button
               key={key}
@@ -247,22 +237,17 @@ export default function InvoicesView() {
               className={`h-9 px-3 rounded-lg text-xs font-medium border transition whitespace-nowrap ${statusFilter === key ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-600 border-zinc-300 hover:bg-zinc-50'}`}
             >
               {label}
-              {key !== 'all' && key !== 'active' && (
-                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-white/20' : 'bg-zinc-100'}`}>
-                  {invoices.filter((i) => i.status === key).length}
-                </span>
-              )}
-              {key === 'active' && (
-                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-white/20' : 'bg-zinc-100'}`}>
-                  {invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length}
-                </span>
-              )}
+              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-white/20' : 'bg-zinc-100'}`}>
+                {key === 'all'    ? invoices.length
+                : key === 'active' ? invoices.filter(i => i.status === 'sent' || i.status === 'partial').length
+                : invoices.filter(i => i.status === key).length}
+              </span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Invoice table */}
+      {/* Table */}
       <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
         {invoices.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
@@ -280,90 +265,85 @@ export default function InvoicesView() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
-                <SortTh col="number"       active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3">Invoice #</SortTh>
+                <SortTh col="number" active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3">Invoice #</SortTh>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Client</th>
-                <SortTh col="date"         active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3 hidden sm:table-cell">Date</SortTh>
-                <SortTh col="paymentTerms" active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3 hidden md:table-cell">Terms</SortTh>
-                <SortTh col="amount"       active={sortCol} dir={sortDir} onSort={handleSort} className="text-right px-4 py-3">Amount</SortTh>
-                <th className="text-right px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Balance</th>
+                <SortTh col="date"   active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3 hidden sm:table-cell">Date</SortTh>
+                <SortTh col="amount" active={sortCol} dir={sortDir} onSort={handleSort} className="text-right px-4 py-3">Amount</SortTh>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell w-40">Project</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {pagedInvoices.map((inv, i) => {
-                const client       = clients.find((c) => c.id === inv.clientId)
-                const sub          = calcSubtotal(inv)
-                const clientTotal  = calcInvoiceTotal(inv)
-                const invDeposit   = inv.depositPercent != null ? clientTotal * (inv.depositPercent / 100) : null
-                const invBalance   = invDeposit != null ? clientTotal - invDeposit : null
-                const status: InvoiceStatus = inv.status ?? 'draft'
-                const sc           = STATUS_CONFIG[status]
+                const client        = clients.find((c) => c.id === inv.clientId)
+                const sub           = calcSubtotal(inv)
+                const clientTotal   = calcInvoiceTotal(inv)
+                const invDeposit    = inv.depositPercent != null ? clientTotal * (inv.depositPercent / 100) : null
+                const invBalance    = invDeposit != null ? clientTotal - invDeposit : null
+                const status        = (inv.status ?? 'draft') as InvoiceStatus
+                const sc            = STATUS_CONFIG[status]
                 const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id))
+                const doneCount     = linkedProject?.items.filter((it) => it.status === 'done').length ?? 0
+                const totalItems    = linkedProject?.items.length ?? 0
+                const pct           = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
+
                 return (
-                  <tr key={inv.id} className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}>
+                  <tr key={inv.id} className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition ${i % 2 === 1 ? 'bg-zinc-50/30' : ''}`}>
                     <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">{inv.number}</td>
                     <td className="px-4 py-3 text-zinc-600 max-w-[120px] truncate">{client?.name ?? '—'}</td>
                     <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">{inv.date}</td>
-                    <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap hidden md:table-cell">{inv.paymentTerms ?? '—'}</td>
-                    <td className="px-4 py-3 text-right font-medium text-zinc-900 whitespace-nowrap">{fmt(sub)}</td>
-                    <td className="px-4 py-3 text-right hidden md:table-cell">
-                      <div className="flex flex-col items-end gap-0.5">
-                        {inv.wht && <span className="text-amber-700 font-medium whitespace-nowrap text-xs">{fmt(clientTotal)} total</span>}
-                        {invBalance != null && (
-                          <span className={`font-medium whitespace-nowrap text-xs ${inv.status === 'partial' ? 'text-green-700' : 'text-zinc-500'}`}>
-                            {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
-                          </span>
-                        )}
-                        {!inv.wht && invBalance == null && <span className="text-zinc-400 text-xs">—</span>}
-                      </div>
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
+                      <span className="font-medium text-zinc-900">{fmt(sub)}</span>
+                      {(inv.wht || invBalance != null) && (
+                        <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                          {inv.wht && <span className="text-amber-700 text-xs">{fmt(clientTotal)} w/WHT</span>}
+                          {invBalance != null && <span className="text-xs text-zinc-400">{fmt(invDeposit!)} dep · {fmt(invBalance)} bal</span>}
+                        </div>
+                      )}
+                    </td>
+                    {/* Project column */}
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {linkedProject ? (
+                        <button
+                          onClick={() => setViewProjectId(linkedProject.id)}
+                          className="w-full text-left group"
+                          title={`${linkedProject.name} — ${pct}%`}
+                        >
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <span className="text-xs text-zinc-600 group-hover:text-zinc-900 transition truncate max-w-[96px]">{linkedProject.name}</span>
+                            <span className="text-xs text-zinc-400 shrink-0">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-brand'}`}
+                              style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
+                            />
+                          </div>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => openLinkProject(inv)}
+                          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-brand transition group"
+                        >
+                          <svg className="w-3 h-3 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                          Link project
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={status}
-                        onChange={(e) => { const next = e.target.value as InvoiceStatus; if (next !== status) setStatusChange({ id: inv.id, from: status, to: next }) }}
-                        className={`text-xs font-medium px-2 py-1 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-400 ${sc.cls}`}
-                      >
-                        {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => (
-                          <option key={s} value={s}>{STATUS_CONFIG[s].label}</option>
-                        ))}
-                      </select>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}>{sc.label}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        {status === 'sent' && inv.depositPercent != null && (
-                          <button onClick={() => setStatusChange({ id: inv.id, from: 'sent', to: 'partial' })} className="h-7 px-2.5 rounded-md bg-amber-100 text-amber-800 text-xs font-medium hover:bg-amber-200 transition whitespace-nowrap" title="Mark deposit as received">Accept Deposit</button>
-                        )}
-                        {status === 'partial' && (
-                          <button onClick={() => setStatusChange({ id: inv.id, from: 'partial', to: 'paid' })} className="h-7 px-2.5 rounded-md bg-green-100 text-green-800 text-xs font-medium hover:bg-green-200 transition whitespace-nowrap" title="Mark final payment received">Final Payment</button>
-                        )}
-                        {status === 'sent' && inv.depositPercent == null && (
-                          <button onClick={() => setStatusChange({ id: inv.id, from: 'sent', to: 'paid' })} className="h-7 px-2.5 rounded-md bg-green-100 text-green-800 text-xs font-medium hover:bg-green-200 transition whitespace-nowrap" title="Mark as fully paid">Mark Paid</button>
-                        )}
-                        {/* Project button */}
-                        {linkedProject ? (
-                          <button
-                            onClick={() => setViewProjectId(linkedProject.id)}
-                            className="p-1.5 rounded-md border border-blue-200 text-blue-500 bg-blue-50 hover:bg-blue-100 transition"
-                            title={`Project: ${linkedProject.name} — click to view`}
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              const c = clients.find((c) => c.id === inv.clientId)
-                              setCpName(c?.name ?? '')
-                              setCpItems(scopeOfWork.map((desc) => ({ id: uid(), description: desc, status: 'todo' as ProjectItemStatus })))
-                              setCpExcluded(new Set())
-                              setCreateProjectInvId(inv.id)
-                            }}
-                            className="p-1.5 rounded-md border border-zinc-200 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
-                            title="Create project from this invoice"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
-                          </button>
-                        )}
+                        {/* Mobile project button */}
+                        <button
+                          onClick={() => linkedProject ? setViewProjectId(linkedProject.id) : openLinkProject(inv)}
+                          className={`md:hidden p-1.5 rounded-md border transition ${linkedProject ? 'border-blue-200 text-blue-500 bg-blue-50 hover:bg-blue-100' : 'border-zinc-200 text-zinc-400 hover:bg-zinc-100'}`}
+                          title={linkedProject ? linkedProject.name : 'Link project'}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+                        </button>
                         <a href={`/invoices/${inv.id}`} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition" title="PDF">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         </a>
@@ -385,7 +365,7 @@ export default function InvoicesView() {
 
       <Pagination page={safePage} totalPages={totalPages} totalItems={sortedInvoices.length} pageSize={PAGE_SIZE} onPageChange={goToPage} />
 
-      {/* ── Slide-in invoice form panel ──────────────────────────────────────── */}
+      {/* ── Invoice form panel ──────────────────────────────────────────────────── */}
       {panelOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/30" onClick={closePanel} />
@@ -396,29 +376,77 @@ export default function InvoicesView() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+
             <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-6">
               <div className="grid grid-cols-2 gap-4">
-                <PanelField label="Invoice Number" required><input value={form.number} onChange={(e) => setField('number', e.target.value)} className={inputCls} placeholder="INV-2025-001" /></PanelField>
-                <PanelField label="Date" required><input type="date" value={form.date} onChange={(e) => setField('date', e.target.value)} className={inputCls} /></PanelField>
+                <PanelField label="Invoice Number" required>
+                  <input value={form.number} onChange={(e) => setField('number', e.target.value)} className={inputCls} placeholder="INV-2025-001" />
+                </PanelField>
+                <PanelField label="Date" required>
+                  <input type="date" value={form.date} onChange={(e) => setField('date', e.target.value)} className={inputCls} />
+                </PanelField>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <PanelField label="Client" required>
+
+              {/* Client field + inline create */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-zinc-700">Client <span className="text-red-500">*</span></label>
+                  {!showClientForm && (
+                    <button
+                      onClick={() => { setShowClientForm(true); setField('clientId', '') }}
+                      className="flex items-center gap-0.5 text-xs text-brand hover:underline"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                      New client
+                    </button>
+                  )}
+                </div>
+                {!showClientForm ? (
                   <select value={form.clientId} onChange={(e) => setField('clientId', e.target.value)} className={inputCls}>
                     <option value="">Select a client…</option>
                     {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
-                </PanelField>
-                <PanelField label="Payment Terms">
-                  <select value={form.paymentTerms} onChange={(e) => setField('paymentTerms', e.target.value)} className={inputCls}>
-                    {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
-                </PanelField>
+                ) : (
+                  <div className="rounded-xl border border-brand/50 bg-amber-50/50 p-4 flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Create new client</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Name <span className="text-red-500">*</span></label>
+                        <input value={clientForm.name} onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))} placeholder="Jane Doe" className={inputCls} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Email <span className="text-red-500">*</span></label>
+                        <input type="email" value={clientForm.email} onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))} placeholder="jane@example.com" className={inputCls} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Phone</label>
+                        <input value={clientForm.phone} onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))} placeholder="+66 00 000 0000" className={inputCls} />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Address</label>
+                        <input value={clientForm.address} onChange={(e) => setClientForm((p) => ({ ...p, address: e.target.value }))} placeholder="123 Main St" className={inputCls} />
+                      </div>
+                    </div>
+                    {clientFormError && <p className="text-xs text-red-600">{clientFormError}</p>}
+                    <div className="flex gap-2 justify-end">
+                      <button onClick={() => { setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('') }} className="h-8 px-3 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 transition">Cancel</button>
+                      <button onClick={saveNewClient} className="h-8 px-3 rounded-lg bg-brand text-zinc-900 text-xs font-medium hover:bg-brand-hover transition">Add &amp; select</button>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              <PanelField label="Payment Terms">
+                <select value={form.paymentTerms} onChange={(e) => setField('paymentTerms', e.target.value)} className={inputCls}>
+                  {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </PanelField>
+
               <PanelField label="Status">
                 <div className="flex gap-2 flex-wrap">
                   {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => {
                     const active = form.status === s
-                    const sc     = STATUS_CONFIG[s]
+                    const sc = STATUS_CONFIG[s]
                     return (
                       <button key={s} onClick={() => setField('status', s)} className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${active ? `${sc.cls} border-current` : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'}`}>
                         {sc.label}
@@ -427,6 +455,7 @@ export default function InvoicesView() {
                   })}
                 </div>
               </PanelField>
+
               {/* Line items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -471,6 +500,7 @@ export default function InvoicesView() {
                   )}
                 </div>
               </div>
+
               {/* WHT toggle */}
               <div className="flex items-start gap-4 p-4 rounded-xl bg-amber-50 border border-amber-200">
                 <div className="flex-1">
@@ -481,6 +511,7 @@ export default function InvoicesView() {
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.wht ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
+
               {/* Deposit toggle */}
               <div className="flex items-start gap-4 p-4 rounded-xl bg-green-50 border border-green-200">
                 <div className="flex-1">
@@ -497,11 +528,12 @@ export default function InvoicesView() {
                   <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.depositPercent != null ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
-              {/* Notes */}
+
               <PanelField label="Notes">
-                <textarea rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} placeholder="Payment terms, additional instructions…" />
+                <textarea rows={3} value={form.notes} onChange={(e) => setField('notes', e.target.value)} className={`${inputCls} h-auto py-2 resize-none`} placeholder="Payment instructions, additional notes…" />
               </PanelField>
             </div>
+
             <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between shrink-0">
               {formError ? <p className="text-sm text-red-600">{formError}</p> : <span />}
               <div className="flex gap-3">
@@ -515,34 +547,7 @@ export default function InvoicesView() {
         </>
       )}
 
-      {/* ── Status change confirm ─────────────────────────────────────────────── */}
-      {statusChange && (() => {
-        const { from, to } = statusChange
-        const hint =
-          from === 'sent'    && to === 'partial' ? { title: 'Accept Deposit',          desc: 'Confirm that the client has paid the deposit. The invoice will move to "Deposit Rcvd" and you can collect the remaining balance later.' }
-        : from === 'partial' && to === 'paid'    ? { title: 'Final Payment Received',  desc: 'Confirm that the client has paid the remaining balance. The invoice will be marked as fully Paid.' }
-        : from === 'sent'    && to === 'paid'    ? { title: 'Mark as Paid',            desc: 'Confirm that the client has paid the full amount. The invoice will be marked as Paid — no deposit was required.' }
-        : null
-        return (
-          <ModalShell onClose={() => setStatusChange(null)} maxWidth="max-w-sm">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-zinc-900 mb-1">{hint?.title ?? 'Change status?'}</h2>
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[from].cls}`}>{STATUS_CONFIG[from].label}</span>
-                <svg className="w-4 h-4 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
-                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[to].cls}`}>{STATUS_CONFIG[to].label}</span>
-              </div>
-              {hint && <p className="text-sm text-zinc-500 mb-5">{hint.desc}</p>}
-              <div className="flex gap-3 justify-end">
-                <button onClick={() => setStatusChange(null)} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
-                <button onClick={confirmStatusChange} className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition">Confirm</button>
-              </div>
-            </div>
-          </ModalShell>
-        )
-      })()}
-
-      {/* ── Delete confirm ────────────────────────────────────────────────────── */}
+      {/* ── Delete confirm ─────────────────────────────────────────────────────── */}
       {deleteId && (
         <ModalShell onClose={() => setDeleteId(null)} maxWidth="max-w-sm">
           <div className="p-6">
@@ -556,55 +561,105 @@ export default function InvoicesView() {
         </ModalShell>
       )}
 
-      {/* ── Create project from invoice ───────────────────────────────────────── */}
-      {createProjectInvId && (() => {
-        const inv    = invoices.find((i) => i.id === createProjectInvId)
-        const client = inv ? clients.find((c) => c.id === inv.clientId) : null
+      {/* ── Link / Create project ───────────────────────────────────────────────── */}
+      {linkProjectInvId && (() => {
+        const inv            = invoices.find((i) => i.id === linkProjectInvId)
+        const client         = inv ? clients.find((c) => c.id === inv.clientId) : null
+        const clientProjects = inv ? projects.filter((p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id)) : []
         return (
-          <ModalShell onClose={() => setCreateProjectInvId(null)}>
+          <ModalShell onClose={() => setLinkProjectInvId(null)}>
             <div className="flex flex-col max-h-[90vh]">
               <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
                 <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">Create project</h2>
-                  {inv && <p className="text-xs text-zinc-400 mt-0.5">from {inv.number} · {client?.name ?? '—'}</p>}
+                  <h2 className="text-lg font-semibold text-zinc-900">Link project</h2>
+                  {inv && <p className="text-xs text-zinc-400 mt-0.5">{inv.number} · {client?.name ?? '—'}</p>}
                 </div>
-                <button onClick={() => setCreateProjectInvId(null)} className="text-zinc-400 hover:text-zinc-700 transition">
+                <button onClick={() => setLinkProjectInvId(null)} className="text-zinc-400 hover:text-zinc-700 transition">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
+
+              {clientProjects.length > 0 && (
+                <div className="flex border-b border-zinc-200 shrink-0">
+                  {(['link', 'create'] as const).map((m) => (
+                    <button key={m} onClick={() => setCpMode(m)} className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition ${cpMode === m ? 'border-brand text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}>
+                      {m === 'link' ? 'Link existing' : 'Create new'}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-zinc-700">Project Name</label>
-                  <input type="text" value={cpName} onChange={(e) => setCpName(e.target.value)} placeholder={client?.name ?? 'Project name…'} className={inputCls} />
-                  {client && !cpName && (
-                    <button onClick={() => setCpName(client.name)} className="self-start text-xs text-brand hover:underline">Use &quot;{client.name}&quot;</button>
-                  )}
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-zinc-700">Scope items</label>
-                  <div className="flex flex-col gap-1.5 rounded-lg border border-zinc-200 p-3 max-h-52 overflow-y-auto">
-                    {cpItems.map((item) => (
-                      <label key={item.id} className="flex items-center gap-2.5 cursor-pointer">
-                        <input type="checkbox" checked={!cpExcluded.has(item.id)} onChange={() => { setCpExcluded((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next }) }} className="rounded border-zinc-300 text-brand focus:ring-brand" />
-                        <span className={`text-sm ${cpExcluded.has(item.id) ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>{item.description}</span>
-                      </label>
-                    ))}
-                  </div>
-                  <p className="text-xs text-zinc-400">Uncheck items to exclude them.</p>
-                </div>
+                {cpMode === 'link' && clientProjects.length > 0 ? (
+                  <>
+                    <p className="text-sm text-zinc-500">Pick an existing project to attach this invoice to.</p>
+                    <div className="flex flex-col gap-2">
+                      {clientProjects.map((p) => {
+                        const done  = p.items.filter((it) => it.status === 'done').length
+                        const total = p.items.length
+                        const pct   = total > 0 ? Math.round((done / total) * 100) : 0
+                        return (
+                          <label key={p.id} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${cpLinkId === p.id ? 'border-brand bg-amber-50/40' : 'border-zinc-200 hover:border-zinc-300'}`}>
+                            <input type="radio" name="linkProject" value={p.id} checked={cpLinkId === p.id} onChange={() => setCpLinkId(p.id)} className="text-brand" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-zinc-900">{p.name}</p>
+                              {total > 0 && (
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full ${pct === 100 ? 'bg-green-500' : 'bg-brand'}`} style={{ width: `${pct}%` }} />
+                                  </div>
+                                  <span className="text-xs text-zinc-400 shrink-0">{pct}%</span>
+                                </div>
+                              )}
+                            </div>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-sm font-medium text-zinc-700">Project name</label>
+                      <input type="text" value={cpName} onChange={(e) => setCpName(e.target.value)} placeholder={client?.name ?? 'Project name…'} className={inputCls} />
+                      {client && !cpName && (
+                        <button onClick={() => setCpName(client.name)} className="self-start text-xs text-brand hover:underline">Use &quot;{client.name}&quot;</button>
+                      )}
+                    </div>
+                    {cpItems.length > 0 && (
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-sm font-medium text-zinc-700">Scope items from invoice</label>
+                        <div className="flex flex-col gap-1.5 rounded-lg border border-zinc-200 p-3 max-h-48 overflow-y-auto">
+                          {cpItems.map((item) => (
+                            <label key={item.id} className="flex items-center gap-2.5 cursor-pointer">
+                              <input type="checkbox" checked={!cpExcluded.has(item.id)} onChange={() => setCpExcluded((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next })} className="rounded border-zinc-300 text-brand focus:ring-brand" />
+                              <span className={`text-sm ${cpExcluded.has(item.id) ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>{item.description}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-zinc-400">Uncheck items to exclude from project.</p>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
+
               <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 justify-end shrink-0">
-                <button onClick={() => setCreateProjectInvId(null)} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
+                <button onClick={() => setLinkProjectInvId(null)} className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition">Cancel</button>
                 <button
                   onClick={() => {
                     if (!inv) return
-                    const name = cpName.trim() || (client?.name ?? 'New Project')
-                    setProjects([...projects, { id: uid(), name, clientId: inv.clientId, invoiceIds: [inv.id], items: cpItems.filter((it) => !cpExcluded.has(it.id)).map((it) => ({ ...it, status: 'todo' as ProjectItemStatus })), status: 'active', createdAt: new Date().toISOString() }])
-                    setCreateProjectInvId(null); setCpName(''); setCpItems([]); setCpExcluded(new Set())
+                    if (cpMode === 'link' && cpLinkId) {
+                      setProjects(projects.map((p) => p.id === cpLinkId ? { ...p, invoiceIds: [...p.invoiceIds, inv.id] } : p))
+                    } else {
+                      const name = cpName.trim() || (client?.name ?? 'New Project')
+                      setProjects([...projects, { id: uid(), name, clientId: inv.clientId, invoiceIds: [inv.id], items: cpItems.filter((it) => !cpExcluded.has(it.id)), status: 'active', createdAt: new Date().toISOString() }])
+                    }
+                    setLinkProjectInvId(null); setCpName(''); setCpItems([]); setCpExcluded(new Set()); setCpLinkId('')
                   }}
                   className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
                 >
-                  Create project
+                  {cpMode === 'link' ? 'Link project' : 'Create project'}
                 </button>
               </div>
             </div>
@@ -612,65 +667,8 @@ export default function InvoicesView() {
         )
       })()}
 
-      {/* ── View project progress ─────────────────────────────────────────────── */}
-      {viewProjectId && (() => {
-        const project    = projects.find((p) => p.id === viewProjectId)
-        if (!project) return null
-        const doneCount  = project.items.filter((it) => it.status === 'done').length
-        const totalItems = project.items.length
-        const pct        = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0
-        const statusCls  = { active: 'bg-blue-100 text-blue-700', completed: 'bg-green-100 text-green-700', 'on-hold': 'bg-zinc-100 text-zinc-600' }
-        const statusLbl  = { active: 'Active', completed: 'Completed', 'on-hold': 'On Hold' }
-        return (
-          <ModalShell onClose={() => setViewProjectId(null)}>
-            <div className="flex flex-col max-h-[85vh]">
-              <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
-                <div>
-                  <h2 className="text-lg font-semibold text-zinc-900">{project.name}</h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusCls[project.status]}`}>{statusLbl[project.status]}</span>
-                    {totalItems > 0 && <span className="text-xs text-zinc-400">{doneCount}/{totalItems} done · {pct}%</span>}
-                  </div>
-                </div>
-                <button onClick={() => setViewProjectId(null)} className="text-zinc-400 hover:text-zinc-700 transition shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              {totalItems > 0 && (
-                <div className="px-6 pt-4 shrink-0">
-                  <div className="h-2 rounded-full bg-zinc-100 overflow-hidden">
-                    <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              )}
-              <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2">
-                {project.items.length === 0 ? (
-                  <p className="text-sm text-zinc-400 text-center py-6">No scope items in this project.</p>
-                ) : (
-                  project.items.map((item) => {
-                    const cfg = ITEM_STATUS_CONFIG[item.status]
-                    return (
-                      <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg border border-zinc-100 hover:border-zinc-200 transition">
-                        <button
-                          onClick={() => setProjects(projects.map((p) => p.id !== project.id ? p : { ...p, items: p.items.map((it) => it.id !== item.id ? it : { ...it, status: ITEM_STATUS_NEXT[it.status] }) }))}
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-medium transition hover:opacity-80 ${cfg.cls}`}
-                          title="Click to cycle status"
-                        >
-                          {cfg.label}
-                        </button>
-                        <span className={`text-sm flex-1 ${item.status === 'done' ? 'line-through text-zinc-400' : 'text-zinc-800'}`}>{item.description}</span>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-              <div className="px-6 py-3 border-t border-zinc-100 shrink-0">
-                <p className="text-xs text-zinc-400">Click a status badge to cycle: To Do → In Progress → Done</p>
-              </div>
-            </div>
-          </ModalShell>
-        )
-      })()}
+      {/* ── View project detail ─────────────────────────────────────────────────── */}
+      {viewProjectId && <ProjectDetailModal projectId={viewProjectId} onClose={() => setViewProjectId(null)} />}
     </>
   )
 }
@@ -680,6 +678,17 @@ function PanelField({ label, required, children }: { label: string; required?: b
     <div className="flex flex-col gap-1.5">
       <label className="text-sm font-medium text-zinc-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</label>
       {children}
+    </div>
+  )
+}
+
+function SummaryCard({ label, value, sub, accent }: { label: string; value: string; sub: string; accent?: 'amber' | 'red' }) {
+  const subCls = accent === 'red' ? 'text-red-500' : accent === 'amber' ? 'text-amber-600' : 'text-zinc-500'
+  return (
+    <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
+      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-2xl font-bold text-zinc-900">{value}</p>
+      <p className={`text-xs mt-0.5 ${subCls}`}>{sub}</p>
     </div>
   )
 }

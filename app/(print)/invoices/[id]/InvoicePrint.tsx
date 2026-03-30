@@ -109,8 +109,22 @@ function Sheet({
   return (
     <div
       className="bg-white w-[210mm] min-h-[297mm] p-[14mm] flex flex-col"
-      style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', lineHeight: '1.6', color: '#18181b' }}
+      style={{ fontFamily: 'Arial, sans-serif', fontSize: '11px', lineHeight: '1.6', color: '#18181b', position: 'relative' }}
     >
+      {invoice.status === 'draft' && (
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          pointerEvents: 'none', zIndex: 10,
+        }}>
+          <span style={{
+            fontSize: '96px', fontWeight: 900, color: 'rgba(161,161,170,0.18)',
+            textTransform: 'uppercase', letterSpacing: '0.12em', transform: 'rotate(-35deg)',
+            userSelect: 'none', whiteSpace: 'nowrap',
+          }}>
+            DRAFT
+          </span>
+        </div>
+      )}
       {/* ── Header ── */}
       <div className="flex justify-between items-start mb-7">
         {/* Company info */}
@@ -226,9 +240,9 @@ function Sheet({
         <div style={{ marginBottom: '16px', padding: '10px 12px', borderRadius: '6px', border: '1px solid #fcd34d', backgroundColor: '#fffbeb', color: '#92400e', fontSize: '10px' }}>
           <p style={{ fontWeight: 700, marginBottom: '3px' }}>Withholding Tax Notice</p>
           <p>
-            Net amount payable to us: <strong>{fmt(subtotal)}</strong>.
-            WHT of <strong>{fmt(whtAmount)}</strong> (15%) is to be remitted to the Revenue Department by the client.
-            Total amount payable by client: <strong>{fmt(grandTotal)}</strong>.
+            Amount payable to us: <strong>{fmt(subtotal)}</strong>.
+            The client is required to add and remit WHT of <strong>{fmt(whtAmount)}</strong> (15%) directly to the Revenue Department.
+            Total amount the client pays: <strong>{fmt(grandTotal)}</strong>.
           </p>
         </div>
       )}

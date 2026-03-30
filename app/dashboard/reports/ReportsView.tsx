@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useStore, type Invoice, type InvoiceStatus } from '../AppStore'
 import { STATUS_CONFIG } from '@/app/_config/statusConfig'
 import { fmtUSD as fmt, fmtShort } from '@/app/_lib/formatters'
-import { calcSubtotal } from '@/app/_services/invoiceService'
+import { calcSubtotal, calcEarned, calcBalance, calcInvoiceTotal } from '@/app/_services/invoiceService'
 
 type Period = 'weekly' | 'monthly' | 'yearly'
 
@@ -55,18 +55,18 @@ export default function ReportsView() {
   const base = clientFilter === 'all' ? invoices : invoices.filter((inv) => inv.clientId === clientFilter)
 
   // Summary
-  const totalEarned  = base.reduce((s, inv) => s + calcSubtotal(inv), 0)
-  const paidAmount   = base.filter((inv) => (inv.status ?? 'draft') === 'paid').reduce((s, inv) => s + calcSubtotal(inv), 0)
-  const outstanding  = base.filter((inv) => ['sent', 'overdue'].includes(inv.status ?? 'draft')).reduce((s, inv) => s + calcSubtotal(inv), 0)
-  const overdueCount = base.filter((inv) => (inv.status ?? 'draft') === 'overdue').length
-  const whtInvoices  = base.filter((inv) => inv.wht)
-  const whtTax       = whtInvoices.reduce((s, inv) => s + calcSubtotal(inv) * 0.15, 0)
+  const totalReceived = base.reduce((s, inv) => s + calcEarned(inv), 0)
+  const totalInvoiced = base.reduce((s, inv) => s + calcInvoiceTotal(inv), 0)
+  const outstanding   = base.filter((inv) => ['sent', 'overdue', 'partial'].includes(inv.status ?? 'draft')).reduce((s, inv) => s + calcBalance(inv), 0)
+  const overdueCount  = base.filter((inv) => (inv.status ?? 'draft') === 'overdue').length
+  const whtInvoices   = base.filter((inv) => inv.wht)
+  const whtTax        = whtInvoices.reduce((s, inv) => s + calcSubtotal(inv) * 0.15, 0)
 
   // Bar chart
   const buckets   = generateBuckets(period)
   const bucketData = buckets.map((b) => {
     const matched = base.filter((inv) => invPeriodKey(inv, period) === b.key)
-    return { ...b, revenue: matched.reduce((s, inv) => s + calcSubtotal(inv), 0), count: matched.length }
+    return { ...b, revenue: matched.reduce((s, inv) => s + calcInvoiceTotal(inv), 0), count: matched.length }
   })
   const maxRevenue = Math.max(...bucketData.map((b) => b.revenue), 1)
 
@@ -74,16 +74,16 @@ export default function ReportsView() {
   const clientData = clients
     .map((c) => {
       const byClient = base.filter((inv) => inv.clientId === c.id)
-      return { id: c.id, name: c.name, revenue: byClient.reduce((s, inv) => s + calcSubtotal(inv), 0), count: byClient.length }
+      return { id: c.id, name: c.name, revenue: byClient.reduce((s, inv) => s + calcInvoiceTotal(inv), 0), count: byClient.length }
     })
     .filter((c) => c.revenue > 0)
     .sort((a, b) => b.revenue - a.revenue)
   const maxClientRevenue = Math.max(...clientData.map((c) => c.revenue), 1)
 
   // Status breakdown
-  const statusData = (['paid', 'sent', 'overdue', 'draft'] as InvoiceStatus[]).map((s) => {
+  const statusData = (['paid', 'partial', 'sent', 'overdue', 'draft'] as InvoiceStatus[]).map((s) => {
     const matched = base.filter((inv) => (inv.status ?? 'draft') === s)
-    return { status: s, count: matched.length, revenue: matched.reduce((sum, inv) => sum + calcSubtotal(inv), 0) }
+    return { status: s, count: matched.length, revenue: matched.reduce((sum, inv) => sum + calcInvoiceTotal(inv), 0) }
   })
 
   // Top scopes of work
@@ -135,9 +135,9 @@ export default function ReportsView() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Total earned"  value={fmt(totalEarned)} sub={`${base.length} invoice${base.length !== 1 ? 's' : ''}`} />
-        <StatCard label="Collected"     value={fmt(paidAmount)}  sub={`${base.filter(i => (i.status ?? 'draft') === 'paid').length} paid`} accent="green" />
-        <StatCard label="Outstanding"   value={fmt(outstanding)} sub={`${overdueCount} overdue`} accent={overdueCount > 0 ? 'red' : undefined} />
+        <StatCard label="Received"      value={fmt(totalReceived)} sub={`of ${fmt(totalInvoiced)} invoiced`} accent="green" />
+        <StatCard label="Outstanding"   value={fmt(outstanding)} sub={`${overdueCount} overdue · incl. partial balance`} accent={overdueCount > 0 ? 'red' : undefined} />
+        <StatCard label="Total invoiced" value={fmt(totalInvoiced)} sub={`${base.length} invoice${base.length !== 1 ? 's' : ''}`} />
         <StatCard label="WHT invoices"  value={String(whtInvoices.length)} sub={`${fmt(whtTax)} tax`} />
       </div>
 
