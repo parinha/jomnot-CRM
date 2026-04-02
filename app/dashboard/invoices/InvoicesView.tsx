@@ -10,7 +10,7 @@ import {
   type Client,
   type ProjectItemStatus,
 } from '../AppStore';
-import { calcSubtotal } from '@/app/_services/invoiceService';
+import { calcSubtotal, WHT_RATE } from '@/app/_services/invoiceService';
 import { fmtUSD } from '@/app/_lib/formatters';
 import { uid } from '@/app/_lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants';
@@ -76,6 +76,7 @@ export default function InvoicesView() {
     items: [emptyItem()],
     notes: '',
     depositPercent: undefined,
+    withWHT: undefined,
   });
 
   const [form, setForm] = useState<FormState>(blankForm);
@@ -123,6 +124,7 @@ export default function InvoicesView() {
       items: inv.items,
       notes: inv.notes,
       depositPercent: inv.depositPercent,
+      withWHT: inv.withWHT,
     });
     setFormError('');
     setShowClientForm(false);
@@ -205,8 +207,26 @@ export default function InvoicesView() {
   }
 
   const subtotal = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
-  const depositAmount = form.depositPercent != null ? subtotal * (form.depositPercent / 100) : 0;
-  const balanceDue = subtotal - depositAmount;
+  const whtAmount = form.withWHT ? subtotal * WHT_RATE : 0;
+  const netTotal = form.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+  const depositAmount = form.depositPercent != null ? netTotal * (form.depositPercent / 100) : 0;
+  const balanceDue = netTotal - depositAmount;
+
+  function toggleWHT() {
+    setForm((prev) => {
+      const enabling = !prev.withWHT;
+      return {
+        ...prev,
+        withWHT: enabling || undefined,
+        items: prev.items.map((it) => ({
+          ...it,
+          unitPrice: enabling
+            ? Math.round((it.unitPrice / (1 - WHT_RATE)) * 100) / 100
+            : Math.round(it.unitPrice * (1 - WHT_RATE) * 100) / 100,
+        })),
+      };
+    });
+  }
 
   // ── Modals ─────────────────────────────────────────────────────────────────
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -1164,9 +1184,23 @@ export default function InvoicesView() {
                 </div>
                 <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
                   <div className="flex gap-8 pt-1.5 border-t border-zinc-200">
-                    <span className="font-semibold text-zinc-700">Total</span>
+                    <span className="font-semibold text-zinc-700">Grand Total</span>
                     <span className="font-bold text-zinc-900 w-28 text-right">{fmt(subtotal)}</span>
                   </div>
+                  {form.withWHT && (
+                    <>
+                      <div className="flex gap-8 text-orange-700">
+                        <span>Less WHT {WHT_RATE * 100}%</span>
+                        <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
+                      </div>
+                      <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5">
+                        <span className="font-semibold text-zinc-700">Total (USD)</span>
+                        <span className="font-bold text-zinc-900 w-28 text-right">
+                          {fmt(netTotal)}
+                        </span>
+                      </div>
+                    </>
+                  )}
                   {form.depositPercent != null && (
                     <>
                       <div className="flex gap-8 text-green-700">
@@ -1182,6 +1216,31 @@ export default function InvoicesView() {
                     </>
                   )}
                 </div>
+              </div>
+
+              {/* WHT toggle */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-50 border border-orange-200">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-orange-800">Withholding Tax (WHT 15%)</p>
+                  <p className="text-xs text-orange-600 mt-0.5">
+                    Gross-up unit prices so the client withholds 15% and you receive the deal
+                    amount.
+                  </p>
+                  {form.withWHT && (
+                    <p className="text-xs text-orange-700 mt-2 font-medium">
+                      Grand Total: {fmt(subtotal)} · Less WHT: ({fmt(whtAmount)}) · You receive:{' '}
+                      {fmt(netTotal)}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={toggleWHT}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.withWHT ? 'bg-orange-500' : 'bg-zinc-300'}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.withWHT ? 'translate-x-6' : 'translate-x-1'}`}
+                  />
+                </button>
               </div>
 
               {/* Deposit toggle */}
