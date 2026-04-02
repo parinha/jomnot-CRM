@@ -30,6 +30,7 @@ export default function ClientsView() {
         const q = search.toLowerCase()
         return c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) ||
                c.phone.toLowerCase().includes(q) || c.address.toLowerCase().includes(q) ||
+               (c.contactPerson ?? '').toLowerCase().includes(q) ||
                (c.note ?? '').toLowerCase().includes(q)
       })
     : clients
@@ -143,7 +144,7 @@ export default function ClientsView() {
             <thead>
               <tr className="border-b border-zinc-200 bg-zinc-50">
                 <SortTh col="name"     active={sortCol} dir={sortDir} onSort={handleSort} className="text-left px-4 py-3">Name</SortTh>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Email</th>
+                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">Contact</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">Phone</th>
                 <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden lg:table-cell">Address</th>
                 <SortTh col="invoices" active={sortCol} dir={sortDir} onSort={handleSort} className="text-center px-4 py-3 hidden sm:table-cell">Invoices</SortTh>
@@ -158,7 +159,12 @@ export default function ClientsView() {
                 return (
                   <tr key={client.id} className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}>
                     <td className="px-4 py-3 font-medium text-zinc-900">{client.name}</td>
-                    <td className="px-4 py-3 text-zinc-600 hidden sm:table-cell">{client.email}</td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {client.contactPerson
+                        ? <><div className="text-zinc-800 text-sm">{client.contactPerson}</div><div className="text-xs text-zinc-400">{client.email}</div></>
+                        : <span className="text-zinc-600">{client.email}</span>
+                      }
+                    </td>
                     <td className="px-4 py-3 text-zinc-600 hidden md:table-cell">{client.phone || '—'}</td>
                     <td className="px-4 py-3 text-zinc-600 max-w-xs truncate hidden lg:table-cell">{client.address || '—'}</td>
                     <td className="px-4 py-3 text-center hidden sm:table-cell">

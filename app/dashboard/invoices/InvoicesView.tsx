@@ -68,6 +68,11 @@ export default function InvoicesView() {
 
   const [form, setForm] = useState<FormState>(blankForm)
 
+  // Client combobox
+  const [clientSearch, setClientSearch]       = useState('')
+  const [clientDropOpen, setClientDropOpen]   = useState(false)
+  const clientComboRef                        = useRef<HTMLDivElement>(null)
+
   // Inline client creation
   const [showClientForm, setShowClientForm] = useState(false)
   const [clientForm, setClientForm]         = useState(EMPTY_CLIENT_FORM)
@@ -76,6 +81,7 @@ export default function InvoicesView() {
   function openNew() {
     setEditingId(null); setForm(blankForm()); setFormError('')
     setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
+    setClientSearch(''); setClientDropOpen(false)
     setPanelOpen(true)
   }
 
@@ -91,11 +97,13 @@ export default function InvoicesView() {
     setEditingId(inv.id)
     setForm({ number: inv.number, date: inv.date, paymentTerms: inv.paymentTerms ?? 'Due on receipt', status: inv.status ?? 'draft', clientId: inv.clientId, projectName: inv.projectName ?? '', items: inv.items, notes: inv.notes, depositPercent: inv.depositPercent })
     setFormError(''); setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
+    setClientSearch(''); setClientDropOpen(false)
     setPanelOpen(true)
   }
   function closePanel() {
     setPanelOpen(false); setEditingId(null); setFormError('')
     setShowClientForm(false); setClientForm(EMPTY_CLIENT_FORM); setClientFormError('')
+    setClientSearch(''); setClientDropOpen(false)
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -431,10 +439,51 @@ export default function InvoicesView() {
                   )}
                 </div>
                 {!showClientForm ? (
-                  <select value={form.clientId} onChange={(e) => setField('clientId', e.target.value)} className={inputCls}>
-                    <option value="">Select a client…</option>
-                    {clients.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
+                  <div ref={clientComboRef} className="relative">
+                    {(() => {
+                      const selected = clients.find((c) => c.id === form.clientId)
+                      const q = clientSearch.toLowerCase().trim()
+                      const filtered = q
+                        ? clients.filter((c) =>
+                            [c.name, c.contactPerson ?? '', c.phone, c.email, c.address, c.note ?? '']
+                              .some((f) => f.toLowerCase().includes(q))
+                          )
+                        : clients
+                      return (
+                        <>
+                          <input
+                            value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
+                            onChange={(e) => { setClientSearch(e.target.value); setClientDropOpen(true); if (!e.target.value) setField('clientId', '') }}
+                            onFocus={() => { setClientSearch(''); setClientDropOpen(true) }}
+                            onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
+                            placeholder="Search clients…"
+                            className={inputCls}
+                          />
+                          {clientDropOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+                              {filtered.length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-zinc-400">No clients found</div>
+                              ) : filtered.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => { setField('clientId', c.id); setClientSearch(''); setClientDropOpen(false) }}
+                                  className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition ${form.clientId === c.id ? 'bg-amber-50' : ''}`}
+                                >
+                                  <div className="text-sm font-medium text-zinc-900">{c.name}</div>
+                                  {(c.contactPerson || c.email || c.phone) && (
+                                    <div className="text-xs text-zinc-400 truncate">
+                                      {[c.contactPerson, c.email, c.phone].filter(Boolean).join(' · ')}
+                                    </div>
+                                  )}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )
+                    })()}
+                  </div>
                 ) : (
                   <div className="rounded-xl border border-brand/50 bg-amber-50/50 p-4 flex flex-col gap-3">
                     <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Create new client</p>
