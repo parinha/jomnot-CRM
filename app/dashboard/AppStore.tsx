@@ -168,9 +168,11 @@ function batchReplace<T extends { id: string } & RecordMeta>(
   // upserts with audit fields
   next.forEach((x) => {
     const existing = currentMap.get(x.id);
-    const data = existing
+    const raw = existing
       ? { ...x, updatedBy: user, updatedAt: ts } // update
       : { ...x, createdBy: user, createdAt: x.createdAt ?? ts, updatedBy: user, updatedAt: ts }; // create
+    // Firestore rejects undefined values — strip them out
+    const data = Object.fromEntries(Object.entries(raw).filter(([, v]) => v !== undefined));
     batch.set(doc(db, colName, x.id), data);
   });
 
