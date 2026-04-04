@@ -81,17 +81,11 @@ export default function InvoicesView() {
     setSendingTelegram(inv.id);
     try {
       const client = clients.find((c) => c.id === inv.clientId);
-      const sub = calcSubtotal(inv);
-      const wht = inv.withWHT ? sub * WHT_RATE : 0;
-      const net = sub - wht;
       const printUrl = `${window.location.origin}/invoices/${inv.id}`;
       const text = [
         `📄 *Invoice ${inv.number}*`,
         `📅 Date: ${inv.date}`,
         `👤 Client: ${client?.name ?? '—'}`,
-        inv.withWHT
-          ? `💰 Subtotal: ${fmt(sub)}\n    Less WHT 3%: (${fmt(wht)})\n    Net: *${fmt(net)}*`
-          : `💰 Amount: *${fmt(sub)}*`,
         ``,
         `[View / Save as PDF](${printUrl})`,
       ].join('\n');

@@ -22,9 +22,15 @@ interface PrintData {
   payment: PaymentInfo;
 }
 
+function isIOS() {
+  if (typeof navigator === 'undefined') return false;
+  return /iP(hone|od|ad)/.test(navigator.userAgent);
+}
+
 export default function InvoicePrint({ id }: { id: string }) {
   const [data, setData] = useState<PrintData | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [ios] = useState(() => isIOS());
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
@@ -84,29 +90,51 @@ export default function InvoicePrint({ id }: { id: string }) {
       {/* Screen toolbar */}
       <div className="no-print fixed top-0 inset-x-0 z-10 flex items-center justify-between px-6 py-3 bg-zinc-800 text-white text-sm">
         <span className="font-medium">{invoice.number}</span>
-        <button
-          type="button"
-          onClick={() => {
-            window.focus();
-            setTimeout(() => window.print(), 0);
-          }}
-          className="flex items-center gap-2 h-8 px-4 rounded-lg bg-white text-zinc-900 text-sm font-medium hover:bg-zinc-100 transition"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        {ios ? (
+          <div className="flex items-center gap-2 text-zinc-300 text-xs">
+            <svg
+              className="w-4 h-4 shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
+              />
+            </svg>
+            <span>
+              Tap <strong className="text-white">Share</strong> →{' '}
+              <strong className="text-white">Print</strong> to save as PDF
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              window.focus();
+              setTimeout(() => window.print(), 0);
+            }}
+            className="flex items-center gap-2 h-8 px-4 rounded-lg bg-white text-zinc-900 text-sm font-medium hover:bg-zinc-100 transition"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-            />
-          </svg>
-          Save as PDF / Print
-        </button>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+              />
+            </svg>
+            Save as PDF / Print
+          </button>
+        )}
       </div>
 
       {/* Screen preview — horizontally scrollable on mobile so the A4 sheet is fully visible */}
