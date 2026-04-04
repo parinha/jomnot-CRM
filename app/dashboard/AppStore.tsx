@@ -65,6 +65,9 @@ export interface PaymentInfo {
   swiftCode: string;
   currency: string;
   qrImage: string;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramTopicId?: string;
 }
 
 export type ProjectItemStatus = 'todo' | 'in-progress' | 'done';

@@ -291,7 +291,6 @@ function Sheet({
               <tbody>
                 <MetaRow label="Invoice No." value={invoice.number} />
                 <MetaRow label="Date" value={invoice.date} />
-                <MetaRow label="Payment Terms" value={invoice.paymentTerms || 'Due on receipt'} />
               </tbody>
             </table>
           </div>
