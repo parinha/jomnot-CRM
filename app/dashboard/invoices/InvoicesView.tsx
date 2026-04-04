@@ -110,15 +110,15 @@ export default function InvoicesView() {
     });
 
     const sheetEl = container.firstElementChild as HTMLElement;
-    const canvas = await html2canvas(sheetEl, { useCORS: true, scale: 2, logging: false });
+    const canvas = await html2canvas(sheetEl, { useCORS: true, scale: 2.5, logging: false });
 
     root.unmount();
     document.body.removeChild(container);
 
-    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const pdfW = 210;
     const pdfH = (canvas.height / canvas.width) * pdfW;
-    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, pdfH);
+    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
 
     return pdf.output('blob');
   }
@@ -138,11 +138,15 @@ export default function InvoicesView() {
       const formData = new FormData();
       formData.append('chat_id', chatId);
       formData.append('document', pdfBlob, `${inv.number}.pdf`);
+      const invoiceUrl = `${window.location.origin}/invoices/${inv.id}`;
       formData.append(
         'caption',
-        [`📄 *${inv.number}*`, `📅 Date: ${inv.date}`, `👤 Client: ${client?.name ?? '—'}`].join(
-          '\n'
-        )
+        [
+          `📄 *${inv.number}*`,
+          `📅 Date: ${inv.date}`,
+          `👤 Client: ${client?.name ?? '—'}`,
+          `🔗 ${invoiceUrl}`,
+        ].join('\n')
       );
       formData.append('parse_mode', 'Markdown');
       if (paymentInfo.telegramTopicId?.trim()) {
