@@ -134,13 +134,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             pathname={pathname}
           />
           <NavItem
-            href="/dashboard/proposals"
-            label="Proposals"
-            onClick={close}
-            d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10l6 6v10a2 2 0 01-2 2zM9 13h6m-6 4h4"
-            pathname={pathname}
-          />
-          <NavItem
             href="/dashboard/projects"
             label="Projects"
             onClick={close}
