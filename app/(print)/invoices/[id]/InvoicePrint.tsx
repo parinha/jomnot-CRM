@@ -6,6 +6,8 @@ import { fmtUSD as fmt } from '@/app/_lib/formatters';
 import { getInvoices, WHT_RATE } from '@/app/_services/invoiceService';
 import { getClients } from '@/app/_services/clientService';
 import { getCompanyProfile, getPaymentInfo } from '@/app/_services/settingsService';
+import { auth } from '@/app/_lib/auth';
+import { onAuthStateChanged } from 'firebase/auth';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const DARK = '#1a1a1a';
@@ -25,7 +27,12 @@ export default function InvoicePrint({ id }: { id: string }) {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    async function load() {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      unsub();
+      if (!user) {
+        setNotFound(true);
+        return;
+      }
       try {
         const [invoices, clients, company, payment] = await Promise.all([
           getInvoices(),
@@ -47,8 +54,8 @@ export default function InvoicePrint({ id }: { id: string }) {
       } catch {
         setNotFound(true);
       }
-    }
-    load();
+    });
+    return unsub;
   }, [id]);
 
   if (notFound)

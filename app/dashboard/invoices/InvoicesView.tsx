@@ -603,13 +603,14 @@ export default function InvoicesView() {
                       <div className="flex items-center justify-end gap-1.5">
                         {status === 'draft' && (
                           <button
-                            onClick={() =>
+                            onClick={() => {
                               setInvoices(
                                 invoices.map((i) =>
                                   i.id === inv.id ? { ...i, status: 'sent' } : i
                                 )
-                              )
-                            }
+                              );
+                              window.open(`/invoices/${inv.id}`, '_blank');
+                            }}
                             className="h-7 px-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
                           >
                             Mark Sent
