@@ -200,17 +200,17 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     }
 
     const unsubClients = onSnapshot(collection(db, COL.clients), (snap) => {
-      setClientsState(snap.docs.map((d) => d.data() as Client));
+      setClientsState(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Client));
       tick();
     });
 
     const unsubInvoices = onSnapshot(collection(db, COL.invoices), (snap) => {
-      setInvoicesState(snap.docs.map((d) => d.data() as Invoice));
+      setInvoicesState(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Invoice));
       tick();
     });
 
     const unsubProjects = onSnapshot(collection(db, COL.projects), (snap) => {
-      setProjectsState(snap.docs.map((d) => d.data() as Project));
+      setProjectsState(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project));
       tick();
     });
 

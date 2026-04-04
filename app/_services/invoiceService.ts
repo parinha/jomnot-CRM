@@ -6,7 +6,7 @@ export const WHT_RATE = 0.15;
 
 export async function getInvoices(): Promise<Invoice[]> {
   const snap = await getDocs(collection(db, 'invoices'));
-  return snap.docs.map((d) => d.data() as Invoice);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Invoice);
 }
 
 /**
