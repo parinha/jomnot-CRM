@@ -85,7 +85,11 @@ export default function InvoicePrint({ id }: { id: string }) {
       <div className="no-print fixed top-0 inset-x-0 z-10 flex items-center justify-between px-6 py-3 bg-zinc-800 text-white text-sm">
         <span className="font-medium">{invoice.number}</span>
         <button
-          onClick={() => window.print()}
+          type="button"
+          onClick={() => {
+            window.focus();
+            setTimeout(() => window.print(), 0);
+          }}
           className="flex items-center gap-2 h-8 px-4 rounded-lg bg-white text-zinc-900 text-sm font-medium hover:bg-zinc-100 transition"
         >
           <svg
@@ -105,19 +109,21 @@ export default function InvoicePrint({ id }: { id: string }) {
         </button>
       </div>
 
-      {/* Screen preview */}
-      <div className="no-print pt-14 min-h-screen bg-zinc-200 flex justify-center py-10 px-4">
-        <Sheet
-          invoice={invoice}
-          client={client}
-          company={company}
-          payment={payment}
-          subtotal={subtotal}
-          whtAmount={whtAmount}
-          netTotal={netTotal}
-          depositAmount={depositAmount}
-          balanceDue={balanceDue}
-        />
+      {/* Screen preview — horizontally scrollable on mobile so the A4 sheet is fully visible */}
+      <div className="no-print pt-14 min-h-screen bg-zinc-200 overflow-x-auto py-10 px-4">
+        <div className="flex justify-center min-w-[210mm]">
+          <Sheet
+            invoice={invoice}
+            client={client}
+            company={company}
+            payment={payment}
+            subtotal={subtotal}
+            whtAmount={whtAmount}
+            netTotal={netTotal}
+            depositAmount={depositAmount}
+            balanceDue={balanceDue}
+          />
+        </div>
       </div>
 
       {/* Print output */}
@@ -137,8 +143,19 @@ export default function InvoicePrint({ id }: { id: string }) {
 
       <style>{`
         @media print {
-          @page { size: A4; margin: 0; }
-          body { margin: 0; background: white; }
+          @page { size: A4 portrait; margin: 0; }
+          html, body {
+            margin: 0;
+            padding: 0;
+            background: white;
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           .no-print   { display: none !important; }
           .print-only { display: block !important; }
         }
