@@ -195,7 +195,7 @@ export default function InvoicePrint({ id }: { id: string }) {
 
 // ── Sheet ──────────────────────────────────────────────────────────────────────
 
-function Sheet({
+export function Sheet({
   invoice,
   client,
   company,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useStore, type CompanyProfile, type PaymentInfo } from '../AppStore';
 import FormField from '@/app/_components/FormField';
 
@@ -18,6 +18,14 @@ export default function SettingsView() {
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
   const [savedProfile, setSavedProfile] = useState(false);
   const [savedPayment, setSavedPayment] = useState(false);
+
+  useEffect(() => {
+    setProfileLocal(companyProfile);
+  }, [companyProfile]);
+
+  useEffect(() => {
+    setPaymentLocal(paymentInfo);
+  }, [paymentInfo]);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const qrInputRef = useRef<HTMLInputElement>(null);

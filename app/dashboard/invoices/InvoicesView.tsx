@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, createElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Sheet } from '@/app/(print)/invoices/[id]/InvoicePrint';
 import {
   useStore,
   type Invoice,
@@ -53,6 +55,7 @@ export default function InvoicesView() {
     projects,
     setProjects,
     scopeOfWork,
+    companyProfile,
     paymentInfo,
   } = useStore();
   const searchParams = useSearchParams();
@@ -71,6 +74,55 @@ export default function InvoicesView() {
   // ── Telegram ───────────────────────────────────────────────────────────────
   const [sendingTelegram, setSendingTelegram] = useState<string | null>(null);
 
+  async function generatePdfBlob(inv: Invoice): Promise<Blob> {
+    const [html2canvas, { default: jsPDF }] = await Promise.all([
+      import('html2canvas').then((m) => m.default),
+      import('jspdf'),
+    ]);
+
+    const client = clients.find((c) => c.id === inv.clientId) ?? null;
+    const subtotal = inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
+    const whtAmount = inv.withWHT ? subtotal * WHT_RATE : null;
+    const netTotal = inv.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+    const depositAmount = inv.depositPercent != null ? netTotal * (inv.depositPercent / 100) : null;
+    const balanceDue = depositAmount != null ? netTotal - depositAmount : null;
+
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;';
+    document.body.appendChild(container);
+
+    const root = createRoot(container);
+    await new Promise<void>((resolve) => {
+      root.render(
+        createElement(Sheet, {
+          invoice: inv,
+          client,
+          company: companyProfile,
+          payment: paymentInfo,
+          subtotal,
+          whtAmount,
+          netTotal,
+          depositAmount,
+          balanceDue,
+        })
+      );
+      setTimeout(resolve, 900);
+    });
+
+    const sheetEl = container.firstElementChild as HTMLElement;
+    const canvas = await html2canvas(sheetEl, { useCORS: true, scale: 2, logging: false });
+
+    root.unmount();
+    document.body.removeChild(container);
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pdfW = 210;
+    const pdfH = (canvas.height / canvas.width) * pdfW;
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pdfW, pdfH);
+
+    return pdf.output('blob');
+  }
+
   async function sendToTelegram(inv: Invoice) {
     const token = paymentInfo.telegramBotToken?.trim();
     const chatId = paymentInfo.telegramChatId?.trim();
@@ -81,26 +133,25 @@ export default function InvoicesView() {
     setSendingTelegram(inv.id);
     try {
       const client = clients.find((c) => c.id === inv.clientId);
-      const printUrl = `${window.location.origin}/invoices/${inv.id}`;
-      const text = [
-        `📄 *Invoice ${inv.number}*`,
-        `📅 Date: ${inv.date}`,
-        `👤 Client: ${client?.name ?? '—'}`,
-        ``,
-        `[View / Save as PDF](${printUrl})`,
-      ].join('\n');
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      const pdfBlob = await generatePdfBlob(inv);
+
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+      formData.append('document', pdfBlob, `${inv.number}.pdf`);
+      formData.append(
+        'caption',
+        [`📄 *${inv.number}*`, `📅 Date: ${inv.date}`, `👤 Client: ${client?.name ?? '—'}`].join(
+          '\n'
+        )
+      );
+      formData.append('parse_mode', 'Markdown');
+      if (paymentInfo.telegramTopicId?.trim()) {
+        formData.append('message_thread_id', paymentInfo.telegramTopicId.trim());
+      }
+
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: chatId,
-          text,
-          parse_mode: 'Markdown',
-          disable_web_page_preview: false,
-          ...(paymentInfo.telegramTopicId?.trim()
-            ? { message_thread_id: parseInt(paymentInfo.telegramTopicId.trim()) }
-            : {}),
-        }),
+        body: formData,
       });
       if (!res.ok) {
         const err = await res.json();
