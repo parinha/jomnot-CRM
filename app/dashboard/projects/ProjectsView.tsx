@@ -112,12 +112,33 @@ export default function ProjectsView() {
   }
 
   function toggleInvoice(invoiceId: string) {
-    setForm((prev) => ({
-      ...prev,
-      invoiceIds: prev.invoiceIds.includes(invoiceId)
-        ? prev.invoiceIds.filter((id) => id !== invoiceId)
-        : [...prev.invoiceIds, invoiceId],
-    }));
+    const inv = invoices.find((i) => i.id === invoiceId);
+    setForm((prev) => {
+      if (prev.invoiceIds.includes(invoiceId)) {
+        return { ...prev, invoiceIds: prev.invoiceIds.filter((id) => id !== invoiceId) };
+      }
+      // Auto-populate scope items from the invoice's line items
+      const newItems: ProjectItem[] = [];
+      if (inv) {
+        for (const lineItem of inv.items) {
+          const lines = lineItem.description
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          const scopeLines = lines.length > 1 ? lines.slice(1) : lines;
+          for (const line of scopeLines) {
+            if (!prev.items.some((it) => it.description === line)) {
+              newItems.push({ id: uid(), description: line, status: 'todo' as ProjectItemStatus });
+            }
+          }
+        }
+      }
+      return {
+        ...prev,
+        invoiceIds: [...prev.invoiceIds, invoiceId],
+        items: [...prev.items, ...newItems],
+      };
+    });
   }
 
   function addScopeItem() {
