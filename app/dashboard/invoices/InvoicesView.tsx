@@ -1091,20 +1091,6 @@ export default function InvoicesView() {
                 )}
               </div>
 
-              <PanelField label="Payment Terms">
-                <select
-                  value={form.paymentTerms}
-                  onChange={(e) => setField('paymentTerms', e.target.value)}
-                  className={inputCls}
-                >
-                  {PAYMENT_TERMS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </PanelField>
-
               <PanelField label="Status">
                 <div className="flex gap-2 flex-wrap">
                   {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => {
