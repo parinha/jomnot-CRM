@@ -360,11 +360,19 @@ export default function InvoicesView() {
     setCpItems(
       inv.items
         .filter((it) => it.description.trim())
-        .map((it) => ({
-          id: uid(),
-          description: it.description,
-          status: 'todo' as ProjectItemStatus,
-        }))
+        .flatMap((it) => {
+          const lines = it.description
+            .split('\n')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          // Skip first line (project title), use individual scope lines
+          const scopeLines = lines.length > 1 ? lines.slice(1) : lines;
+          return scopeLines.map((line) => ({
+            id: uid(),
+            description: line,
+            status: 'todo' as ProjectItemStatus,
+          }));
+        })
     );
     setCpExcluded(new Set());
     setCpLinkId(clientProjects[0]?.id ?? '');

@@ -450,21 +450,50 @@ export function Sheet({
                     const title =
                       nlIdx === -1 ? item.description : item.description.slice(0, nlIdx);
                     const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1);
+                    const scopeLines = scope
+                      .split('\n')
+                      .map((s) => s.trim())
+                      .filter(Boolean);
                     return (
                       <>
                         <p style={{ fontWeight: 600, color: DARK }}>{title}</p>
-                        {scope && (
-                          <p
+                        {scopeLines.length > 0 && (
+                          <ul
                             style={{
-                              marginTop: '4px',
-                              color: MUTED,
-                              fontSize: '10px',
-                              whiteSpace: 'pre-wrap',
-                              lineHeight: '1.7',
+                              marginTop: '5px',
+                              paddingLeft: '0',
+                              listStyle: 'none',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '3px',
                             }}
                           >
-                            {scope}
-                          </p>
+                            {scopeLines.map((line, idx) => (
+                              <li
+                                key={idx}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  color: MUTED,
+                                  fontSize: '10px',
+                                  lineHeight: '1.5',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    width: '4px',
+                                    height: '4px',
+                                    borderRadius: '50%',
+                                    backgroundColor: MUTED,
+                                    flexShrink: 0,
+                                    display: 'inline-block',
+                                  }}
+                                />
+                                {line}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </>
                     );

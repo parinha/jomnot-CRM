@@ -173,21 +173,27 @@ export default function ReportsView() {
     }
   );
 
-  // Top scopes of work
-  const scopeMap = new Map<string, { revenue: number; count: number }>();
+  // Top scopes of work — split multi-line descriptions, group by individual scope lines
+  const scopeMap = new Map<string, { qty: number }>();
   base.forEach((inv) => {
     inv.items.forEach((it) => {
-      const key = it.description.trim();
-      if (!key) return;
-      const prev = scopeMap.get(key) ?? { revenue: 0, count: 0 };
-      scopeMap.set(key, { revenue: prev.revenue + it.qty * it.unitPrice, count: prev.count + 1 });
+      const lines = it.description
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      // Skip first line (project title), count individual scope lines
+      const scopeLines = lines.length > 1 ? lines.slice(1) : lines;
+      scopeLines.forEach((line) => {
+        const prev = scopeMap.get(line) ?? { qty: 0 };
+        scopeMap.set(line, { qty: prev.qty + it.qty });
+      });
     });
   });
   const topScopes = Array.from(scopeMap.entries())
     .map(([desc, v]) => ({ desc, ...v }))
-    .sort((a, b) => b.revenue - a.revenue)
+    .sort((a, b) => b.qty - a.qty)
     .slice(0, 8);
-  const maxScopeRevenue = Math.max(...topScopes.map((s) => s.revenue), 1);
+  const maxScopeQty = Math.max(...topScopes.map((s) => s.qty), 1);
 
   // Project report
   const filteredProjects = useMemo(() => {
@@ -427,13 +433,13 @@ export default function ReportsView() {
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-sm text-zinc-700 truncate">{s.desc}</span>
                     <span className="text-sm font-medium text-zinc-900 shrink-0 ml-3">
-                      {fmt(s.revenue)}
+                      {s.qty}x
                     </span>
                   </div>
                   <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-zinc-400 rounded-full"
-                      style={{ width: `${(s.revenue / maxScopeRevenue) * 100}%` }}
+                      style={{ width: `${(s.qty / maxScopeQty) * 100}%` }}
                     />
                   </div>
                 </div>
