@@ -6,7 +6,7 @@ import { calcEarned, calcSubtotal, calcBalance } from '@/app/_services/invoiceSe
 import { fmtUSD } from '@/app/_lib/formatters';
 import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants';
-import { STATUS_CONFIG } from '@/app/_config/statusConfig';
+import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
 import SortTh from '@/app/_components/SortTh';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
@@ -45,7 +45,7 @@ function phoneToFull(local: string): string {
 }
 
 export default function ClientsView() {
-  const { clients, setClients, invoices } = useStore();
+  const { clients, setClients, invoices, projects } = useStore();
 
   const [search, setSearch] = useState('');
 
@@ -111,7 +111,8 @@ export default function ClientsView() {
           (inv) => inv.status === 'sent' || inv.status === 'partial' || inv.status === 'overdue'
         )
         .reduce((s, inv) => s + calcBalance(inv), 0);
-      return [c.id, { count: ci.length, earned, remaining }];
+      const projectCount = projects.filter((p) => p.clientId === c.id).length;
+      return [c.id, { count: ci.length, earned, remaining, projectCount }];
     })
   );
 
@@ -187,6 +188,7 @@ export default function ClientsView() {
 
   const [previewInvId, setPreviewInvId] = useState<string | null>(null);
   const [invoicesClientId, setInvoicesClientId] = useState<string | null>(null);
+  const [projectsClientId, setProjectsClientId] = useState<string | null>(null);
 
   return (
     <>
@@ -271,6 +273,9 @@ export default function ClientsView() {
                 <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden lg:table-cell">
                   Address
                 </th>
+                <th className="text-center px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
+                  Projects
+                </th>
                 <SortTh
                   col="invoices"
                   active={sortCol}
@@ -319,6 +324,18 @@ export default function ClientsView() {
                     </td>
                     <td className="px-4 py-3.5 text-white/60 max-w-xs truncate hidden lg:table-cell">
                       {client.address || '—'}
+                    </td>
+                    <td className="px-4 py-3.5 text-center hidden sm:table-cell">
+                      {stats && stats.projectCount > 0 ? (
+                        <button
+                          onClick={() => setProjectsClientId(client.id)}
+                          className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/70 hover:bg-white/15 transition"
+                        >
+                          {stats.projectCount}
+                        </button>
+                      ) : (
+                        <span className="text-white/25 text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3.5 text-center hidden sm:table-cell">
                       {stats && stats.count > 0 ? (
@@ -499,6 +516,97 @@ export default function ClientsView() {
           </div>
         </ModalShell>
       )}
+
+      {/* Client projects popup */}
+      {projectsClientId &&
+        (() => {
+          const client = clients.find((c) => c.id === projectsClientId);
+          const clientProjects = projects.filter((p) => p.clientId === projectsClientId);
+          return (
+            <ModalShell onClose={() => setProjectsClientId(null)} maxWidth="max-w-3xl">
+              <div className="flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+                  <div>
+                    <h2 className="text-lg font-bold text-zinc-900">{client?.name}</h2>
+                    <p className="text-sm text-zinc-500 mt-0.5">
+                      {clientProjects.length} project{clientProjects.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setProjectsClientId(null)}
+                    className="p-2.5 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto">
+                  {clientProjects.length === 0 ? (
+                    <p className="text-sm text-zinc-400 text-center py-10">
+                      No projects for this client.
+                    </p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200">
+                        <tr>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                            Name
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                            Status
+                          </th>
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
+                            Scope Items
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
+                            Created
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {clientProjects.map((p, i) => {
+                          const sc = PROJECT_STATUS_CONFIG[p.status ?? 'active'];
+                          return (
+                            <tr
+                              key={p.id}
+                              className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
+                            >
+                              <td className="px-4 py-3 font-semibold text-zinc-900">{p.name}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                                >
+                                  {sc.label}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center text-zinc-500 hidden sm:table-cell">
+                                {p.items.length > 0 ? (
+                                  p.items.length
+                                ) : (
+                                  <span className="text-zinc-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-zinc-500 hidden sm:table-cell">
+                                {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              </div>
+            </ModalShell>
+          );
+        })()}
 
       {/* Client invoices popup */}
       {invoicesClientId &&
