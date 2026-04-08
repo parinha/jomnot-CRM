@@ -70,6 +70,8 @@ export interface PaymentInfo {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramTopicId?: string;
+  projectTelegramChatId?: string;
+  projectTelegramTopicId?: string;
 }
 
 export type ProjectItemStatus = 'todo' | 'in-progress' | 'done';

@@ -16,6 +16,7 @@ export default function SettingsView() {
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
   const [savedProfile, setSavedProfile] = useState(false);
   const [savedPayment, setSavedPayment] = useState(false);
+  const [savedTelegram, setSavedTelegram] = useState(false);
 
   useEffect(() => {
     setProfileLocal(companyProfile);
@@ -54,6 +55,11 @@ export default function SettingsView() {
     setPaymentInfo(payment);
     setSavedPayment(true);
     setTimeout(() => setSavedPayment(false), 2000);
+  }
+  function handleSaveTelegram() {
+    setPaymentInfo(payment);
+    setSavedTelegram(true);
+    setTimeout(() => setSavedTelegram(false), 2000);
   }
 
   const inputCls =
@@ -325,41 +331,6 @@ export default function SettingsView() {
               </div>
             </div>
           </div>
-
-          {/* Telegram */}
-          <div className="pt-4 border-t border-white/[0.08]">
-            <label className="text-sm font-semibold text-white block mb-1">Telegram Bot</label>
-            <p className="text-xs text-white/40 mb-4">
-              Used to send invoice PDFs to Telegram. Create a bot via @BotFather and add the token
-              and your chat ID.
-            </p>
-            <div className="flex flex-col gap-4">
-              {[
-                { label: 'Bot Token', key: 'telegramBotToken', placeholder: '123456:ABCdef...' },
-                {
-                  label: 'Chat ID',
-                  key: 'telegramChatId',
-                  placeholder: '-1001234567890 or @username',
-                },
-                {
-                  label: 'Topic ID (optional)',
-                  key: 'telegramTopicId',
-                  placeholder: 'Leave blank if not using topics',
-                },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className={labelCls}>{label}</label>
-                  <input
-                    type="text"
-                    value={(payment as unknown as Record<string, string>)[key] ?? ''}
-                    onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
-                    placeholder={placeholder}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
@@ -369,6 +340,115 @@ export default function SettingsView() {
             className="h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15"
           >
             Save payment info
+          </button>
+        </div>
+      </section>
+
+      {/* Telegram */}
+      <section className={sectionCls}>
+        <div className="flex items-start gap-3 mb-5">
+          <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/20 flex items-center justify-center shrink-0">
+            <svg className="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-white">Telegram Bot</h2>
+            <p className="text-xs text-white/40 mt-0.5">
+              Send invoices and project updates to Telegram. Create a bot via @BotFather and add it
+              to your groups.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          {/* Bot token */}
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Bot Token</label>
+            <input
+              type="text"
+              value={payment.telegramBotToken ?? ''}
+              onChange={(e) => setPay('telegramBotToken', e.target.value)}
+              placeholder="123456:ABCdef..."
+              className={inputCls}
+            />
+            <p className="text-xs text-white/35">Shared across all Telegram destinations below.</p>
+          </div>
+
+          {/* Invoices group */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
+                Invoices
+              </p>
+            </div>
+            {[
+              {
+                label: 'Chat ID',
+                key: 'telegramChatId',
+                placeholder: '-1001234567890 or @username',
+              },
+              {
+                label: 'Topic ID (optional)',
+                key: 'telegramTopicId',
+                placeholder: 'Leave blank if not using topics',
+              },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className={labelCls}>{label}</label>
+                <input
+                  type="text"
+                  value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                  placeholder={placeholder}
+                  className={inputCls}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Projects group */}
+          <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+              <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
+                Projects
+              </p>
+            </div>
+            {[
+              {
+                label: 'Chat ID',
+                key: 'projectTelegramChatId',
+                placeholder: '-1009876543210 or @projectgroup',
+              },
+              {
+                label: 'Topic ID (optional)',
+                key: 'projectTelegramTopicId',
+                placeholder: 'Leave blank if not using topics',
+              },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className={labelCls}>{label}</label>
+                <input
+                  type="text"
+                  value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                  placeholder={placeholder}
+                  className={inputCls}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
+          {savedTelegram && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
+          <button
+            onClick={handleSaveTelegram}
+            className="h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15"
+          >
+            Save Telegram settings
           </button>
         </div>
       </section>
