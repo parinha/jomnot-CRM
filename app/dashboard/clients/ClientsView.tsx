@@ -28,6 +28,22 @@ type CliSortCol = 'name' | 'invoices' | 'earned';
 const inputCls =
   'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
 
+function formatKhmerLocal(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 9)}`;
+}
+
+function phoneToLocal(full: string): string {
+  return full.replace(/^\+855\s*/, '');
+}
+
+function phoneToFull(local: string): string {
+  return local.trim() ? `+855 ${local}` : '';
+}
+
 export default function ClientsView() {
   const { clients, setClients, invoices } = useStore();
 
@@ -374,7 +390,44 @@ export default function ClientsView() {
                 { label: 'Company Name *', key: 'name', placeholder: 'ANYMIND CO., LTD' },
                 { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
                 { label: 'Email', key: 'email', placeholder: 'billing@example.com' },
-                { label: 'Phone *', key: 'phone', placeholder: '+855 23 901 415' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    value={(form as Record<string, string>)[key] ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+
+              {/* Phone with +855 prefix */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                  Phone *
+                </label>
+                <div className="flex h-11 rounded-xl border border-zinc-200 focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition bg-white overflow-hidden">
+                  <span className="flex items-center px-3 text-sm font-medium text-zinc-500 bg-zinc-50 border-r border-zinc-200 shrink-0 select-none">
+                    +855
+                  </span>
+                  <input
+                    type="tel"
+                    value={phoneToLocal(form.phone)}
+                    onChange={(e) => {
+                      const formatted = formatKhmerLocal(e.target.value);
+                      setForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
+                    }}
+                    placeholder="12 123 1234"
+                    className="flex-1 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none bg-transparent"
+                  />
+                </div>
+              </div>
+
+              {[
                 { label: 'VAT TIN', key: 'vat_tin', placeholder: 'K008-100069509' },
                 { label: 'Address', key: 'address', placeholder: '123 Street, City, Country' },
               ].map(({ label, key, placeholder }) => (
