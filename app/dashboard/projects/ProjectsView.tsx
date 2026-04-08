@@ -1,12 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   useStore,
   type Project,
   type ProjectItem,
   type ProjectItemStatus,
   type ProjectStatus,
+  type Client,
 } from '../AppStore';
 import {
   PROJECT_STATUS_CONFIG,
@@ -26,11 +27,11 @@ function blankForm(): ProjectFormState {
 
 const inputCls =
   'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
-const selectCls =
-  'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
+
+const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
 
 export default function ProjectsView() {
-  const { clients, invoices, projects, setProjects, scopeOfWork } = useStore();
+  const { clients, setClients, invoices, projects, setProjects, scopeOfWork } = useStore();
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
@@ -42,6 +43,16 @@ export default function ProjectsView() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+
+  // Client combobox
+  const [clientSearch, setClientSearch] = useState('');
+  const [clientDropOpen, setClientDropOpen] = useState(false);
+  const clientComboRef = useRef<HTMLDivElement>(null);
+
+  // Inline client create
+  const [showClientForm, setShowClientForm] = useState(false);
+  const [clientForm, setClientForm] = useState(EMPTY_CLIENT_FORM);
+  const [clientFormError, setClientFormError] = useState('');
 
   const filtered = projects.filter((p) => {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false;
@@ -62,11 +73,20 @@ export default function ProjectsView() {
   const safePage = Math.min(page, totalPages);
   const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
+  function resetClientCombo() {
+    setClientSearch('');
+    setClientDropOpen(false);
+    setShowClientForm(false);
+    setClientForm(EMPTY_CLIENT_FORM);
+    setClientFormError('');
+  }
+
   function openAdd() {
     setEditingId(null);
     setForm(blankForm());
     setNewItemText('');
     setFormError('');
+    resetClientCombo();
     setModalOpen(true);
   }
   function openEdit(project: Project) {
@@ -80,6 +100,7 @@ export default function ProjectsView() {
     });
     setNewItemText('');
     setFormError('');
+    resetClientCombo();
     setModalOpen(true);
   }
   function closeModal() {
@@ -88,6 +109,20 @@ export default function ProjectsView() {
     setForm(blankForm());
     setNewItemText('');
     setFormError('');
+    resetClientCombo();
+  }
+
+  function saveNewClient() {
+    if (!clientForm.name.trim()) {
+      setClientFormError('Name is required.');
+      return;
+    }
+    const newClient: Client = { id: uid(), ...clientForm };
+    setClients([...clients, newClient]);
+    handleClientChange(newClient.id);
+    setShowClientForm(false);
+    setClientForm(EMPTY_CLIENT_FORM);
+    setClientFormError('');
   }
 
   const selectedClient = clients.find((c) => c.id === form.clientId);
@@ -598,7 +633,7 @@ export default function ProjectsView() {
       {/* Add / Edit modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
               <h2 className="text-lg font-bold text-zinc-900">
                 {editingId ? 'Edit project' : 'New project'}
@@ -621,22 +656,175 @@ export default function ProjectsView() {
             <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
               {/* Client */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                  Client *
-                </label>
-                <select
-                  value={form.clientId}
-                  onChange={(e) => handleClientChange(e.target.value)}
-                  className={selectCls}
-                >
-                  <option value="">Select a client…</option>
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                    Client *
+                  </label>
+                  {!showClientForm && (
+                    <button
+                      onClick={() => {
+                        setShowClientForm(true);
+                        handleClientChange('');
+                      }}
+                      className="flex items-center gap-0.5 text-xs text-amber-600 hover:underline"
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                      </svg>
+                      New client
+                    </button>
+                  )}
+                </div>
+                {!showClientForm ? (
+                  <div ref={clientComboRef} className="relative">
+                    {(() => {
+                      const selected = clients.find((c) => c.id === form.clientId);
+                      const q = clientSearch.toLowerCase().trim();
+                      const filtered = q
+                        ? clients.filter((c) =>
+                            [c.name, c.contactPerson ?? '', c.phone, c.email].some((f) =>
+                              f.toLowerCase().includes(q)
+                            )
+                          )
+                        : clients;
+                      return (
+                        <>
+                          <input
+                            value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
+                            onChange={(e) => {
+                              setClientSearch(e.target.value);
+                              setClientDropOpen(true);
+                              if (!e.target.value) handleClientChange('');
+                            }}
+                            onFocus={() => {
+                              setClientSearch('');
+                              setClientDropOpen(true);
+                            }}
+                            onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
+                            placeholder="Search clients…"
+                            className={inputCls}
+                          />
+                          {clientDropOpen && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-lg">
+                              {filtered.length === 0 ? (
+                                <div className="px-3 py-2 text-sm text-zinc-400">
+                                  No clients found
+                                </div>
+                              ) : (
+                                filtered.map((c) => (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    onMouseDown={() => {
+                                      handleClientChange(c.id);
+                                      setClientSearch('');
+                                      setClientDropOpen(false);
+                                    }}
+                                    className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition ${form.clientId === c.id ? 'bg-amber-50' : ''}`}
+                                  >
+                                    <div className="text-sm font-medium text-zinc-900">
+                                      {c.name}
+                                    </div>
+                                    {(c.contactPerson || c.email) && (
+                                      <div className="text-xs text-zinc-400 truncate">
+                                        {[c.contactPerson, c.email].filter(Boolean).join(' · ')}
+                                      </div>
+                                    )}
+                                  </button>
+                                ))
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                      Create new client
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Company Name *</label>
+                        <input
+                          value={clientForm.name}
+                          onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
+                          placeholder="ANYMIND CO., LTD"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Contact Person</label>
+                        <input
+                          value={clientForm.contactPerson}
+                          onChange={(e) =>
+                            setClientForm((p) => ({ ...p, contactPerson: e.target.value }))
+                          }
+                          placeholder="Mr. Smith"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Email</label>
+                        <input
+                          type="email"
+                          value={clientForm.email}
+                          onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
+                          placeholder="billing@example.com"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Phone</label>
+                        <input
+                          value={clientForm.phone}
+                          onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
+                          placeholder="+855 12 345 678"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="col-span-2 flex flex-col gap-1">
+                        <label className="text-xs text-zinc-500">Address</label>
+                        <input
+                          value={clientForm.address}
+                          onChange={(e) =>
+                            setClientForm((p) => ({ ...p, address: e.target.value }))
+                          }
+                          placeholder="123 Street, City"
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+                    {clientFormError && <p className="text-xs text-red-600">{clientFormError}</p>}
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => {
+                          setShowClientForm(false);
+                          setClientForm(EMPTY_CLIENT_FORM);
+                          setClientFormError('');
+                        }}
+                        className="h-9 px-3 rounded-xl border border-zinc-200 text-xs text-zinc-600 hover:bg-white transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={saveNewClient}
+                        className="h-9 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-xs font-bold hover:bg-amber-400 transition"
+                      >
+                        Add &amp; select
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
+
               {/* Name */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
@@ -646,16 +834,31 @@ export default function ProjectsView() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder={selectedClient ? selectedClient.name : 'e.g. Wedding Video Package'}
+                  placeholder={
+                    selectedClient
+                      ? `${selectedClient.name} — Project`
+                      : 'e.g. Wedding Video Package'
+                  }
                   className={inputCls}
                 />
                 {selectedClient && !form.name && (
-                  <button
-                    onClick={() => setForm((p) => ({ ...p, name: selectedClient.name }))}
-                    className="self-start text-xs text-amber-600 hover:underline"
-                  >
-                    Use &quot;{selectedClient.name}&quot;
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setForm((p) => ({ ...p, name: selectedClient.name }))}
+                      className="text-xs text-amber-600 hover:underline"
+                    >
+                      Use &quot;{selectedClient.name}&quot;
+                    </button>
+                    <span className="text-xs text-zinc-300">·</span>
+                    <button
+                      onClick={() =>
+                        setForm((p) => ({ ...p, name: `${selectedClient.name} Project` }))
+                      }
+                      className="text-xs text-amber-600 hover:underline"
+                    >
+                      Use &quot;{selectedClient.name} Project&quot;
+                    </button>
+                  </div>
                 )}
               </div>
               {/* Status */}
@@ -702,101 +905,128 @@ export default function ProjectsView() {
                 </div>
               )}
               {/* Scope items */}
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                    Scope of Work
-                  </label>
-                  {form.items.length > 0 && (
-                    <span className="text-xs text-zinc-400">
-                      {form.items.filter((it) => it.status === 'done').length}/{form.items.length}{' '}
-                      done
-                    </span>
-                  )}
-                </div>
-                {form.items.length === 0 && form.clientId && (
-                  <button
-                    onClick={() =>
-                      setForm((p) => ({
-                        ...p,
-                        items: scopeOfWork.map((desc) => ({
-                          id: uid(),
-                          description: desc,
-                          status: 'todo' as ProjectItemStatus,
-                        })),
-                      }))
-                    }
-                    className="self-start text-xs text-amber-600 hover:underline"
-                  >
-                    Load from global scope list
-                  </button>
-                )}
-                {form.items.map((item) => {
-                  const cfg = ITEM_STATUS_CONFIG[item.status];
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-2 p-3 rounded-xl border border-zinc-100 group hover:border-zinc-200 transition"
+              <div className="relative">
+                {!form.clientId && (
+                  <div className="absolute inset-0 z-10 rounded-xl bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-zinc-100">
+                    <svg
+                      className="w-5 h-5 text-zinc-300"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
                     >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                      />
+                    </svg>
+                    <p className="text-xs text-zinc-400 text-center px-4">Select a client first</p>
+                  </div>
+                )}
+                <div className={!form.clientId ? 'pointer-events-none select-none opacity-30' : ''}>
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                        Scope of Work
+                      </label>
+                      {form.items.length > 0 && (
+                        <span className="text-xs text-zinc-400">
+                          {form.items.filter((it) => it.status === 'done').length}/
+                          {form.items.length} done
+                        </span>
+                      )}
+                    </div>
+                    {form.items.length === 0 && form.clientId && (
                       <button
-                        onClick={() => cycleItemStatus(item.id)}
-                        className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition hover:opacity-80 ${cfg.cls}`}
-                        title="Cycle status"
+                        onClick={() =>
+                          setForm((p) => ({
+                            ...p,
+                            items: scopeOfWork.map((desc) => ({
+                              id: uid(),
+                              description: desc,
+                              status: 'todo' as ProjectItemStatus,
+                            })),
+                          }))
+                        }
+                        className="self-start text-xs text-amber-600 hover:underline"
                       >
-                        {cfg.label}
+                        Load from global scope list
                       </button>
-                      <span
-                        className={`text-sm flex-1 ${item.status === 'done' ? 'line-through text-zinc-400' : 'text-zinc-700'}`}
-                      >
-                        {item.description}
-                      </span>
+                    )}
+                    {form.items.length > 0 && (
+                      <div className="rounded-xl border border-zinc-200 overflow-hidden">
+                        {form.items.map((item, idx) => {
+                          const cfg = ITEM_STATUS_CONFIG[item.status];
+                          return (
+                            <div
+                              key={item.id}
+                              className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-zinc-100' : ''} hover:bg-zinc-50 transition`}
+                            >
+                              <button
+                                onClick={() => cycleItemStatus(item.id)}
+                                className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition hover:opacity-75 ${cfg.cls}`}
+                                title="Click to cycle status"
+                              >
+                                {cfg.label}
+                              </button>
+                              <span
+                                className={`text-sm flex-1 min-w-0 ${item.status === 'done' ? 'line-through text-zinc-400' : 'text-zinc-700'}`}
+                              >
+                                {item.description}
+                              </span>
+                              <button
+                                onClick={() => removeItem(item.id)}
+                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition"
+                                title="Remove"
+                              >
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2.5}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newItemText}
+                        onChange={(e) => setNewItemText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addScopeItem();
+                          }
+                        }}
+                        placeholder="Add scope item… (Enter)"
+                        list="scope-suggestions-proj"
+                        className={`${inputCls} flex-1`}
+                      />
+                      <datalist id="scope-suggestions-proj">
+                        {scopeOfWork.map((s) => (
+                          <option key={s} value={s} />
+                        ))}
+                      </datalist>
                       <button
-                        onClick={() => removeItem(item.id)}
-                        className="shrink-0 text-zinc-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition p-1"
+                        onClick={addScopeItem}
+                        className="h-11 px-4 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition"
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M6 18L18 6M6 6l12 12"
-                          />
-                        </svg>
+                        Add
                       </button>
                     </div>
-                  );
-                })}
-                <div className="flex gap-2 mt-1">
-                  <input
-                    type="text"
-                    value={newItemText}
-                    onChange={(e) => setNewItemText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addScopeItem();
-                      }
-                    }}
-                    placeholder="Add scope item…"
-                    list="scope-suggestions-proj"
-                    className={`${inputCls} flex-1`}
-                  />
-                  <datalist id="scope-suggestions-proj">
-                    {scopeOfWork.map((s) => (
-                      <option key={s} value={s} />
-                    ))}
-                  </datalist>
-                  <button
-                    onClick={addScopeItem}
-                    className="h-11 px-4 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition"
-                  >
-                    Add
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>

@@ -1191,189 +1191,44 @@ export default function InvoicesView() {
               </PanelField>
 
               {/* Line items */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-white/70">Line Items</span>
-                  <button
-                    onClick={addItem}
-                    className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    Add row
-                  </button>
-                </div>
-                <div className="rounded-xl border border-white/[0.1] overflow-hidden">
-                  <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
-                    <div className="bg-slate-800/80 px-3 py-2">Description</div>
-                    <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
-                    <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
-                    <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
-                    <div className="bg-slate-800/80" />
-                  </div>
-                  {form.items.map((item) => {
-                    const nlIdx = item.description.indexOf('\n');
-                    const title =
-                      nlIdx === -1 ? item.description : item.description.slice(0, nlIdx);
-                    const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1);
-                    const scopeLines = scope
-                      .split('\n')
-                      .map((s) => s.trim())
-                      .filter(Boolean);
-                    const setTitle = (t: string) =>
-                      updateItem(item.id, { description: t + (scope ? '\n' + scope : '') });
-                    const addScopeLine = (line: string) => {
-                      const trimmed = line.trim();
-                      if (!trimmed || scopeLines.includes(trimmed)) return;
-                      const next = [...scopeLines, trimmed].join('\n');
-                      updateItem(item.id, { description: title + '\n' + next });
-                    };
-                    const removeScopeLine = (line: string) => {
-                      const next = scopeLines.filter((s) => s !== line).join('\n');
-                      updateItem(item.id, { description: title + (next ? '\n' + next : '') });
-                    };
-                    const customVal = customScope[item.id] ?? '';
-                    return (
-                      <div
-                        key={item.id}
-                        className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
-                      >
-                        <div className="bg-slate-900/60 flex flex-col gap-0">
-                          {/* Title */}
-                          <input
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder={form.projectName || 'Project / event title…'}
-                            className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
+              {(() => {
+                const lineItemsReady =
+                  !!form.number.trim() &&
+                  !!form.date &&
+                  !!form.projectName?.trim() &&
+                  !!form.clientId;
+                return (
+                  <div className="relative">
+                    {!lineItemsReady && (
+                      <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
+                        <svg
+                          className="w-5 h-5 text-white/30"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                           />
-                          {/* Scope chips area */}
-                          <div className="px-3 pb-2.5 border-t border-white/[0.06]">
-                            {/* Added scope chips */}
-                            {scopeLines.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
-                                {scopeLines.map((line) => (
-                                  <span
-                                    key={line}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
-                                  >
-                                    {line}
-                                    <button
-                                      type="button"
-                                      onClick={() => removeScopeLine(line)}
-                                      className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
-                                    >
-                                      <svg
-                                        className="w-2.5 h-2.5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2.5}
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          d="M6 18L18 6M6 6l12 12"
-                                        />
-                                      </svg>
-                                    </button>
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                            {/* Suggestion chips */}
-                            {scopeOfWork.length > 0 && (
-                              <div className="flex flex-wrap gap-1.5 pt-1.5">
-                                {scopeOfWork
-                                  .filter((s) => !scopeLines.includes(s))
-                                  .map((sug) => (
-                                    <button
-                                      key={sug}
-                                      type="button"
-                                      onClick={() => addScopeLine(sug)}
-                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
-                                    >
-                                      <svg
-                                        className="w-2.5 h-2.5"
-                                        fill="none"
-                                        viewBox="0 0 24 24"
-                                        stroke="currentColor"
-                                        strokeWidth={2.5}
-                                      >
-                                        <path
-                                          strokeLinecap="round"
-                                          strokeLinejoin="round"
-                                          d="M12 4v16m8-8H4"
-                                        />
-                                      </svg>
-                                      {sug}
-                                    </button>
-                                  ))}
-                              </div>
-                            )}
-                            {/* Custom scope input */}
-                            <div className="flex items-center gap-1.5 mt-2">
-                              <input
-                                value={customVal}
-                                onChange={(e) =>
-                                  setCustomScope((prev) => ({ ...prev, [item.id]: e.target.value }))
-                                }
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    addScopeLine(customVal);
-                                    setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                  }
-                                }}
-                                placeholder="Custom scope… (Enter to add)"
-                                className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
-                              />
-                              {customVal.trim() && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    addScopeLine(customVal);
-                                    setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                  }}
-                                  className="text-xs text-white/40 hover:text-white transition px-1"
-                                >
-                                  Add
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.qty === 0 ? '' : item.qty}
-                          onChange={(e) =>
-                            updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
-                          }
-                          className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
-                        />
-                        <input
-                          type="number"
-                          min={0}
-                          value={item.unitPrice === 0 ? '' : item.unitPrice}
-                          onChange={(e) =>
-                            updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })
-                          }
-                          className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
-                        />
-                        <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
-                          {fmt(item.qty * item.unitPrice)}
-                        </div>
+                        </svg>
+                        <p className="text-xs text-white/40 text-center px-4">
+                          Fill in Invoice Number, Date, Project Name &amp; Client first
+                        </p>
+                      </div>
+                    )}
+                    <div
+                      className={
+                        !lineItemsReady ? 'pointer-events-none select-none opacity-30' : ''
+                      }
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-white/70">Line Items</span>
                         <button
-                          onClick={() => removeItem(item.id)}
-                          disabled={form.items.length === 1}
-                          className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
+                          onClick={addItem}
+                          className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
                         >
                           <svg
                             className="w-3.5 h-3.5"
@@ -1382,52 +1237,243 @@ export default function InvoicesView() {
                             stroke="currentColor"
                             strokeWidth={2}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M6 18L18 6M6 6l12 12"
-                            />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                           </svg>
+                          Add row
                         </button>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
-                  <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
-                    <span className="font-semibold text-white/70">Grand Total</span>
-                    <span className="font-bold text-white w-28 text-right">{fmt(subtotal)}</span>
+                      <div className="rounded-xl border border-white/[0.1] overflow-hidden">
+                        <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
+                          <div className="bg-slate-800/80 px-3 py-2">Description</div>
+                          <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
+                          <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
+                          <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
+                          <div className="bg-slate-800/80" />
+                        </div>
+                        {form.items.map((item) => {
+                          const nlIdx = item.description.indexOf('\n');
+                          const title =
+                            nlIdx === -1 ? item.description : item.description.slice(0, nlIdx);
+                          const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1);
+                          const scopeLines = scope
+                            .split('\n')
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          const setTitle = (t: string) =>
+                            updateItem(item.id, { description: t + (scope ? '\n' + scope : '') });
+                          const addScopeLine = (line: string) => {
+                            const trimmed = line.trim();
+                            if (!trimmed || scopeLines.includes(trimmed)) return;
+                            const next = [...scopeLines, trimmed].join('\n');
+                            updateItem(item.id, { description: title + '\n' + next });
+                          };
+                          const removeScopeLine = (line: string) => {
+                            const next = scopeLines.filter((s) => s !== line).join('\n');
+                            updateItem(item.id, { description: title + (next ? '\n' + next : '') });
+                          };
+                          const customVal = customScope[item.id] ?? '';
+                          return (
+                            <div
+                              key={item.id}
+                              className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
+                            >
+                              <div className="bg-slate-900/60 flex flex-col gap-0">
+                                {/* Title */}
+                                <input
+                                  value={title}
+                                  onChange={(e) => setTitle(e.target.value)}
+                                  placeholder={form.projectName || 'Project / event title…'}
+                                  className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
+                                />
+                                {/* Scope chips area */}
+                                <div className="px-3 pb-2.5 border-t border-white/[0.06]">
+                                  {/* Added scope chips */}
+                                  {scopeLines.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
+                                      {scopeLines.map((line) => (
+                                        <span
+                                          key={line}
+                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
+                                        >
+                                          {line}
+                                          <button
+                                            type="button"
+                                            onClick={() => removeScopeLine(line)}
+                                            className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
+                                          >
+                                            <svg
+                                              className="w-2.5 h-2.5"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                              strokeWidth={2.5}
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M6 18L18 6M6 6l12 12"
+                                              />
+                                            </svg>
+                                          </button>
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                  {/* Suggestion chips */}
+                                  {scopeOfWork.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                                      {scopeOfWork
+                                        .filter((s) => !scopeLines.includes(s))
+                                        .map((sug) => (
+                                          <button
+                                            key={sug}
+                                            type="button"
+                                            onClick={() => addScopeLine(sug)}
+                                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
+                                          >
+                                            <svg
+                                              className="w-2.5 h-2.5"
+                                              fill="none"
+                                              viewBox="0 0 24 24"
+                                              stroke="currentColor"
+                                              strokeWidth={2.5}
+                                            >
+                                              <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                d="M12 4v16m8-8H4"
+                                              />
+                                            </svg>
+                                            {sug}
+                                          </button>
+                                        ))}
+                                    </div>
+                                  )}
+                                  {/* Custom scope input */}
+                                  <div className="flex items-center gap-1.5 mt-2">
+                                    <input
+                                      value={customVal}
+                                      onChange={(e) =>
+                                        setCustomScope((prev) => ({
+                                          ...prev,
+                                          [item.id]: e.target.value,
+                                        }))
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                          e.preventDefault();
+                                          addScopeLine(customVal);
+                                          setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                        }
+                                      }}
+                                      placeholder="Custom scope… (Enter to add)"
+                                      className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
+                                    />
+                                    {customVal.trim() && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          addScopeLine(customVal);
+                                          setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                        }}
+                                        className="text-xs text-white/40 hover:text-white transition px-1"
+                                      >
+                                        Add
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              <input
+                                type="number"
+                                min={0}
+                                value={item.qty === 0 ? '' : item.qty}
+                                onChange={(e) =>
+                                  updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
+                                }
+                                className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
+                              />
+                              <input
+                                type="number"
+                                min={0}
+                                value={item.unitPrice === 0 ? '' : item.unitPrice}
+                                onChange={(e) =>
+                                  updateItem(item.id, {
+                                    unitPrice: parseFloat(e.target.value) || 0,
+                                  })
+                                }
+                                className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
+                              />
+                              <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
+                                {fmt(item.qty * item.unitPrice)}
+                              </div>
+                              <button
+                                onClick={() => removeItem(item.id)}
+                                disabled={form.items.length === 1}
+                                className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
+                              >
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
+                        <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
+                          <span className="font-semibold text-white/70">Grand Total</span>
+                          <span className="font-bold text-white w-28 text-right">
+                            {fmt(subtotal)}
+                          </span>
+                        </div>
+                        {form.withWHT && (
+                          <>
+                            <div className="flex gap-8 text-orange-400">
+                              <span>Less WHT {WHT_RATE * 100}%</span>
+                              <span className="font-medium w-28 text-right">
+                                ({fmt(whtAmount)})
+                              </span>
+                            </div>
+                            <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                              <span className="font-semibold text-white/70">Total (USD)</span>
+                              <span className="font-bold text-white w-28 text-right">
+                                {fmt(netTotal)}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                        {form.depositPercent != null && (
+                          <>
+                            <div className="flex gap-8 text-green-400">
+                              <span>Deposit ({form.depositPercent}%)</span>
+                              <span className="font-medium w-28 text-right">
+                                − {fmt(depositAmount)}
+                              </span>
+                            </div>
+                            <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                              <span className="font-semibold text-white/70">Balance Due</span>
+                              <span className="font-bold text-white w-28 text-right">
+                                {fmt(balanceDue)}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {form.withWHT && (
-                    <>
-                      <div className="flex gap-8 text-orange-400">
-                        <span>Less WHT {WHT_RATE * 100}%</span>
-                        <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
-                      </div>
-                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                        <span className="font-semibold text-white/70">Total (USD)</span>
-                        <span className="font-bold text-white w-28 text-right">
-                          {fmt(netTotal)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                  {form.depositPercent != null && (
-                    <>
-                      <div className="flex gap-8 text-green-400">
-                        <span>Deposit ({form.depositPercent}%)</span>
-                        <span className="font-medium w-28 text-right">− {fmt(depositAmount)}</span>
-                      </div>
-                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                        <span className="font-semibold text-white/70">Balance Due</span>
-                        <span className="font-bold text-white w-28 text-right">
-                          {fmt(balanceDue)}
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
+                );
+              })()}
 
               {/* WHT toggle */}
               <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
