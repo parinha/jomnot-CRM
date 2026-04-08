@@ -23,6 +23,7 @@ import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
 import ModalShell from '@/app/_components/ModalShell';
 import ProjectDetailModal from '@/app/_components/ProjectDetailModal';
+import ConfirmDeleteModal from '@/app/_components/ConfirmDeleteModal';
 
 const fmt = fmtUSD;
 
@@ -1618,26 +1619,11 @@ export default function InvoicesView() {
 
       {/* ── Delete confirm ─────────────────────────────────────────────────────── */}
       {deleteId && (
-        <ModalShell onClose={() => setDeleteId(null)} maxWidth="max-w-sm">
-          <div className="p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 mb-2">Delete invoice?</h2>
-            <p className="text-sm text-zinc-500 mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="h-11 px-5 rounded-xl border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                className="h-11 px-5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </ModalShell>
+        <ConfirmDeleteModal
+          title="Delete invoice?"
+          onConfirm={() => handleDelete(deleteId)}
+          onClose={() => setDeleteId(null)}
+        />
       )}
 
       {/* ── Link / Create project ───────────────────────────────────────────────── */}

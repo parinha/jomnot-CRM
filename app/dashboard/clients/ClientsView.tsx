@@ -12,6 +12,7 @@ import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
 import ModalShell from '@/app/_components/ModalShell';
 import InvoicePreviewModal from '@/app/_components/InvoicePreviewModal';
+import ConfirmDeleteModal from '@/app/_components/ConfirmDeleteModal';
 
 const fmt = fmtUSD;
 const EMPTY_FORM: Omit<Client, 'id'> = {
@@ -495,26 +496,11 @@ export default function ClientsView() {
 
       {/* Delete confirm */}
       {deleteId && (
-        <ModalShell onClose={() => setDeleteId(null)} maxWidth="max-w-sm">
-          <div className="p-6">
-            <h2 className="text-lg font-bold text-zinc-900 mb-2">Delete client?</h2>
-            <p className="text-sm text-zinc-500 mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setDeleteId(null)}
-                className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => handleDelete(deleteId)}
-                className="flex-1 h-11 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </ModalShell>
+        <ConfirmDeleteModal
+          title="Delete client?"
+          onConfirm={() => handleDelete(deleteId)}
+          onClose={() => setDeleteId(null)}
+        />
       )}
 
       {/* Client projects popup */}
