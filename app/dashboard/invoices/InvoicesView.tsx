@@ -10,6 +10,7 @@ import {
   type LineItem,
   type InvoiceStatus,
   type Client,
+  type Project,
   type ProjectItemStatus,
 } from '../AppStore';
 import { calcSubtotal, WHT_RATE } from '@/app/_services/invoiceService';
@@ -191,6 +192,11 @@ export default function InvoicesView() {
 
   const [form, setForm] = useState<FormState>(blankForm);
 
+  // Project combobox
+  const [projectSearch, setProjectSearch] = useState('');
+  const [projectDropOpen, setProjectDropOpen] = useState(false);
+  const projectComboRef = useRef<HTMLDivElement>(null);
+
   // Client combobox
   const [clientSearch, setClientSearch] = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
@@ -210,6 +216,8 @@ export default function InvoicesView() {
     setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
+    setProjectSearch('');
+    setProjectDropOpen(false);
     setPanelOpen(true);
   }
 
@@ -243,6 +251,8 @@ export default function InvoicesView() {
     setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
+    setProjectSearch('');
+    setProjectDropOpen(false);
     setPanelOpen(true);
   }
   function closePanel() {
@@ -254,6 +264,8 @@ export default function InvoicesView() {
     setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
+    setProjectSearch('');
+    setProjectDropOpen(false);
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -289,7 +301,24 @@ export default function InvoicesView() {
     setClientFormError('');
   }
 
+  function selectProject(project: Project) {
+    const scopeLines = project.items.map((i) => i.description).filter(Boolean);
+    const description = project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
+    setForm((prev) => ({
+      ...prev,
+      projectName: project.name,
+      clientId: project.clientId,
+      items: [{ id: uid(), description, qty: 1, unitPrice: 0 }],
+    }));
+    setProjectSearch('');
+    setProjectDropOpen(false);
+  }
+
   function handleSave(): string | null {
+    if (!form.projectName?.trim()) {
+      setFormError('Project / Campaign Name is required.');
+      return null;
+    }
     if (!form.clientId) {
       setFormError('Please select a client.');
       return null;
@@ -917,13 +946,52 @@ export default function InvoicesView() {
                 </PanelField>
               </div>
 
-              <PanelField label="Project / Campaign Name">
-                <input
-                  value={form.projectName ?? ''}
-                  onChange={(e) => setField('projectName', e.target.value)}
-                  className={inputCls}
-                  placeholder="Citra Campaign"
-                />
+              <PanelField label="Project / Campaign Name" required>
+                <div ref={projectComboRef} className="relative">
+                  <input
+                    value={projectDropOpen ? projectSearch : (form.projectName ?? '')}
+                    onChange={(e) => {
+                      setProjectSearch(e.target.value);
+                      setProjectDropOpen(true);
+                      setField('projectName', e.target.value);
+                    }}
+                    onFocus={() => {
+                      setProjectSearch(form.projectName ?? '');
+                      setProjectDropOpen(true);
+                    }}
+                    onBlur={() => setTimeout(() => setProjectDropOpen(false), 150)}
+                    placeholder="Search or type campaign name…"
+                    className={inputCls}
+                  />
+                  {projectDropOpen &&
+                    (() => {
+                      const q = projectSearch.toLowerCase().trim();
+                      const filtered = q
+                        ? projects.filter((p) => p.name.toLowerCase().includes(q))
+                        : projects;
+                      if (filtered.length === 0) return null;
+                      return (
+                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                          {filtered.map((p) => {
+                            const pc = clients.find((c) => c.id === p.clientId);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onMouseDown={() => selectProject(p)}
+                                className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.projectName === p.name ? 'bg-[#FFC206]/10' : ''}`}
+                              >
+                                <div className="text-sm font-medium text-white">{p.name}</div>
+                                {pc && (
+                                  <div className="text-xs text-white/40 truncate">{pc.name}</div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                </div>
               </PanelField>
 
               {/* Client field + inline create */}
