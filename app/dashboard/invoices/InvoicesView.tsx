@@ -603,296 +603,400 @@ export default function InvoicesView() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
-        {invoices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/35">
-            <svg
-              className="w-10 h-10 mb-3 text-white/20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <p className="text-sm">No invoices yet. Create your first one.</p>
-          </div>
-        ) : filteredInvoices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-white/35">
-            <p className="text-sm">No invoices match your search.</p>
-            <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('all');
-              }}
-              className="mt-2 text-xs text-[#FFC206] hover:underline"
-            >
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
-                <SortTh
-                  col="number"
-                  active={sortCol}
-                  dir={sortDir}
-                  onSort={handleSort}
-                  className="text-left px-4 py-3"
+      {/* Empty states */}
+      {invoices.length === 0 ? (
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-20 text-white/35">
+          <svg
+            className="w-10 h-10 mb-3 text-white/20"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
+          </svg>
+          <p className="text-sm">No invoices yet. Create your first one.</p>
+        </div>
+      ) : filteredInvoices.length === 0 ? (
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
+          <p className="text-sm">No invoices match your search.</p>
+          <button
+            onClick={() => {
+              setSearch('');
+              setStatusFilter('all');
+            }}
+            className="mt-2 text-xs text-[#FFC206] hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Mobile card list */}
+          <div className="sm:hidden flex flex-col gap-3">
+            {pagedInvoices.map((inv) => {
+              const client = clients.find((c) => c.id === inv.clientId);
+              const sub = calcSubtotal(inv);
+              const invDeposit =
+                inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
+              const invBalance = invDeposit != null ? sub - invDeposit : null;
+              const status = (inv.status ?? 'draft') as InvoiceStatus;
+              const sc = STATUS_CONFIG[status];
+              const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
+              return (
+                <div
+                  key={inv.id}
+                  className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4"
                 >
-                  Invoice #
-                </SortTh>
-                <th className="text-left px-4 py-3">Client</th>
-                <SortTh
-                  col="date"
-                  active={sortCol}
-                  dir={sortDir}
-                  onSort={handleSort}
-                  className="text-left px-4 py-3 hidden sm:table-cell"
-                >
-                  Date
-                </SortTh>
-                <SortTh
-                  col="amount"
-                  active={sortCol}
-                  dir={sortDir}
-                  onSort={handleSort}
-                  className="text-right px-4 py-3"
-                >
-                  Amount
-                </SortTh>
-                <th className="text-left px-4 py-3 hidden md:table-cell w-40">Project</th>
-                <th className="text-left px-4 py-3">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {pagedInvoices.map((inv) => {
-                const client = clients.find((c) => c.id === inv.clientId);
-                const sub = calcSubtotal(inv);
-                const invDeposit =
-                  inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
-                const invBalance = invDeposit != null ? sub - invDeposit : null;
-                const status = (inv.status ?? 'draft') as InvoiceStatus;
-                const sc = STATUS_CONFIG[status];
-                const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
-                const doneCount =
-                  linkedProject?.items.filter((it) => it.status === 'done').length ?? 0;
-                const totalItems = linkedProject?.items.length ?? 0;
-                const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
-
-                return (
-                  <tr
-                    key={inv.id}
-                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition"
-                  >
-                    <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
-                      {inv.number}
-                    </td>
-                    <td className="px-4 py-3.5 text-white/60 max-w-[120px] truncate">
-                      {client?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
-                      {inv.date}
-                    </td>
-                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                      <span className="font-semibold text-white">{fmt(sub)}</span>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-bold text-white">{inv.number}</span>
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                        >
+                          {sc.label}
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/60 truncate">{client?.name ?? '—'}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{inv.date}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-white">{fmt(sub)}</p>
                       {invBalance != null && (
-                        <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                          <span className="text-xs text-white/35">
-                            {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
-                          </span>
-                        </div>
+                        <p className="text-xs text-white/35 mt-0.5">{fmt(invDeposit!)} dep</p>
                       )}
-                    </td>
-                    {/* Project column */}
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {linkedProject ? (
-                        <button
-                          onClick={() => setViewProjectId(linkedProject.id)}
-                          className="w-full text-left group"
-                          title={`${linkedProject.name} — ${pct}%`}
-                        >
-                          <div className="flex items-center gap-1.5 mb-1">
-                            <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
-                              {linkedProject.name}
-                            </span>
-                            <span className="text-xs text-white/35 shrink-0">{pct}%</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                              style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
-                            />
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => openLinkProject(inv)}
-                          className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group"
-                        >
-                          <svg
-                            className="w-3 h-3 group-hover:scale-110 transition-transform"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                          Link project
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}
+                    </div>
+                  </div>
+                  {linkedProject && (
+                    <button
+                      onClick={() => setViewProjectId(linkedProject.id)}
+                      className="w-full text-left mb-3 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-300"
+                    >
+                      {linkedProject.name}
+                    </button>
+                  )}
+                  <div className="flex items-center gap-2">
+                    {status === 'draft' && (
+                      <button
+                        onClick={() => {
+                          setInvoices(
+                            invoices.map((i) => (i.id === inv.id ? { ...i, status: 'sent' } : i))
+                          );
+                          window.open(`/invoices/${inv.id}`, '_blank');
+                        }}
+                        className="flex-1 h-9 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition"
                       >
-                        {sc.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {status === 'draft' && (
-                          <button
-                            onClick={() => {
-                              setInvoices(
-                                invoices.map((i) =>
-                                  i.id === inv.id ? { ...i, status: 'sent' } : i
-                                )
-                              );
-                              window.open(`/invoices/${inv.id}`, '_blank');
-                            }}
-                            className="h-10 px-4 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition whitespace-nowrap"
-                          >
-                            Mark Sent
-                          </button>
+                        Mark Sent
+                      </button>
+                    )}
+                    <a
+                      href={`/invoices/${inv.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="h-9 px-3 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition inline-flex items-center"
+                      title="PDF"
+                    >
+                      <svg
+                        className="w-3.5 h-3.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                        />
+                      </svg>
+                    </a>
+                    <button
+                      onClick={() => openEdit(inv)}
+                      className="h-9 px-3 rounded-xl border border-white/20 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(inv.id)}
+                      className="h-9 px-3 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition"
+                    >
+                      Del
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
+                  <SortTh
+                    col="number"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3"
+                  >
+                    Invoice #
+                  </SortTh>
+                  <th className="text-left px-4 py-3">Client</th>
+                  <SortTh
+                    col="date"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3 hidden sm:table-cell"
+                  >
+                    Date
+                  </SortTh>
+                  <SortTh
+                    col="amount"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-right px-4 py-3"
+                  >
+                    Amount
+                  </SortTh>
+                  <th className="text-left px-4 py-3 hidden md:table-cell w-40">Project</th>
+                  <th className="text-left px-4 py-3">Status</th>
+                  <th className="px-4 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {pagedInvoices.map((inv) => {
+                  const client = clients.find((c) => c.id === inv.clientId);
+                  const sub = calcSubtotal(inv);
+                  const invDeposit =
+                    inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
+                  const invBalance = invDeposit != null ? sub - invDeposit : null;
+                  const status = (inv.status ?? 'draft') as InvoiceStatus;
+                  const sc = STATUS_CONFIG[status];
+                  const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
+                  const doneCount =
+                    linkedProject?.items.filter((it) => it.status === 'done').length ?? 0;
+                  const totalItems = linkedProject?.items.length ?? 0;
+                  const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+
+                  return (
+                    <tr
+                      key={inv.id}
+                      className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition"
+                    >
+                      <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
+                        {inv.number}
+                      </td>
+                      <td className="px-4 py-3.5 text-white/60 max-w-[120px] truncate">
+                        {client?.name ?? '—'}
+                      </td>
+                      <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
+                        {inv.date}
+                      </td>
+                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                        <span className="font-semibold text-white">{fmt(sub)}</span>
+                        {invBalance != null && (
+                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                            <span className="text-xs text-white/35">
+                              {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
+                            </span>
+                          </div>
                         )}
-                        {/* Mobile project button */}
-                        <button
-                          onClick={() =>
-                            linkedProject
-                              ? setViewProjectId(linkedProject.id)
-                              : openLinkProject(inv)
-                          }
-                          className={`md:hidden p-2.5 rounded-xl border transition ${linkedProject ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
-                          title={linkedProject ? linkedProject.name : 'Link project'}
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                      </td>
+                      {/* Project column */}
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        {linkedProject ? (
+                          <button
+                            onClick={() => setViewProjectId(linkedProject.id)}
+                            className="w-full text-left group"
+                            title={`${linkedProject.name} — ${pct}%`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => sendToTelegram(inv)}
-                          disabled={sendingTelegram === inv.id}
-                          className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
-                          title="Send to Telegram"
-                        >
-                          {sendingTelegram === inv.id ? (
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
+                                {linkedProject.name}
+                              </span>
+                              <span className="text-xs text-white/35 shrink-0">{pct}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
+                                style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
+                              />
+                            </div>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openLinkProject(inv)}
+                            className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group"
+                          >
                             <svg
-                              className="w-3.5 h-3.5 animate-spin"
-                              viewBox="0 0 24 24"
+                              className="w-3 h-3 group-hover:scale-110 transition-transform"
                               fill="none"
+                              viewBox="0 0 24 24"
                               stroke="currentColor"
                               strokeWidth={2}
                             >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
+                                d="M12 4v16m8-8H4"
                               />
                             </svg>
-                          ) : (
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                            </svg>
+                            Link project
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}
+                        >
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {status === 'draft' && (
+                            <button
+                              onClick={() => {
+                                setInvoices(
+                                  invoices.map((i) =>
+                                    i.id === inv.id ? { ...i, status: 'sent' } : i
+                                  )
+                                );
+                                window.open(`/invoices/${inv.id}`, '_blank');
+                              }}
+                              className="h-10 px-4 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition whitespace-nowrap"
+                            >
+                              Mark Sent
+                            </button>
                           )}
-                        </button>
-                        <a
-                          href={`/invoices/${inv.id}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
-                          title="PDF"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                          {/* Mobile project button */}
+                          <button
+                            onClick={() =>
+                              linkedProject
+                                ? setViewProjectId(linkedProject.id)
+                                : openLinkProject(inv)
+                            }
+                            className={`md:hidden p-2.5 rounded-xl border transition ${linkedProject ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                            title={linkedProject ? linkedProject.name : 'Link project'}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                            />
-                          </svg>
-                        </a>
-                        <button
-                          onClick={() => openEdit(inv)}
-                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => sendToTelegram(inv)}
+                            disabled={sendingTelegram === inv.id}
+                            className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
+                            title="Send to Telegram"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(inv.id)}
-                          className="p-2.5 rounded-xl border border-red-400/30 text-red-400 hover:bg-red-500/15 transition"
-                          title="Delete"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                            {sendingTelegram === inv.id ? (
+                              <svg
+                                className="w-3.5 h-3.5 animate-spin"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                              </svg>
+                            )}
+                          </button>
+                          <a
+                            href={`/invoices/${inv.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
+                            title="PDF"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                              />
+                            </svg>
+                          </a>
+                          <button
+                            onClick={() => openEdit(inv)}
+                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
+                            title="Edit"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(inv.id)}
+                            className="p-2.5 rounded-xl border border-red-400/30 text-red-400 hover:bg-red-500/15 transition"
+                            title="Delete"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <Pagination
         page={safePage}

@@ -304,7 +304,7 @@ export default function DashboardView() {
         <div className="px-5 py-4 border-b border-white/[0.07]">
           <h2 className="text-sm font-semibold text-white">Invoice Status Breakdown</h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-white/[0.07]">
+        <div className="grid grid-cols-3 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-white/[0.07]">
           {(['draft', 'sent', 'partial', 'paid', 'overdue'] as const).map((status) => {
             const sc = STATUS_CONFIG[status];
             const count = statusCounts[status] ?? 0;

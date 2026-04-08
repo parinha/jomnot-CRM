@@ -382,217 +382,292 @@ export default function ProjectsView() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
-        {projects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/35">
-            <svg
-              className="w-12 h-12 mb-3 text-white/20"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-              />
-            </svg>
-            <p className="text-sm">No projects yet. Create your first one.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-white/35">
-            <p className="text-sm">No projects match your filters.</p>
-            <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('all');
-              }}
-              className="mt-2 text-xs text-[#FFC206] hover:underline"
-            >
-              Clear filters
-            </button>
-          </div>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                <th className="text-left px-4 py-3.5 font-medium text-white/45">Project</th>
-                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
-                  Client
-                </th>
-                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
-                  Invoice(s)
-                </th>
-                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
-                  Progress
-                </th>
-                <th className="text-left px-4 py-3.5 font-medium text-white/45">Status</th>
-                <th className="px-4 py-3.5" />
-              </tr>
-            </thead>
-            <tbody>
-              {paged.map((project, i) => {
-                const client = clients.find((c) => c.id === project.clientId);
-                const linkedInvoices = project.invoiceIds
-                  .map((id) => invoices.find((inv) => inv.id === id))
-                  .filter(Boolean);
-                const doneCount = project.items.filter((it) => it.status === 'done').length;
-                const totalItems = project.items.length;
-                const sc = PROJECT_STATUS_CONFIG[project.status];
-                return (
-                  <tr
-                    key={project.id}
-                    className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                  >
-                    <td className="px-4 py-3.5">
+      {/* Empty states */}
+      {projects.length === 0 ? (
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-20 text-white/35">
+          <svg
+            className="w-12 h-12 mb-3 text-white/20"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+            />
+          </svg>
+          <p className="text-sm">No projects yet. Create your first one.</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
+          <p className="text-sm">No projects match your filters.</p>
+          <button
+            onClick={() => {
+              setSearch('');
+              setStatusFilter('all');
+            }}
+            className="mt-2 text-xs text-[#FFC206] hover:underline"
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Mobile card list */}
+          <div className="sm:hidden flex flex-col gap-3">
+            {paged.map((project) => {
+              const client = clients.find((c) => c.id === project.clientId);
+              const doneCount = project.items.filter((it) => it.status === 'done').length;
+              const totalItems = project.items.length;
+              const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+              const sc = PROJECT_STATUS_CONFIG[project.status];
+              return (
+                <div
+                  key={project.id}
+                  className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
                       <button
                         onClick={() => setDetailId(project.id)}
-                        className="font-semibold text-white hover:text-[#FFC206] transition text-left"
+                        className="font-bold text-white text-left truncate hover:text-[#FFC206] transition block w-full"
                       >
                         {project.name}
                       </button>
-                    </td>
-                    <td className="px-4 py-3.5 text-white/60 hidden sm:table-cell">
-                      {client?.name ?? '—'}
-                    </td>
-                    <td className="px-4 py-3.5 hidden md:table-cell">
-                      {linkedInvoices.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {linkedInvoices.map(
-                            (inv) =>
-                              inv && (
-                                <span
-                                  key={inv.id}
-                                  className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60"
-                                >
-                                  {inv.number}
-                                </span>
-                              )
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-white/25 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5 hidden sm:table-cell">
-                      {totalItems > 0 ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-[#FFC206] transition-all"
-                              style={{ width: `${(doneCount / totalItems) * 100}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-white/50">
-                            {doneCount}/{totalItems}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="text-white/25 text-xs">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
-                        {sc.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <div className="flex items-center justify-end gap-1.5">
+                      <p className="text-xs text-white/45 mt-0.5">{client?.name ?? '—'}</p>
+                    </div>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${sc.cls}`}
+                    >
+                      {sc.label}
+                    </span>
+                  </div>
+                  {totalItems > 0 && (
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between text-xs text-white/40 mb-1">
+                        <span>
+                          {doneCount}/{totalItems} tasks
+                        </span>
+                        <span>{pct}%</span>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-[#FFC206] rounded-full transition-all"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setDetailId(project.id)}
+                      className="flex-1 h-9 rounded-xl border border-white/15 text-xs font-semibold text-white/60 hover:bg-white/10 hover:text-white transition"
+                    >
+                      View Scope
+                    </button>
+                    <button
+                      onClick={() => openEdit(project)}
+                      className="h-9 px-3 rounded-xl border border-white/20 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(project.id)}
+                      className="h-9 px-3 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition"
+                    >
+                      Del
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-white/[0.08] bg-white/[0.04]">
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Project</th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
+                    Client
+                  </th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
+                    Invoice(s)
+                  </th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
+                    Progress
+                  </th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Status</th>
+                  <th className="px-4 py-3.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {paged.map((project, i) => {
+                  const client = clients.find((c) => c.id === project.clientId);
+                  const linkedInvoices = project.invoiceIds
+                    .map((id) => invoices.find((inv) => inv.id === id))
+                    .filter(Boolean);
+                  const doneCount = project.items.filter((it) => it.status === 'done').length;
+                  const totalItems = project.items.length;
+                  const sc = PROJECT_STATUS_CONFIG[project.status];
+                  return (
+                    <tr
+                      key={project.id}
+                      className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
+                    >
+                      <td className="px-4 py-3.5">
                         <button
                           onClick={() => setDetailId(project.id)}
-                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
-                          title="View scope"
+                          className="font-semibold text-white hover:text-[#FFC206] transition text-left"
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                            />
-                          </svg>
+                          {project.name}
                         </button>
-                        <button
-                          onClick={() => openEdit(project)}
-                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
-                          title="Edit"
+                      </td>
+                      <td className="px-4 py-3.5 text-white/60 hidden sm:table-cell">
+                        {client?.name ?? '—'}
+                      </td>
+                      <td className="px-4 py-3.5 hidden md:table-cell">
+                        {linkedInvoices.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {linkedInvoices.map(
+                              (inv) =>
+                                inv && (
+                                  <span
+                                    key={inv.id}
+                                    className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60"
+                                  >
+                                    {inv.number}
+                                  </span>
+                                )
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-white/25 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 hidden sm:table-cell">
+                        {totalItems > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-[#FFC206] transition-all"
+                                style={{ width: `${(doneCount / totalItems) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-white/50">
+                              {doneCount}/{totalItems}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-white/25 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
                         >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                          {sc.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
+                            title="View scope"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => sendProjectToTelegram(project)}
-                          disabled={sendingTelegram === project.id}
-                          className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
-                          title="Send to Telegram"
-                        >
-                          {sendingTelegram === project.id ? (
                             <svg
-                              className="w-4 h-4 animate-spin"
-                              viewBox="0 0 24 24"
+                              className="w-4 h-4"
                               fill="none"
+                              viewBox="0 0 24 24"
                               stroke="currentColor"
                               strokeWidth={2}
                             >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
-                                d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
                               />
                             </svg>
-                          ) : (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                            </svg>
-                          )}
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(project.id)}
-                          className="p-2.5 rounded-xl border border-red-500/25 text-red-400 hover:bg-red-500/15 transition"
-                          title="Delete"
-                        >
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                          </button>
+                          <button
+                            onClick={() => openEdit(project)}
+                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
+                            title="Edit"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => sendProjectToTelegram(project)}
+                            disabled={sendingTelegram === project.id}
+                            className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
+                            title="Send to Telegram"
+                          >
+                            {sendingTelegram === project.id ? (
+                              <svg
+                                className="w-4 h-4 animate-spin"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
+                                />
+                              </svg>
+                            ) : (
+                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                              </svg>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setDeleteId(project.id)}
+                            className="p-2.5 rounded-xl border border-red-500/25 text-red-400 hover:bg-red-500/15 transition"
+                            title="Delete"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <Pagination
         page={safePage}
