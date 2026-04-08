@@ -27,6 +27,8 @@ function blankForm(): ProjectFormState {
 
 const inputCls =
   'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
+const darkInputCls =
+  'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
 
@@ -632,15 +634,15 @@ export default function ProjectsView() {
 
       {/* Add / Edit modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
-              <h2 className="text-lg font-bold text-zinc-900">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="w-full max-w-xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+              <h2 className="text-lg font-bold text-white">
                 {editingId ? 'Edit project' : 'New project'}
               </h2>
               <button
                 onClick={closeModal}
-                className="p-2.5 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
+                className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
               >
                 <svg
                   className="w-5 h-5"
@@ -657,7 +659,7 @@ export default function ProjectsView() {
               {/* Client */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                     Client *
                   </label>
                   {!showClientForm && (
@@ -666,7 +668,7 @@ export default function ProjectsView() {
                         setShowClientForm(true);
                         handleClientChange('');
                       }}
-                      className="flex items-center gap-0.5 text-xs text-amber-600 hover:underline"
+                      className="flex items-center gap-0.5 text-xs text-[#FFC206] hover:underline"
                     >
                       <svg
                         className="w-3 h-3"
@@ -708,12 +710,12 @@ export default function ProjectsView() {
                             }}
                             onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
                             placeholder="Search clients…"
-                            className={inputCls}
+                            className={darkInputCls}
                           />
                           {clientDropOpen && (
-                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-lg">
+                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
                               {filtered.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-zinc-400">
+                                <div className="px-3 py-2 text-sm text-white/40">
                                   No clients found
                                 </div>
                               ) : (
@@ -726,13 +728,11 @@ export default function ProjectsView() {
                                       setClientSearch('');
                                       setClientDropOpen(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition ${form.clientId === c.id ? 'bg-amber-50' : ''}`}
+                                    className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
                                   >
-                                    <div className="text-sm font-medium text-zinc-900">
-                                      {c.name}
-                                    </div>
+                                    <div className="text-sm font-medium text-white">{c.name}</div>
                                     {(c.contactPerson || c.email) && (
-                                      <div className="text-xs text-zinc-400 truncate">
+                                      <div className="text-xs text-white/40 truncate">
                                         {[c.contactPerson, c.email].filter(Boolean).join(' · ')}
                                       </div>
                                     )}
@@ -746,63 +746,63 @@ export default function ProjectsView() {
                     })()}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex flex-col gap-3">
-                    <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                  <div className="rounded-xl border border-[#FFC206]/30 bg-white/[0.05] p-4 flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
                       Create new client
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Company Name *</label>
+                        <label className="text-xs text-white/50">Company Name *</label>
                         <input
                           value={clientForm.name}
                           onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
                           placeholder="ANYMIND CO., LTD"
-                          className={inputCls}
+                          className={darkInputCls}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Contact Person</label>
+                        <label className="text-xs text-white/50">Contact Person</label>
                         <input
                           value={clientForm.contactPerson}
                           onChange={(e) =>
                             setClientForm((p) => ({ ...p, contactPerson: e.target.value }))
                           }
                           placeholder="Mr. Smith"
-                          className={inputCls}
+                          className={darkInputCls}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Email</label>
+                        <label className="text-xs text-white/50">Email</label>
                         <input
                           type="email"
                           value={clientForm.email}
                           onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
                           placeholder="billing@example.com"
-                          className={inputCls}
+                          className={darkInputCls}
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Phone</label>
+                        <label className="text-xs text-white/50">Phone</label>
                         <input
                           value={clientForm.phone}
                           onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
                           placeholder="+855 12 345 678"
-                          className={inputCls}
+                          className={darkInputCls}
                         />
                       </div>
                       <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Address</label>
+                        <label className="text-xs text-white/50">Address</label>
                         <input
                           value={clientForm.address}
                           onChange={(e) =>
                             setClientForm((p) => ({ ...p, address: e.target.value }))
                           }
                           placeholder="123 Street, City"
-                          className={inputCls}
+                          className={darkInputCls}
                         />
                       </div>
                     </div>
-                    {clientFormError && <p className="text-xs text-red-600">{clientFormError}</p>}
+                    {clientFormError && <p className="text-xs text-red-400">{clientFormError}</p>}
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => {
@@ -810,7 +810,7 @@ export default function ProjectsView() {
                           setClientForm(EMPTY_CLIENT_FORM);
                           setClientFormError('');
                         }}
-                        className="h-9 px-3 rounded-xl border border-zinc-200 text-xs text-zinc-600 hover:bg-white transition"
+                        className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/60 hover:bg-white/10 transition"
                       >
                         Cancel
                       </button>
@@ -827,7 +827,7 @@ export default function ProjectsView() {
 
               {/* Name */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                   Project Name *
                 </label>
                 <input
@@ -839,22 +839,22 @@ export default function ProjectsView() {
                       ? `${selectedClient.name} — Project`
                       : 'e.g. Wedding Video Package'
                   }
-                  className={inputCls}
+                  className={darkInputCls}
                 />
                 {selectedClient && !form.name && (
                   <div className="flex flex-wrap gap-2">
                     <button
                       onClick={() => setForm((p) => ({ ...p, name: selectedClient.name }))}
-                      className="text-xs text-amber-600 hover:underline"
+                      className="text-xs text-[#FFC206] hover:underline"
                     >
                       Use &quot;{selectedClient.name}&quot;
                     </button>
-                    <span className="text-xs text-zinc-300">·</span>
+                    <span className="text-xs text-white/25">·</span>
                     <button
                       onClick={() =>
                         setForm((p) => ({ ...p, name: `${selectedClient.name} Project` }))
                       }
-                      className="text-xs text-amber-600 hover:underline"
+                      className="text-xs text-[#FFC206] hover:underline"
                     >
                       Use &quot;{selectedClient.name} Project&quot;
                     </button>
@@ -863,7 +863,7 @@ export default function ProjectsView() {
               </div>
               {/* Status */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                   Status
                 </label>
                 <div className="flex gap-2 flex-wrap">
@@ -874,7 +874,7 @@ export default function ProjectsView() {
                       <button
                         key={s}
                         onClick={() => setForm((p) => ({ ...p, status: s }))}
-                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${active ? `${cfg.cls} border-current` : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'}`}
+                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${active ? `${cfg.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
                       >
                         {cfg.label}
                       </button>
@@ -885,20 +885,23 @@ export default function ProjectsView() {
               {/* Linked invoices */}
               {clientInvoices.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                     Linked Invoice(s)
                   </label>
-                  <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 p-3 bg-zinc-50">
+                  <div className="flex flex-col gap-1 rounded-xl border border-white/[0.1] p-3 bg-white/[0.04]">
                     {clientInvoices.map((inv) => (
-                      <label key={inv.id} className="flex items-center gap-3 cursor-pointer py-1">
+                      <label
+                        key={inv.id}
+                        className="flex items-center gap-3 cursor-pointer py-1.5 px-1 rounded-lg hover:bg-white/[0.06] transition"
+                      >
                         <input
                           type="checkbox"
                           checked={form.invoiceIds.includes(inv.id)}
                           onChange={() => toggleInvoice(inv.id)}
-                          className="rounded border-zinc-300 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                          className="rounded border-white/30 text-amber-500 focus:ring-amber-500 w-4 h-4 bg-white/10"
                         />
-                        <span className="text-sm text-zinc-700 font-medium">{inv.number}</span>
-                        <span className="text-xs text-zinc-400">{inv.date}</span>
+                        <span className="text-sm text-white/80 font-medium">{inv.number}</span>
+                        <span className="text-xs text-white/40">{inv.date}</span>
                       </label>
                     ))}
                   </div>
@@ -907,9 +910,9 @@ export default function ProjectsView() {
               {/* Scope items */}
               <div className="relative">
                 {!form.clientId && (
-                  <div className="absolute inset-0 z-10 rounded-xl bg-white/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-zinc-100">
+                  <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
                     <svg
-                      className="w-5 h-5 text-zinc-300"
+                      className="w-5 h-5 text-white/30"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -921,17 +924,17 @@ export default function ProjectsView() {
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                       />
                     </svg>
-                    <p className="text-xs text-zinc-400 text-center px-4">Select a client first</p>
+                    <p className="text-xs text-white/40 text-center px-4">Select a client first</p>
                   </div>
                 )}
                 <div className={!form.clientId ? 'pointer-events-none select-none opacity-30' : ''}>
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                         Scope of Work
                       </label>
                       {form.items.length > 0 && (
-                        <span className="text-xs text-zinc-400">
+                        <span className="text-xs text-white/40">
                           {form.items.filter((it) => it.status === 'done').length}/
                           {form.items.length} done
                         </span>
@@ -955,13 +958,13 @@ export default function ProjectsView() {
                       </button>
                     )}
                     {form.items.length > 0 && (
-                      <div className="rounded-xl border border-zinc-200 overflow-hidden">
+                      <div className="rounded-xl border border-white/[0.1] overflow-hidden">
                         {form.items.map((item, idx) => {
                           const cfg = ITEM_STATUS_CONFIG[item.status];
                           return (
                             <div
                               key={item.id}
-                              className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-zinc-100' : ''} hover:bg-zinc-50 transition`}
+                              className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
                             >
                               <button
                                 onClick={() => cycleItemStatus(item.id)}
@@ -971,13 +974,13 @@ export default function ProjectsView() {
                                 {cfg.label}
                               </button>
                               <span
-                                className={`text-sm flex-1 min-w-0 ${item.status === 'done' ? 'line-through text-zinc-400' : 'text-zinc-700'}`}
+                                className={`text-sm flex-1 min-w-0 ${item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
                               >
                                 {item.description}
                               </span>
                               <button
                                 onClick={() => removeItem(item.id)}
-                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition"
+                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition"
                                 title="Remove"
                               >
                                 <svg
@@ -1012,7 +1015,7 @@ export default function ProjectsView() {
                         }}
                         placeholder="Add scope item… (Enter)"
                         list="scope-suggestions-proj"
-                        className={`${inputCls} flex-1`}
+                        className={`${darkInputCls} flex-1`}
                       />
                       <datalist id="scope-suggestions-proj">
                         {scopeOfWork.map((s) => (
@@ -1021,7 +1024,7 @@ export default function ProjectsView() {
                       </datalist>
                       <button
                         onClick={addScopeItem}
-                        className="h-11 px-4 rounded-xl bg-zinc-100 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition"
+                        className="h-11 px-4 rounded-xl bg-white/10 text-sm font-semibold text-white/70 hover:bg-white/15 transition"
                       >
                         Add
                       </button>
@@ -1030,11 +1033,11 @@ export default function ProjectsView() {
                 </div>
               </div>
             </div>
-            {formError && <p className="px-6 py-2 text-sm text-red-600 shrink-0">{formError}</p>}
-            <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
+            {formError && <p className="px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>}
+            <div className="flex gap-3 px-6 py-4 border-t border-white/[0.08] shrink-0">
               <button
                 onClick={closeModal}
-                className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
+                className="flex-1 h-11 rounded-xl border border-white/20 text-sm font-medium text-white/70 hover:bg-white/10 transition"
               >
                 Cancel
               </button>

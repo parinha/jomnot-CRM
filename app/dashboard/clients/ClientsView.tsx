@@ -523,18 +523,23 @@ export default function ClientsView() {
           const client = clients.find((c) => c.id === projectsClientId);
           const clientProjects = projects.filter((p) => p.clientId === projectsClientId);
           return (
-            <ModalShell onClose={() => setProjectsClientId(null)} maxWidth="max-w-3xl">
-              <div className="flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setProjectsClientId(null);
+              }}
+            >
+              <div className="w-full max-w-3xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
                   <div>
-                    <h2 className="text-lg font-bold text-zinc-900">{client?.name}</h2>
-                    <p className="text-sm text-zinc-500 mt-0.5">
+                    <h2 className="text-lg font-bold text-white">{client?.name}</h2>
+                    <p className="text-sm text-white/45 mt-0.5">
                       {clientProjects.length} project{clientProjects.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <button
                     onClick={() => setProjectsClientId(null)}
-                    className="p-2.5 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
+                    className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
                   >
                     <svg
                       className="w-5 h-5"
@@ -549,23 +554,23 @@ export default function ClientsView() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {clientProjects.length === 0 ? (
-                    <p className="text-sm text-zinc-400 text-center py-10">
+                    <p className="text-sm text-white/35 text-center py-10">
                       No projects for this client.
                     </p>
                   ) : (
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200">
+                      <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
                         <tr>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Name
                           </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Status
                           </th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
+                          <th className="text-center px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
                             Scope Items
                           </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
                             Created
                           </th>
                         </tr>
@@ -576,9 +581,9 @@ export default function ClientsView() {
                           return (
                             <tr
                               key={p.id}
-                              className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
+                              className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                             >
-                              <td className="px-4 py-3 font-semibold text-zinc-900">{p.name}</td>
+                              <td className="px-4 py-3 font-semibold text-white">{p.name}</td>
                               <td className="px-4 py-3">
                                 <span
                                   className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
@@ -586,14 +591,14 @@ export default function ClientsView() {
                                   {sc.label}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-center text-zinc-500 hidden sm:table-cell">
+                              <td className="px-4 py-3 text-center text-white/60 hidden sm:table-cell">
                                 {p.items.length > 0 ? (
                                   p.items.length
                                 ) : (
-                                  <span className="text-zinc-300">—</span>
+                                  <span className="text-white/25">—</span>
                                 )}
                               </td>
-                              <td className="px-4 py-3 text-zinc-500 hidden sm:table-cell">
+                              <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
                                 {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
                               </td>
                             </tr>
@@ -604,7 +609,7 @@ export default function ClientsView() {
                   )}
                 </div>
               </div>
-            </ModalShell>
+            </div>
           );
         })()}
 
@@ -614,18 +619,23 @@ export default function ClientsView() {
           const client = clients.find((c) => c.id === invoicesClientId);
           const clientInvs = invoices.filter((inv) => inv.clientId === invoicesClientId);
           return (
-            <ModalShell onClose={() => setInvoicesClientId(null)} maxWidth="max-w-3xl">
-              <div className="flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) setInvoicesClientId(null);
+              }}
+            >
+              <div className="w-full max-w-3xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
                   <div>
-                    <h2 className="text-lg font-bold text-zinc-900">{client?.name}</h2>
-                    <p className="text-sm text-zinc-500 mt-0.5">
+                    <h2 className="text-lg font-bold text-white">{client?.name}</h2>
+                    <p className="text-sm text-white/45 mt-0.5">
                       {clientInvs.length} invoice{clientInvs.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <button
                     onClick={() => setInvoicesClientId(null)}
-                    className="p-2.5 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
+                    className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
                   >
                     <svg
                       className="w-5 h-5"
@@ -640,23 +650,23 @@ export default function ClientsView() {
                 </div>
                 <div className="flex-1 overflow-y-auto">
                   {clientInvs.length === 0 ? (
-                    <p className="text-sm text-zinc-400 text-center py-10">
+                    <p className="text-sm text-white/35 text-center py-10">
                       No invoices for this client.
                     </p>
                   ) : (
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200">
+                      <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
                         <tr>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Invoice #
                           </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
                             Date
                           </th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
                             Amount
                           </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Status
                           </th>
                           <th className="px-4 py-3" />
@@ -669,20 +679,20 @@ export default function ClientsView() {
                           return (
                             <tr
                               key={inv.id}
-                              className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
+                              className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                             >
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => setPreviewInvId(inv.id)}
-                                  className="font-semibold text-zinc-900 hover:text-amber-600 transition text-left"
+                                  className="font-semibold text-white hover:text-[#FFC206] transition text-left"
                                 >
                                   {inv.number}
                                 </button>
                               </td>
-                              <td className="px-4 py-3 text-zinc-500 hidden sm:table-cell">
+                              <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
                                 {inv.date}
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-zinc-900">
+                              <td className="px-4 py-3 text-right font-semibold text-white">
                                 {fmt(sub)}
                               </td>
                               <td className="px-4 py-3">
@@ -697,7 +707,7 @@ export default function ClientsView() {
                                   href={`/invoices/${inv.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-2.5 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition inline-flex"
+                                  className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition inline-flex"
                                   title="PDF"
                                 >
                                   <svg
@@ -723,7 +733,7 @@ export default function ClientsView() {
                   )}
                 </div>
               </div>
-            </ModalShell>
+            </div>
           );
         })()}
 
