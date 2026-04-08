@@ -289,32 +289,43 @@ export default function InvoicesView() {
     setClientFormError('');
   }
 
-  function handleSave() {
+  function handleSave(): string | null {
     if (!form.clientId) {
       setFormError('Please select a client.');
-      return;
+      return null;
     }
     if (!form.number.trim()) {
       setFormError('Invoice number is required.');
-      return;
+      return null;
     }
     const duplicate = invoices.find(
       (inv) => inv.number === form.number.trim() && inv.id !== editingId
     );
     if (duplicate) {
       setFormError(`Invoice number "${form.number.trim()}" is already used.`);
-      return;
+      return null;
     }
     if (form.items.some((it) => !it.description.trim())) {
       setFormError('All line items need a description.');
-      return;
+      return null;
     }
     if (editingId) {
       setInvoices(invoices.map((inv) => (inv.id === editingId ? { id: editingId, ...form } : inv)));
+      closePanel();
+      return editingId;
     } else {
-      setInvoices([...invoices, { id: uid(), ...form }]);
+      const newId = uid();
+      setInvoices([...invoices, { id: newId, ...form }]);
+      closePanel();
+      return newId;
     }
-    closePanel();
+  }
+
+  function handleSaveAndPreview() {
+    const savedId = handleSave();
+    if (savedId) {
+      window.open(`/invoices/${savedId}`, '_blank');
+    }
   }
 
   const subtotal = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
@@ -1454,6 +1465,30 @@ export default function InvoicesView() {
                   className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={handleSaveAndPreview}
+                  className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition flex items-center gap-2"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                  Save & Preview
                 </button>
                 <button
                   onClick={handleSave}
