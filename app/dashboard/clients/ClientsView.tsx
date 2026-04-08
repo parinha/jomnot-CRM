@@ -20,6 +20,7 @@ const EMPTY_FORM: Omit<Client, 'id'> = {
   phone: '',
   address: '',
   email: '',
+  vat_tin: '',
   note: '',
 };
 type CliSortCol = 'name' | 'invoices' | 'earned';
@@ -132,6 +133,7 @@ export default function ClientsView() {
       phone: client.phone,
       address: client.address,
       email: client.email,
+      vat_tin: client.vat_tin ?? '',
       note: client.note ?? '',
     });
     setFormError('');
@@ -373,6 +375,7 @@ export default function ClientsView() {
                 { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
                 { label: 'Email', key: 'email', placeholder: 'billing@example.com' },
                 { label: 'Phone *', key: 'phone', placeholder: '+855 23 901 415' },
+                { label: 'VAT TIN', key: 'vat_tin', placeholder: 'K008-100069509' },
                 { label: 'Address', key: 'address', placeholder: '123 Street, City, Country' },
               ].map(({ label, key, placeholder }) => (
                 <div key={key} className="flex flex-col gap-1.5">

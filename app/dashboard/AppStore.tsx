@@ -22,6 +22,7 @@ export interface Client extends RecordMeta {
   phone: string;
   address: string;
   email: string;
+  vat_tin?: string;
   note?: string;
 }
 
@@ -46,6 +47,7 @@ export interface Invoice extends RecordMeta {
   notes: string;
   depositPercent?: number;
   withWHT?: boolean;
+  showVatTin?: boolean;
 }
 
 export interface CompanyProfile {

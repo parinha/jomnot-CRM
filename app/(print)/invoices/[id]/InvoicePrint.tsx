@@ -319,6 +319,9 @@ export function Sheet({
               {projectLabel && <BillRow label="Project" value={projectLabel} />}
               {client.address && <BillRow label="Address" value={client.address} />}
               {client.phone && <BillRow label="TEL" value={client.phone} />}
+              {invoice.showVatTin && client.vat_tin && (
+                <BillRow label="VAT TIN" value={client.vat_tin} />
+              )}
               {client.email && <BillRow label="Email" value={client.email} />}
             </div>
           ) : (

@@ -186,6 +186,7 @@ export default function InvoicesView() {
     notes: '',
     depositPercent: undefined,
     withWHT: undefined,
+    showVatTin: undefined,
   });
 
   const [form, setForm] = useState<FormState>(blankForm);
@@ -234,6 +235,7 @@ export default function InvoicesView() {
       notes: inv.notes,
       depositPercent: inv.depositPercent,
       withWHT: inv.withWHT,
+      showVatTin: inv.showVatTin,
     });
     setFormError('');
     setShowClientForm(false);
@@ -1409,6 +1411,24 @@ export default function InvoicesView() {
                 >
                   <span
                     className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.depositPercent != null ? 'translate-x-6' : 'translate-x-1'}`}
+                  />
+                </button>
+              </div>
+
+              {/* VAT TIN toggle */}
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-300">Show VAT TIN on Invoice</p>
+                  <p className="text-xs text-blue-400/70 mt-0.5">
+                    Display the client&apos;s VAT TIN number in the Bill To section.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setField('showVatTin', form.showVatTin ? undefined : true)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.showVatTin ? 'bg-blue-500' : 'bg-zinc-300'}`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.showVatTin ? 'translate-x-6' : 'translate-x-1'}`}
                   />
                 </button>
               </div>
