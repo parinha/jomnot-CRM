@@ -89,20 +89,34 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   }
 
   return (
-    <div className="min-h-screen flex bg-zinc-100">
-      {open && <div className="fixed inset-0 z-40 bg-black/40 md:hidden" onClick={close} />}
+    <div className="min-h-screen flex bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900">
+      {/* Mobile overlay */}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+          onClick={close}
+        />
+      )}
 
+      {/* Ambient background glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-slate-600/10 rounded-full blur-3xl" />
+      </div>
+
+      {/* Sidebar */}
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-zinc-200 flex flex-col',
+          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col',
+          'bg-black/50 backdrop-blur-2xl border-r border-white/[0.08]',
           'transition-transform duration-200 ease-in-out',
           'md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0 md:translate-x-0',
-          open ? 'translate-x-0 shadow-xl' : '-translate-x-full',
+          open ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         ].join(' ')}
       >
         <button
           onClick={close}
-          className="md:hidden absolute top-3 right-3 p-1.5 rounded-lg text-zinc-400 hover:bg-zinc-100"
+          className="md:hidden absolute top-4 right-4 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
           aria-label="Close menu"
         >
           <svg
@@ -118,7 +132,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         <SidebarHeader />
 
-        <nav className="flex-1 p-3 flex flex-col gap-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
           <NavItem
             href="/dashboard"
             label="Dashboard"
@@ -126,7 +140,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
             pathname={pathname}
           />
-          <div className="my-1 border-t border-zinc-100" />
+          <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
             href="/dashboard/clients"
             label="Clients"
@@ -148,7 +162,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
             pathname={pathname}
           />
-          <div className="my-1.5 border-t border-zinc-100" />
+          <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
             href="/dashboard/payments"
             label="Payments"
@@ -165,7 +179,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           />
         </nav>
 
-        <div className="p-3 border-t border-zinc-100 shrink-0 flex flex-col gap-0.5">
+        <div className="px-3 py-3 border-t border-white/[0.06] shrink-0 flex flex-col gap-0.5">
           <NavItem
             href="/dashboard/settings"
             label="Settings"
@@ -179,10 +193,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               await signOut();
               router.replace('/login');
             }}
-            className="flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 transition w-full text-left"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-white/50 hover:bg-white/[0.06] hover:text-white/80 transition w-full text-left"
           >
             <svg
-              className="w-4 h-4 shrink-0 text-zinc-400"
+              className="w-4 h-4 shrink-0"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -199,11 +213,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 md:h-16 bg-white border-b border-zinc-200 flex items-center px-4 md:px-6 gap-3 shrink-0 sticky top-0 z-30">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Top header */}
+        <header className="h-16 bg-black/30 backdrop-blur-xl border-b border-white/[0.08] flex items-center px-4 md:px-6 gap-3 shrink-0 sticky top-0 z-30">
+          {/* Mobile menu toggle */}
           <button
             onClick={() => setOpen(true)}
-            className="md:hidden p-1.5 -ml-1 rounded-lg text-zinc-500 hover:bg-zinc-100 shrink-0"
+            className="md:hidden p-2.5 -ml-1 rounded-xl text-white/60 hover:bg-white/10 hover:text-white shrink-0 transition"
             aria-label="Open menu"
           >
             <svg
@@ -217,9 +234,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </svg>
           </button>
 
+          {/* Search */}
           <div ref={searchRef} className="relative flex-1 max-w-md">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -244,10 +262,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               }}
               onKeyDown={onKeyDown}
               placeholder="Search clients, invoices…"
-              className="w-full h-9 pl-9 pr-16 rounded-lg border border-zinc-300 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent bg-white"
+              className="w-full h-10 pl-10 pr-16 rounded-xl border border-white/15 bg-white/10 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent backdrop-blur-sm transition"
             />
             {!query && (
-              <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400 bg-zinc-100 border border-zinc-200 pointer-events-none">
+              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-white/30 bg-white/10 border border-white/15 pointer-events-none">
                 Space
               </kbd>
             )}
@@ -257,10 +275,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                   setQuery('');
                   setShowResults(false);
                 }}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition"
               >
                 <svg
-                  className="w-3.5 h-3.5"
+                  className="w-4 h-4"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -272,30 +290,30 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             )}
 
             {showResults && query && (
-              <div className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl border border-zinc-200 shadow-lg z-50 overflow-hidden max-h-[420px] overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden max-h-[420px] overflow-y-auto">
                 {matchedClients.length === 0 && matchedInvoices.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-zinc-400 text-center">
+                  <p className="px-4 py-6 text-sm text-white/40 text-center">
                     No results for &quot;{query}&quot;
                   </p>
                 ) : (
                   <>
                     {matchedClients.length > 0 && (
                       <div>
-                        <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100">
+                        <p className="px-4 py-2.5 text-[10px] font-semibold text-white/40 uppercase tracking-wider border-b border-white/[0.06]">
                           Clients
                         </p>
                         {matchedClients.map((c) => (
                           <button
                             key={c.id}
                             onClick={() => go('/dashboard/clients')}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition text-left"
+                            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] transition text-left"
                           >
-                            <div className="w-8 h-8 rounded-full bg-brand/20 text-zinc-800 flex items-center justify-center text-xs font-bold shrink-0">
+                            <div className="w-9 h-9 rounded-xl bg-[#FFC206]/20 text-[#FFC206] flex items-center justify-center text-xs font-bold shrink-0">
                               {c.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="text-sm font-medium text-zinc-900 truncate">{c.name}</p>
-                              <p className="text-xs text-zinc-400 truncate">
+                              <p className="text-sm font-medium text-white truncate">{c.name}</p>
+                              <p className="text-xs text-white/40 truncate">
                                 {c.email || c.phone || '—'}
                               </p>
                             </div>
@@ -304,8 +322,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                       </div>
                     )}
                     {matchedInvoices.length > 0 && (
-                      <div className={matchedClients.length > 0 ? 'border-t border-zinc-100' : ''}>
-                        <p className="px-4 py-2 text-[10px] font-semibold text-zinc-400 uppercase tracking-wider border-b border-zinc-100">
+                      <div
+                        className={matchedClients.length > 0 ? 'border-t border-white/[0.06]' : ''}
+                      >
+                        <p className="px-4 py-2.5 text-[10px] font-semibold text-white/40 uppercase tracking-wider border-b border-white/[0.06]">
                           Invoices
                         </p>
                         {matchedInvoices.map((inv) => {
@@ -317,11 +337,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                             <button
                               key={inv.id}
                               onClick={() => go('/dashboard/invoices')}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition text-left"
+                              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] transition text-left"
                             >
-                              <div className="w-8 h-8 rounded-lg bg-zinc-100 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
                                 <svg
-                                  className="w-4 h-4 text-zinc-500"
+                                  className="w-4 h-4 text-white/60"
                                   fill="none"
                                   viewBox="0 0 24 24"
                                   stroke="currentColor"
@@ -336,14 +356,14 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-zinc-900">{inv.number}</p>
+                                  <p className="text-sm font-medium text-white">{inv.number}</p>
                                   <span
                                     className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${sc.cls}`}
                                   >
                                     {sc.label}
                                   </span>
                                 </div>
-                                <p className="text-xs text-zinc-400 truncate">
+                                <p className="text-xs text-white/40 truncate">
                                   {client?.name ?? '—'} · {fmtUSD(total)}
                                 </p>
                               </div>
@@ -358,10 +378,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             )}
           </div>
 
+          {/* Header actions */}
           <div className="ml-auto flex items-center gap-2 shrink-0">
             <button
               onClick={() => setQuickPay(true)}
-              className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg border border-zinc-200 bg-white text-zinc-700 text-sm font-medium hover:bg-zinc-50 transition"
+              className="flex items-center gap-2 h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-white text-sm font-medium hover:bg-white/15 transition backdrop-blur-sm"
             >
               <svg
                 className="w-4 h-4"
@@ -380,7 +401,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </button>
             <Link
               href="/dashboard/invoices?new=1"
-              className="flex items-center gap-1.5 h-9 px-3.5 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+              className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 active:bg-amber-500 transition shadow-lg shadow-amber-500/20"
             >
               <svg
                 className="w-4 h-4"
@@ -423,14 +444,14 @@ function NavItem({
       href={href}
       onClick={onClick}
       className={[
-        'flex items-center gap-2.5 px-3 py-2.5 md:py-2 rounded-lg text-sm font-medium transition',
+        'flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition',
         active
-          ? 'bg-amber-100 text-zinc-900'
-          : 'text-zinc-700 hover:bg-amber-50 hover:text-zinc-900 active:bg-amber-100',
+          ? 'bg-[#FFC206]/15 text-[#FFC206] border border-[#FFC206]/20'
+          : 'text-white/55 hover:bg-white/[0.06] hover:text-white/90',
       ].join(' ')}
     >
       <svg
-        className={['w-4 h-4 shrink-0', active ? 'text-amber-600' : 'text-zinc-500'].join(' ')}
+        className={['w-4 h-4 shrink-0', active ? 'text-[#FFC206]' : 'text-white/40'].join(' ')}
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"

@@ -10,7 +10,6 @@ import { STATUS_CONFIG } from '@/app/_config/statusConfig';
 import SortTh from '@/app/_components/SortTh';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
-import FormField from '@/app/_components/FormField';
 import ModalShell from '@/app/_components/ModalShell';
 import InvoicePreviewModal from '@/app/_components/InvoicePreviewModal';
 
@@ -26,7 +25,7 @@ const EMPTY_FORM: Omit<Client, 'id'> = {
 type CliSortCol = 'name' | 'invoices' | 'earned';
 
 const inputCls =
-  'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white';
+  'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
 
 export default function ClientsView() {
   const { clients, setClients, invoices } = useStore();
@@ -47,7 +46,6 @@ export default function ClientsView() {
       })
     : clients;
 
-  // ── Sort ───────────────────────────────────────────────────────────────────
   const [sortCol, setSortCol] = useState<CliSortCol>(() =>
     typeof window !== 'undefined'
       ? ((localStorage.getItem(STORAGE_KEYS.tableCliCol) as CliSortCol) ?? 'name')
@@ -87,7 +85,6 @@ export default function ClientsView() {
     localStorage.setItem(STORAGE_KEYS.tableCliPage, String(p));
   }
 
-  // Earned = cash received; remaining = balance on unpaid/partial invoices
   const statsMap = new Map(
     clients.map((c) => {
       const ci = invoices.filter((inv) => inv.clientId === c.id);
@@ -115,7 +112,6 @@ export default function ClientsView() {
   const safePage = Math.min(page, totalPages);
   const pagedClients = sortedClients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  // ── Client add/edit modal ──────────────────────────────────────────────────
   const [modalOpen, setModalOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -171,29 +167,27 @@ export default function ClientsView() {
     setDeleteId(null);
   }
 
-  // ── Invoice preview ────────────────────────────────────────────────────────
   const [previewInvId, setPreviewInvId] = useState<string | null>(null);
-
-  // ── Client invoices popup ──────────────────────────────────────────────────
   const [invoicesClientId, setInvoicesClientId] = useState<string | null>(null);
 
   return (
     <>
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Clients</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{clients.length} total</p>
+          <h1 className="text-2xl font-bold text-white">Clients</h1>
+          <p className="text-sm text-white/45 mt-0.5">{clients.length} total</p>
         </div>
         <button
           onClick={openAdd}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+          className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 active:bg-amber-500 transition shadow-lg shadow-amber-500/20"
         >
           <svg
             className="w-4 h-4"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            strokeWidth={2}
+            strokeWidth={2.5}
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
           </svg>
@@ -205,14 +199,15 @@ export default function ClientsView() {
         value={search}
         onChange={setSearch}
         placeholder="Search by name, email, phone, address…"
-        className="mb-3"
+        className="mb-4"
       />
 
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+      {/* Table */}
+      <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
         {clients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+          <div className="flex flex-col items-center justify-center py-20 text-white/35">
             <svg
-              className="w-10 h-10 mb-3 text-zinc-300"
+              className="w-12 h-12 mb-3 text-white/20"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -227,11 +222,11 @@ export default function ClientsView() {
             <p className="text-sm">No clients yet. Add your first one.</p>
           </div>
         ) : sortedClients.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-zinc-400">
+          <div className="flex flex-col items-center justify-center py-14 text-white/35">
             <p className="text-sm">No clients match your search.</p>
             <button
               onClick={() => setSearch('')}
-              className="mt-2 text-xs text-brand hover:underline"
+              className="mt-2 text-xs text-[#FFC206] hover:underline"
             >
               Clear search
             </button>
@@ -239,23 +234,23 @@ export default function ClientsView() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
+              <tr className="border-b border-white/[0.08] bg-white/[0.04]">
                 <SortTh
                   col="name"
                   active={sortCol}
                   dir={sortDir}
                   onSort={handleSort}
-                  className="text-left px-4 py-3"
+                  className="text-left px-4 py-3.5"
                 >
                   Name
                 </SortTh>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">
+                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
                   Contact
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell">
+                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
                   Phone
                 </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden lg:table-cell">
+                <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden lg:table-cell">
                   Address
                 </th>
                 <SortTh
@@ -263,7 +258,7 @@ export default function ClientsView() {
                   active={sortCol}
                   dir={sortDir}
                   onSort={handleSort}
-                  className="text-center px-4 py-3 hidden sm:table-cell"
+                  className="text-center px-4 py-3.5 hidden sm:table-cell"
                 >
                   Invoices
                 </SortTh>
@@ -272,14 +267,14 @@ export default function ClientsView() {
                   active={sortCol}
                   dir={sortDir}
                   onSort={handleSort}
-                  className="text-right px-4 py-3"
+                  className="text-right px-4 py-3.5"
                 >
                   Earned
                 </SortTh>
-                <th className="text-right px-4 py-3 font-medium text-zinc-500 hidden sm:table-cell">
+                <th className="text-right px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
                   Remaining
                 </th>
-                <th className="px-4 py-3" />
+                <th className="px-4 py-3.5" />
               </tr>
             </thead>
             <tbody>
@@ -288,62 +283,62 @@ export default function ClientsView() {
                 return (
                   <tr
                     key={client.id}
-                    className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
+                    className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                   >
-                    <td className="px-4 py-3 font-medium text-zinc-900">{client.name}</td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
+                    <td className="px-4 py-3.5 font-semibold text-white">{client.name}</td>
+                    <td className="px-4 py-3.5 hidden sm:table-cell">
                       {client.contactPerson ? (
                         <>
-                          <div className="text-zinc-800 text-sm">{client.contactPerson}</div>
-                          <div className="text-xs text-zinc-400">{client.email}</div>
+                          <div className="text-white/80 text-sm">{client.contactPerson}</div>
+                          <div className="text-xs text-white/40">{client.email}</div>
                         </>
                       ) : (
-                        <span className="text-zinc-600">{client.email}</span>
+                        <span className="text-white/60">{client.email}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 hidden md:table-cell">
+                    <td className="px-4 py-3.5 text-white/60 hidden md:table-cell">
                       {client.phone || '—'}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 max-w-xs truncate hidden lg:table-cell">
+                    <td className="px-4 py-3.5 text-white/60 max-w-xs truncate hidden lg:table-cell">
                       {client.address || '—'}
                     </td>
-                    <td className="px-4 py-3 text-center hidden sm:table-cell">
+                    <td className="px-4 py-3.5 text-center hidden sm:table-cell">
                       {stats && stats.count > 0 ? (
                         <button
                           onClick={() => setInvoicesClientId(client.id)}
-                          className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition"
+                          className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/70 hover:bg-white/15 transition"
                         >
                           {stats.count}
                         </button>
                       ) : (
-                        <span className="text-zinc-300 text-xs">—</span>
+                        <span className="text-white/25 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-zinc-900">
+                    <td className="px-4 py-3.5 text-right font-semibold text-white">
                       {stats && stats.count > 0 ? (
                         fmt(stats.earned)
                       ) : (
-                        <span className="text-zinc-300 text-xs">—</span>
+                        <span className="text-white/25 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right hidden sm:table-cell">
+                    <td className="px-4 py-3.5 text-right hidden sm:table-cell">
                       {stats && stats.remaining > 0 ? (
-                        <span className="font-medium text-amber-600">{fmt(stats.remaining)}</span>
+                        <span className="font-semibold text-amber-400">{fmt(stats.remaining)}</span>
                       ) : (
-                        <span className="text-zinc-300 text-xs">—</span>
+                        <span className="text-white/25 text-xs">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3.5">
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEdit(client)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-zinc-200 text-zinc-600 hover:bg-zinc-100 transition"
+                          className="h-9 px-4 rounded-xl border border-white/20 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setDeleteId(client.id)}
-                          className="text-xs px-3 py-1.5 rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition"
+                          className="h-9 px-4 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition"
                         >
                           Delete
                         </button>
@@ -365,72 +360,58 @@ export default function ClientsView() {
         onPageChange={goToPage}
       />
 
-      {/* ── Add / Edit client ──────────────────────────────────────────────────── */}
+      {/* Add / Edit modal */}
       {modalOpen && (
         <ModalShell onClose={closeModal}>
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 mb-5">
+            <h2 className="text-lg font-bold text-zinc-900 mb-5">
               {editingClient ? 'Edit client' : 'Add client'}
             </h2>
             <div className="flex flex-col gap-4">
-              <FormField
-                label="Company Name"
-                id="name"
-                required
-                value={form.name}
-                onChange={(v) => setForm((p) => ({ ...p, name: v }))}
-                placeholder="ANYMIND (Cambodia) CO.,LTD"
-              />
-              <FormField
-                label="Contact Person (To)"
-                id="contactPerson"
-                value={form.contactPerson ?? ''}
-                onChange={(v) => setForm((p) => ({ ...p, contactPerson: v }))}
-                placeholder="Mr. Siv Chinh"
-              />
-              <FormField
-                label="Email"
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(v) => setForm((p) => ({ ...p, email: v }))}
-                placeholder="billing@example.com"
-              />
-              <FormField
-                label="Phone"
-                id="phone"
-                required
-                value={form.phone}
-                onChange={(v) => setForm((p) => ({ ...p, phone: v }))}
-                placeholder="+855 23 901 415"
-              />
-              <FormField
-                label="Address"
-                id="address"
-                value={form.address}
-                onChange={(v) => setForm((p) => ({ ...p, address: v }))}
-                placeholder="16/F, Phnom Penh Tower, No 445, St. Monivong, Phnom Penh, Cambodia"
-              />
-              <FormField
-                label="Note"
-                id="note"
-                value={form.note ?? ''}
-                onChange={(v) => setForm((p) => ({ ...p, note: v }))}
-                placeholder="Internal notes about this client…"
-                textarea
-              />
+              {[
+                { label: 'Company Name *', key: 'name', placeholder: 'ANYMIND CO., LTD' },
+                { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
+                { label: 'Email', key: 'email', placeholder: 'billing@example.com' },
+                { label: 'Phone *', key: 'phone', placeholder: '+855 23 901 415' },
+                { label: 'Address', key: 'address', placeholder: '123 Street, City, Country' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                    {label}
+                  </label>
+                  <input
+                    type="text"
+                    value={(form as Record<string, string>)[key] ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+                  Note
+                </label>
+                <textarea
+                  value={form.note ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
+                  placeholder="Internal notes…"
+                  rows={3}
+                  className={`${inputCls} h-auto py-3 resize-none`}
+                />
+              </div>
             </div>
             {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
-            <div className="flex gap-3 mt-6 justify-end">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={closeModal}
-                className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+                className="flex-1 h-11 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition"
               >
                 {editingClient ? 'Save changes' : 'Add client'}
               </button>
@@ -439,22 +420,22 @@ export default function ClientsView() {
         </ModalShell>
       )}
 
-      {/* ── Delete confirm ─────────────────────────────────────────────────────── */}
+      {/* Delete confirm */}
       {deleteId && (
         <ModalShell onClose={() => setDeleteId(null)} maxWidth="max-w-sm">
           <div className="p-6">
-            <h2 className="text-lg font-semibold text-zinc-900 mb-2">Delete client?</h2>
+            <h2 className="text-lg font-bold text-zinc-900 mb-2">Delete client?</h2>
             <p className="text-sm text-zinc-500 mb-6">This action cannot be undone.</p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-3">
               <button
                 onClick={() => setDeleteId(null)}
-                className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
-                className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition"
+                className="flex-1 h-11 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition"
               >
                 Delete
               </button>
@@ -463,7 +444,7 @@ export default function ClientsView() {
         </ModalShell>
       )}
 
-      {/* ── Client invoices popup ──────────────────────────────────────────────── */}
+      {/* Client invoices popup */}
       {invoicesClientId &&
         (() => {
           const client = clients.find((c) => c.id === invoicesClientId);
@@ -473,14 +454,14 @@ export default function ClientsView() {
               <div className="flex flex-col max-h-[85vh]">
                 <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">{client?.name}</h2>
+                    <h2 className="text-lg font-bold text-zinc-900">{client?.name}</h2>
                     <p className="text-sm text-zinc-500 mt-0.5">
                       {clientInvs.length} invoice{clientInvs.length !== 1 ? 's' : ''}
                     </p>
                   </div>
                   <button
                     onClick={() => setInvoicesClientId(null)}
-                    className="text-zinc-400 hover:text-zinc-700 transition"
+                    className="p-2.5 rounded-xl text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition"
                   >
                     <svg
                       className="w-5 h-5"
@@ -502,19 +483,19 @@ export default function ClientsView() {
                     <table className="w-full text-sm">
                       <thead className="sticky top-0 bg-zinc-50 border-b border-zinc-200">
                         <tr>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
                             Invoice #
                           </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500 hidden sm:table-cell">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 hidden sm:table-cell">
                             Date
                           </th>
-                          <th className="text-right px-4 py-2.5 text-xs font-medium text-zinc-500">
+                          <th className="text-right px-4 py-3 text-xs font-semibold text-zinc-500">
                             Amount
                           </th>
-                          <th className="text-left px-4 py-2.5 text-xs font-medium text-zinc-500">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500">
                             Status
                           </th>
-                          <th className="px-4 py-2.5" />
+                          <th className="px-4 py-3" />
                         </tr>
                       </thead>
                       <tbody>
@@ -524,25 +505,25 @@ export default function ClientsView() {
                           return (
                             <tr
                               key={inv.id}
-                              className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 ${i % 2 === 1 ? 'bg-zinc-50/30' : ''}`}
+                              className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50 ${i % 2 === 1 ? 'bg-zinc-50/40' : ''}`}
                             >
                               <td className="px-4 py-3">
                                 <button
                                   onClick={() => setPreviewInvId(inv.id)}
-                                  className="font-medium text-zinc-900 hover:text-brand hover:underline transition text-left"
+                                  className="font-semibold text-zinc-900 hover:text-amber-600 transition text-left"
                                 >
                                   {inv.number}
                                 </button>
                               </td>
-                              <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">
+                              <td className="px-4 py-3 text-zinc-500 hidden sm:table-cell">
                                 {inv.date}
                               </td>
-                              <td className="px-4 py-3 text-right whitespace-nowrap">
-                                <span className="font-medium text-zinc-900">{fmt(sub)}</span>
+                              <td className="px-4 py-3 text-right font-semibold text-zinc-900">
+                                {fmt(sub)}
                               </td>
                               <td className="px-4 py-3">
                                 <span
-                                  className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}
+                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
                                 >
                                   {sc.label}
                                 </span>
@@ -552,11 +533,11 @@ export default function ClientsView() {
                                   href={`/invoices/${inv.id}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition inline-flex"
+                                  className="p-2.5 rounded-xl border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition inline-flex"
                                   title="PDF"
                                 >
                                   <svg
-                                    className="w-3.5 h-3.5"
+                                    className="w-4 h-4"
                                     fill="none"
                                     viewBox="0 0 24 24"
                                     stroke="currentColor"
@@ -582,7 +563,6 @@ export default function ClientsView() {
           );
         })()}
 
-      {/* ── Invoice preview ─────────────────────────────────────────────────────── */}
       {previewInvId && (
         <InvoicePreviewModal invId={previewInvId} onClose={() => setPreviewInvId(null)} />
       )}

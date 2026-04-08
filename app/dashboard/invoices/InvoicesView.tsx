@@ -43,7 +43,8 @@ function emptyItem(): LineItem {
 type FormState = Omit<Invoice, 'id'>;
 
 const inputCls =
-  'h-10 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition w-full bg-white';
+  'h-11 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
+
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
 
 export default function InvoicesView() {
@@ -470,12 +471,12 @@ export default function InvoicesView() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Invoices</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">{invoices.length} total</p>
+          <h1 className="text-2xl font-bold text-white">Invoices</h1>
+          <p className="text-sm text-white/45 mt-0.5">{invoices.length} total</p>
         </div>
         <button
           onClick={openNew}
-          className="flex items-center gap-2 h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+          className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
         >
           <svg
             className="w-4 h-4"
@@ -542,11 +543,11 @@ export default function InvoicesView() {
             <button
               key={key}
               onClick={() => setStatusFilter(key)}
-              className={`h-9 px-3 rounded-lg text-xs font-medium border transition whitespace-nowrap ${statusFilter === key ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-600 border-zinc-300 hover:bg-zinc-50'}`}
+              className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === key ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
             >
               {label}
               <span
-                className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-white/20' : 'bg-zinc-100'}`}
+                className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-zinc-900/20 text-zinc-900' : 'bg-white/15 text-white'}`}
               >
                 {key === 'all'
                   ? invoices.length
@@ -560,11 +561,11 @@ export default function InvoicesView() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+      <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
         {invoices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+          <div className="flex flex-col items-center justify-center py-20 text-white/35">
             <svg
-              className="w-10 h-10 mb-3 text-zinc-300"
+              className="w-10 h-10 mb-3 text-white/20"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -579,14 +580,14 @@ export default function InvoicesView() {
             <p className="text-sm">No invoices yet. Create your first one.</p>
           </div>
         ) : filteredInvoices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-14 text-zinc-400">
+          <div className="flex flex-col items-center justify-center py-14 text-white/35">
             <p className="text-sm">No invoices match your search.</p>
             <button
               onClick={() => {
                 setSearch('');
                 setStatusFilter('all');
               }}
-              className="mt-2 text-xs text-brand hover:underline"
+              className="mt-2 text-xs text-[#FFC206] hover:underline"
             >
               Clear filters
             </button>
@@ -594,7 +595,7 @@ export default function InvoicesView() {
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
+              <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
                 <SortTh
                   col="number"
                   active={sortCol}
@@ -604,7 +605,7 @@ export default function InvoicesView() {
                 >
                   Invoice #
                 </SortTh>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Client</th>
+                <th className="text-left px-4 py-3">Client</th>
                 <SortTh
                   col="date"
                   active={sortCol}
@@ -623,15 +624,13 @@ export default function InvoicesView() {
                 >
                   Amount
                 </SortTh>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500 hidden md:table-cell w-40">
-                  Project
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-zinc-500">Status</th>
+                <th className="text-left px-4 py-3 hidden md:table-cell w-40">Project</th>
+                <th className="text-left px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {pagedInvoices.map((inv, i) => {
+              {pagedInvoices.map((inv) => {
                 const client = clients.find((c) => c.id === inv.clientId);
                 const sub = calcSubtotal(inv);
                 const invDeposit =
@@ -648,22 +647,22 @@ export default function InvoicesView() {
                 return (
                   <tr
                     key={inv.id}
-                    className={`border-b border-zinc-100 last:border-0 hover:bg-zinc-50/60 transition ${i % 2 === 1 ? 'bg-zinc-50/30' : ''}`}
+                    className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition"
                   >
-                    <td className="px-4 py-3 font-medium text-zinc-900 whitespace-nowrap">
+                    <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
                       {inv.number}
                     </td>
-                    <td className="px-4 py-3 text-zinc-600 max-w-[120px] truncate">
+                    <td className="px-4 py-3.5 text-white/60 max-w-[120px] truncate">
                       {client?.name ?? '—'}
                     </td>
-                    <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">
+                    <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
                       {inv.date}
                     </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <span className="font-medium text-zinc-900">{fmt(sub)}</span>
+                    <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                      <span className="font-semibold text-white">{fmt(sub)}</span>
                       {invBalance != null && (
                         <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                          <span className="text-xs text-zinc-400">
+                          <span className="text-xs text-white/35">
                             {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
                           </span>
                         </div>
@@ -678,14 +677,14 @@ export default function InvoicesView() {
                           title={`${linkedProject.name} — ${pct}%`}
                         >
                           <div className="flex items-center gap-1.5 mb-1">
-                            <span className="text-xs text-zinc-600 group-hover:text-zinc-900 transition truncate max-w-[96px]">
+                            <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
                               {linkedProject.name}
                             </span>
-                            <span className="text-xs text-zinc-400 shrink-0">{pct}%</span>
+                            <span className="text-xs text-white/35 shrink-0">{pct}%</span>
                           </div>
-                          <div className="h-1.5 w-full bg-zinc-100 rounded-full overflow-hidden">
+                          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                             <div
-                              className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-500' : 'bg-brand'}`}
+                              className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
                               style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
                             />
                           </div>
@@ -693,7 +692,7 @@ export default function InvoicesView() {
                       ) : (
                         <button
                           onClick={() => openLinkProject(inv)}
-                          className="flex items-center gap-1 text-xs text-zinc-400 hover:text-brand transition group"
+                          className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group"
                         >
                           <svg
                             className="w-3 h-3 group-hover:scale-110 transition-transform"
@@ -727,7 +726,7 @@ export default function InvoicesView() {
                               );
                               window.open(`/invoices/${inv.id}`, '_blank');
                             }}
-                            className="h-7 px-2.5 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
+                            className="h-10 px-4 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition whitespace-nowrap"
                           >
                             Mark Sent
                           </button>
@@ -739,7 +738,7 @@ export default function InvoicesView() {
                               ? setViewProjectId(linkedProject.id)
                               : openLinkProject(inv)
                           }
-                          className={`md:hidden p-1.5 rounded-md border transition ${linkedProject ? 'border-blue-200 text-blue-500 bg-blue-50 hover:bg-blue-100' : 'border-zinc-200 text-zinc-400 hover:bg-zinc-100'}`}
+                          className={`md:hidden p-2.5 rounded-xl border transition ${linkedProject ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
                           title={linkedProject ? linkedProject.name : 'Link project'}
                         >
                           <svg
@@ -760,7 +759,7 @@ export default function InvoicesView() {
                           type="button"
                           onClick={() => sendToTelegram(inv)}
                           disabled={sendingTelegram === inv.id}
-                          className="p-1.5 rounded-md border border-zinc-200 text-sky-500 hover:bg-sky-50 transition disabled:opacity-50"
+                          className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
                           title="Send to Telegram"
                         >
                           {sendingTelegram === inv.id ? (
@@ -787,7 +786,7 @@ export default function InvoicesView() {
                           href={`/invoices/${inv.id}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition"
+                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
                           title="PDF"
                         >
                           <svg
@@ -806,7 +805,7 @@ export default function InvoicesView() {
                         </a>
                         <button
                           onClick={() => openEdit(inv)}
-                          className="p-1.5 rounded-md border border-zinc-200 text-zinc-500 hover:bg-zinc-100 transition"
+                          className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
                           title="Edit"
                         >
                           <svg
@@ -825,7 +824,7 @@ export default function InvoicesView() {
                         </button>
                         <button
                           onClick={() => setDeleteId(inv.id)}
-                          className="p-1.5 rounded-md border border-red-200 text-red-500 hover:bg-red-50 transition"
+                          className="p-2.5 rounded-xl border border-red-400/30 text-red-400 hover:bg-red-500/15 transition"
                           title="Delete"
                         >
                           <svg
@@ -863,13 +862,16 @@ export default function InvoicesView() {
       {/* ── Invoice form panel ──────────────────────────────────────────────────── */}
       {panelOpen && (
         <>
-          <div className="fixed inset-0 z-40 bg-black/30" onClick={closePanel} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
-              <h2 className="text-lg font-semibold text-zinc-900">
+          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={closePanel} />
+          <div className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-slate-900/95 backdrop-blur-2xl border-l border-white/[0.1] shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+              <h2 className="text-lg font-bold text-white">
                 {editingId ? 'Edit invoice' : 'New invoice'}
               </h2>
-              <button onClick={closePanel} className="text-zinc-400 hover:text-zinc-700 transition">
+              <button
+                onClick={closePanel}
+                className="text-white/40 hover:text-white transition p-1"
+              >
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -914,8 +916,8 @@ export default function InvoicesView() {
               {/* Client field + inline create */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-zinc-700">
-                    Client <span className="text-red-500">*</span>
+                  <label className="text-sm font-medium text-white/70">
+                    Client <span className="text-red-400">*</span>
                   </label>
                   {!showClientForm && (
                     <button
@@ -923,7 +925,7 @@ export default function InvoicesView() {
                         setShowClientForm(true);
                         setField('clientId', '');
                       }}
-                      className="flex items-center gap-0.5 text-xs text-brand hover:underline"
+                      className="flex items-center gap-0.5 text-xs text-[#FFC206] hover:underline"
                     >
                       <svg
                         className="w-3 h-3"
@@ -973,9 +975,9 @@ export default function InvoicesView() {
                             className={inputCls}
                           />
                           {clientDropOpen && (
-                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-lg border border-zinc-200 bg-white shadow-lg">
+                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
                               {filtered.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-zinc-400">
+                                <div className="px-3 py-2 text-sm text-white/40">
                                   No clients found
                                 </div>
                               ) : (
@@ -988,13 +990,11 @@ export default function InvoicesView() {
                                       setClientSearch('');
                                       setClientDropOpen(false);
                                     }}
-                                    className={`w-full text-left px-3 py-2 hover:bg-zinc-50 transition ${form.clientId === c.id ? 'bg-amber-50' : ''}`}
+                                    className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
                                   >
-                                    <div className="text-sm font-medium text-zinc-900">
-                                      {c.name}
-                                    </div>
+                                    <div className="text-sm font-medium text-white">{c.name}</div>
                                     {(c.contactPerson || c.email || c.phone) && (
-                                      <div className="text-xs text-zinc-400 truncate">
+                                      <div className="text-xs text-white/40 truncate">
                                         {[c.contactPerson, c.email, c.phone]
                                           .filter(Boolean)
                                           .join(' · ')}
@@ -1010,14 +1010,14 @@ export default function InvoicesView() {
                     })()}
                   </div>
                 ) : (
-                  <div className="rounded-xl border border-brand/50 bg-amber-50/50 p-4 flex flex-col gap-3">
-                    <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">
+                  <div className="rounded-xl border border-[#FFC206]/30 bg-white/[0.05] p-4 flex flex-col gap-3">
+                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
                       Create new client
                     </p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">
-                          Company Name <span className="text-red-500">*</span>
+                        <label className="text-xs text-white/50">
+                          Company Name <span className="text-red-400">*</span>
                         </label>
                         <input
                           value={clientForm.name}
@@ -1027,7 +1027,7 @@ export default function InvoicesView() {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Contact Person (To)</label>
+                        <label className="text-xs text-white/50">Contact Person (To)</label>
                         <input
                           value={clientForm.contactPerson}
                           onChange={(e) =>
@@ -1038,7 +1038,7 @@ export default function InvoicesView() {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Email</label>
+                        <label className="text-xs text-white/50">Email</label>
                         <input
                           type="email"
                           value={clientForm.email}
@@ -1048,7 +1048,7 @@ export default function InvoicesView() {
                         />
                       </div>
                       <div className="flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Phone</label>
+                        <label className="text-xs text-white/50">Phone</label>
                         <input
                           value={clientForm.phone}
                           onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
@@ -1057,7 +1057,7 @@ export default function InvoicesView() {
                         />
                       </div>
                       <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-zinc-500">Address</label>
+                        <label className="text-xs text-white/50">Address</label>
                         <input
                           value={clientForm.address}
                           onChange={(e) =>
@@ -1068,7 +1068,7 @@ export default function InvoicesView() {
                         />
                       </div>
                     </div>
-                    {clientFormError && <p className="text-xs text-red-600">{clientFormError}</p>}
+                    {clientFormError && <p className="text-xs text-red-400">{clientFormError}</p>}
                     <div className="flex gap-2 justify-end">
                       <button
                         onClick={() => {
@@ -1076,13 +1076,13 @@ export default function InvoicesView() {
                           setClientForm(EMPTY_CLIENT_FORM);
                           setClientFormError('');
                         }}
-                        className="h-8 px-3 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-50 transition"
+                        className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/60 hover:bg-white/10 transition"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={saveNewClient}
-                        className="h-8 px-3 rounded-lg bg-brand text-zinc-900 text-xs font-medium hover:bg-brand-hover transition"
+                        className="h-9 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-xs font-bold hover:bg-yellow-400 transition"
                       >
                         Add &amp; select
                       </button>
@@ -1100,7 +1100,7 @@ export default function InvoicesView() {
                       <button
                         key={s}
                         onClick={() => setField('status', s)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${active ? `${sc.cls} border-current` : 'border-zinc-200 text-zinc-500 hover:bg-zinc-50'}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? `${sc.cls} border-current` : 'border-white/15 text-white/40 hover:bg-white/10'}`}
                       >
                         {sc.label}
                       </button>
@@ -1112,10 +1112,10 @@ export default function InvoicesView() {
               {/* Line items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-medium text-zinc-700">Line Items</span>
+                  <span className="text-sm font-medium text-white/70">Line Items</span>
                   <button
                     onClick={addItem}
-                    className="flex items-center gap-1 text-xs text-zinc-600 hover:text-zinc-900 transition"
+                    className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
                   >
                     <svg
                       className="w-3.5 h-3.5"
@@ -1129,13 +1129,13 @@ export default function InvoicesView() {
                     Add row
                   </button>
                 </div>
-                <div className="rounded-lg border border-zinc-200 overflow-hidden">
-                  <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-zinc-200 text-xs font-medium text-zinc-500">
-                    <div className="bg-zinc-50 px-3 py-2">Description</div>
-                    <div className="bg-zinc-50 px-3 py-2 text-center">Qty</div>
-                    <div className="bg-zinc-50 px-3 py-2 text-right">Unit Price</div>
-                    <div className="bg-zinc-50 px-3 py-2 text-right">Total</div>
-                    <div className="bg-zinc-50" />
+                <div className="rounded-xl border border-white/[0.1] overflow-hidden">
+                  <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
+                    <div className="bg-slate-800/80 px-3 py-2">Description</div>
+                    <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
+                    <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
+                    <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
+                    <div className="bg-slate-800/80" />
                   </div>
                   {form.items.map((item) => {
                     const nlIdx = item.description.indexOf('\n');
@@ -1162,31 +1162,31 @@ export default function InvoicesView() {
                     return (
                       <div
                         key={item.id}
-                        className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-zinc-200 items-start"
+                        className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
                       >
-                        <div className="bg-white flex flex-col gap-0">
+                        <div className="bg-slate-900/60 flex flex-col gap-0">
                           {/* Title */}
                           <input
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
                             placeholder={form.projectName || 'Project / event title…'}
-                            className="px-3 pt-2.5 pb-2 text-sm font-medium text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:bg-zinc-50 w-full bg-transparent"
+                            className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
                           />
                           {/* Scope chips area */}
-                          <div className="px-3 pb-2.5 border-t border-zinc-100">
+                          <div className="px-3 pb-2.5 border-t border-white/[0.06]">
                             {/* Added scope chips */}
                             {scopeLines.length > 0 && (
                               <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
                                 {scopeLines.map((line) => (
                                   <span
                                     key={line}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-zinc-800 text-white text-xs font-medium"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
                                   >
                                     {line}
                                     <button
                                       type="button"
                                       onClick={() => removeScopeLine(line)}
-                                      className="ml-0.5 text-zinc-400 hover:text-white transition"
+                                      className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
                                     >
                                       <svg
                                         className="w-2.5 h-2.5"
@@ -1216,7 +1216,7 @@ export default function InvoicesView() {
                                       key={sug}
                                       type="button"
                                       onClick={() => addScopeLine(sug)}
-                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-500 text-xs hover:bg-zinc-200 hover:text-zinc-800 transition"
+                                      className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
                                     >
                                       <svg
                                         className="w-2.5 h-2.5"
@@ -1251,7 +1251,7 @@ export default function InvoicesView() {
                                   }
                                 }}
                                 placeholder="Custom scope… (Enter to add)"
-                                className="flex-1 h-6 text-xs text-zinc-600 placeholder:text-zinc-300 focus:outline-none bg-transparent"
+                                className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
                               />
                               {customVal.trim() && (
                                 <button
@@ -1260,7 +1260,7 @@ export default function InvoicesView() {
                                     addScopeLine(customVal);
                                     setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
                                   }}
-                                  className="text-xs text-zinc-400 hover:text-zinc-700 transition px-1"
+                                  className="text-xs text-white/40 hover:text-white transition px-1"
                                 >
                                   Add
                                 </button>
@@ -1275,7 +1275,7 @@ export default function InvoicesView() {
                           onChange={(e) =>
                             updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
                           }
-                          className="bg-white px-3 py-2 text-sm text-center text-zinc-900 focus:outline-none focus:bg-zinc-50"
+                          className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
                         />
                         <input
                           type="number"
@@ -1284,15 +1284,15 @@ export default function InvoicesView() {
                           onChange={(e) =>
                             updateItem(item.id, { unitPrice: parseFloat(e.target.value) || 0 })
                           }
-                          className="bg-white px-3 py-2 text-sm text-right text-zinc-900 focus:outline-none focus:bg-zinc-50"
+                          className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
                         />
-                        <div className="bg-white px-3 py-2 text-sm text-right text-zinc-700 font-medium">
+                        <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
                           {fmt(item.qty * item.unitPrice)}
                         </div>
                         <button
                           onClick={() => removeItem(item.id)}
                           disabled={form.items.length === 1}
-                          className="bg-white flex items-center justify-center text-zinc-300 hover:text-red-500 disabled:opacity-0 transition pt-2.5"
+                          className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
                         >
                           <svg
                             className="w-3.5 h-3.5"
@@ -1313,19 +1313,19 @@ export default function InvoicesView() {
                   })}
                 </div>
                 <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
-                  <div className="flex gap-8 pt-1.5 border-t border-zinc-200">
-                    <span className="font-semibold text-zinc-700">Grand Total</span>
-                    <span className="font-bold text-zinc-900 w-28 text-right">{fmt(subtotal)}</span>
+                  <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
+                    <span className="font-semibold text-white/70">Grand Total</span>
+                    <span className="font-bold text-white w-28 text-right">{fmt(subtotal)}</span>
                   </div>
                   {form.withWHT && (
                     <>
-                      <div className="flex gap-8 text-orange-700">
+                      <div className="flex gap-8 text-orange-400">
                         <span>Less WHT {WHT_RATE * 100}%</span>
                         <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
                       </div>
-                      <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5">
-                        <span className="font-semibold text-zinc-700">Total (USD)</span>
-                        <span className="font-bold text-zinc-900 w-28 text-right">
+                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                        <span className="font-semibold text-white/70">Total (USD)</span>
+                        <span className="font-bold text-white w-28 text-right">
                           {fmt(netTotal)}
                         </span>
                       </div>
@@ -1333,13 +1333,13 @@ export default function InvoicesView() {
                   )}
                   {form.depositPercent != null && (
                     <>
-                      <div className="flex gap-8 text-green-700">
+                      <div className="flex gap-8 text-green-400">
                         <span>Deposit ({form.depositPercent}%)</span>
                         <span className="font-medium w-28 text-right">− {fmt(depositAmount)}</span>
                       </div>
-                      <div className="flex gap-8 pt-1.5 border-t border-zinc-200 mt-0.5">
-                        <span className="font-semibold text-zinc-700">Balance Due</span>
-                        <span className="font-bold text-zinc-900 w-28 text-right">
+                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                        <span className="font-semibold text-white/70">Balance Due</span>
+                        <span className="font-bold text-white w-28 text-right">
                           {fmt(balanceDue)}
                         </span>
                       </div>
@@ -1349,15 +1349,15 @@ export default function InvoicesView() {
               </div>
 
               {/* WHT toggle */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-50 border border-orange-200">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-orange-800">Withholding Tax (WHT 15%)</p>
-                  <p className="text-xs text-orange-600 mt-0.5">
+                  <p className="text-sm font-semibold text-orange-300">Withholding Tax (WHT 15%)</p>
+                  <p className="text-xs text-orange-400/70 mt-0.5">
                     Gross-up unit prices so the client withholds 15% and you receive the deal
                     amount.
                   </p>
                   {form.withWHT && (
-                    <p className="text-xs text-orange-700 mt-2 font-medium">
+                    <p className="text-xs text-orange-300 mt-2 font-medium">
                       Grand Total: {fmt(subtotal)} · Less WHT: ({fmt(whtAmount)}) · You receive:{' '}
                       {fmt(netTotal)}
                     </p>
@@ -1374,10 +1374,10 @@ export default function InvoicesView() {
               </div>
 
               {/* Deposit toggle */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-green-50 border border-green-200">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-800">Deposit / Partial Payment</p>
-                  <p className="text-xs text-green-600 mt-0.5">
+                  <p className="text-sm font-semibold text-green-300">Deposit / Partial Payment</p>
+                  <p className="text-xs text-green-400/70 mt-0.5">
                     Require a deposit upfront; client pays the balance on delivery.
                   </p>
                   {form.depositPercent != null && (
@@ -1393,9 +1393,9 @@ export default function InvoicesView() {
                             Math.min(99, Math.max(1, parseInt(e.target.value) || 50))
                           )
                         }
-                        className="w-16 h-8 rounded-md border border-green-300 px-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-green-400 bg-white text-center"
+                        className="w-16 h-8 rounded-xl border border-green-400/30 px-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-400 bg-white/10 text-center"
                       />
-                      <span className="text-sm text-green-700">
+                      <span className="text-sm text-green-300">
                         % deposit = {fmt(depositAmount)}
                       </span>
                     </div>
@@ -1424,18 +1424,18 @@ export default function InvoicesView() {
               </PanelField>
             </div>
 
-            <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-between shrink-0">
-              {formError ? <p className="text-sm text-red-600">{formError}</p> : <span />}
+            <div className="px-6 py-4 border-t border-white/[0.08] flex items-center justify-between shrink-0">
+              {formError ? <p className="text-sm text-red-400">{formError}</p> : <span />}
               <div className="flex gap-3">
                 <button
                   onClick={closePanel}
-                  className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                  className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSave}
-                  className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+                  className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
                 >
                   {editingId ? 'Save changes' : 'Create invoice'}
                 </button>
@@ -1454,13 +1454,13 @@ export default function InvoicesView() {
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setDeleteId(null)}
-                className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                className="h-11 px-5 rounded-xl border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteId)}
-                className="h-9 px-4 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition"
+                className="h-11 px-5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 transition"
               >
                 Delete
               </button>
@@ -1478,20 +1478,25 @@ export default function InvoicesView() {
             ? projects.filter((p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id))
             : [];
           return (
-            <ModalShell onClose={() => setLinkProjectInvId(null)}>
-              <div className="flex flex-col max-h-[90vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setLinkProjectInvId(null)}
+              />
+              <div className="relative z-10 w-full max-w-lg bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
                   <div>
-                    <h2 className="text-lg font-semibold text-zinc-900">Link project</h2>
+                    <h2 className="text-lg font-bold text-white">Link project</h2>
                     {inv && (
-                      <p className="text-xs text-zinc-400 mt-0.5">
+                      <p className="text-xs text-white/40 mt-0.5">
                         {inv.number} · {client?.name ?? '—'}
                       </p>
                     )}
                   </div>
                   <button
                     onClick={() => setLinkProjectInvId(null)}
-                    className="text-zinc-400 hover:text-zinc-700 transition"
+                    className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
                   >
                     <svg
                       className="w-5 h-5"
@@ -1505,13 +1510,14 @@ export default function InvoicesView() {
                   </button>
                 </div>
 
+                {/* Tabs */}
                 {clientProjects.length > 0 && (
-                  <div className="flex border-b border-zinc-200 shrink-0">
+                  <div className="flex border-b border-white/[0.08] shrink-0">
                     {(['link', 'create'] as const).map((m) => (
                       <button
                         key={m}
                         onClick={() => setCpMode(m)}
-                        className={`flex-1 py-2.5 text-sm font-medium border-b-2 transition ${cpMode === m ? 'border-brand text-zinc-900' : 'border-transparent text-zinc-500 hover:text-zinc-700'}`}
+                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition ${cpMode === m ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/50 hover:text-white'}`}
                       >
                         {m === 'link' ? 'Link existing' : 'Create new'}
                       </button>
@@ -1519,10 +1525,11 @@ export default function InvoicesView() {
                   </div>
                 )}
 
+                {/* Body */}
                 <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
                   {cpMode === 'link' && clientProjects.length > 0 ? (
                     <>
-                      <p className="text-sm text-zinc-500">
+                      <p className="text-sm text-white/50">
                         Pick an existing project to attach this invoice to.
                       </p>
                       <div className="flex flex-col gap-2">
@@ -1533,7 +1540,7 @@ export default function InvoicesView() {
                           return (
                             <label
                               key={p.id}
-                              className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${cpLinkId === p.id ? 'border-brand bg-amber-50/40' : 'border-zinc-200 hover:border-zinc-300'}`}
+                              className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${cpLinkId === p.id ? 'border-[#FFC206] bg-[#FFC206]/10' : 'border-white/10 hover:border-white/25 bg-white/[0.04]'}`}
                             >
                               <input
                                 type="radio"
@@ -1541,19 +1548,19 @@ export default function InvoicesView() {
                                 value={p.id}
                                 checked={cpLinkId === p.id}
                                 onChange={() => setCpLinkId(p.id)}
-                                className="text-brand"
+                                className="accent-[#FFC206]"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-zinc-900">{p.name}</p>
+                                <p className="text-sm font-semibold text-white">{p.name}</p>
                                 {total > 0 && (
                                   <div className="flex items-center gap-2 mt-1">
-                                    <div className="flex-1 h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                       <div
-                                        className={`h-full rounded-full ${pct === 100 ? 'bg-green-500' : 'bg-brand'}`}
+                                        className={`h-full rounded-full ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
                                         style={{ width: `${pct}%` }}
                                       />
                                     </div>
-                                    <span className="text-xs text-zinc-400 shrink-0">{pct}%</span>
+                                    <span className="text-xs text-white/35 shrink-0">{pct}%</span>
                                   </div>
                                 )}
                               </div>
@@ -1565,7 +1572,7 @@ export default function InvoicesView() {
                   ) : (
                     <>
                       <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-zinc-700">Project name</label>
+                        <label className="text-sm font-medium text-white/70">Project name</label>
                         <input
                           type="text"
                           value={cpName}
@@ -1576,7 +1583,7 @@ export default function InvoicesView() {
                         {client && !cpName && (
                           <button
                             onClick={() => setCpName(client.name)}
-                            className="self-start text-xs text-brand hover:underline"
+                            className="self-start text-xs text-[#FFC206] hover:underline"
                           >
                             Use &quot;{client.name}&quot;
                           </button>
@@ -1584,10 +1591,10 @@ export default function InvoicesView() {
                       </div>
                       {cpItems.length > 0 && (
                         <div className="flex flex-col gap-1.5">
-                          <label className="text-sm font-medium text-zinc-700">
+                          <label className="text-sm font-medium text-white/70">
                             Scope items from invoice
                           </label>
-                          <div className="flex flex-col gap-1.5 rounded-lg border border-zinc-200 p-3 max-h-48 overflow-y-auto">
+                          <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 max-h-48 overflow-y-auto">
                             {cpItems.map((item) => (
                               <label
                                 key={item.id}
@@ -1604,17 +1611,17 @@ export default function InvoicesView() {
                                       return next;
                                     })
                                   }
-                                  className="rounded border-zinc-300 text-brand focus:ring-brand"
+                                  className="rounded accent-[#FFC206]"
                                 />
                                 <span
-                                  className={`text-sm ${cpExcluded.has(item.id) ? 'line-through text-zinc-400' : 'text-zinc-700'}`}
+                                  className={`text-sm ${cpExcluded.has(item.id) ? 'line-through text-white/25' : 'text-white/80'}`}
                                 >
                                   {item.description}
                                 </span>
                               </label>
                             ))}
                           </div>
-                          <p className="text-xs text-zinc-400">
+                          <p className="text-xs text-white/35">
                             Uncheck items to exclude from project.
                           </p>
                         </div>
@@ -1623,10 +1630,11 @@ export default function InvoicesView() {
                   )}
                 </div>
 
-                <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 justify-end shrink-0">
+                {/* Footer */}
+                <div className="flex gap-3 px-6 py-4 border-t border-white/[0.08] justify-end shrink-0">
                   <button
                     onClick={() => setLinkProjectInvId(null)}
-                    className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                    className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
                   >
                     Cancel
                   </button>
@@ -1660,13 +1668,13 @@ export default function InvoicesView() {
                       setCpExcluded(new Set());
                       setCpLinkId('');
                     }}
-                    className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+                    className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
                   >
                     {cpMode === 'link' ? 'Link project' : 'Create project'}
                   </button>
                 </div>
               </div>
-            </ModalShell>
+            </div>
           );
         })()}
 
@@ -1689,9 +1697,9 @@ function PanelField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-zinc-700">
+      <label className="text-sm font-medium text-white/70">
         {label}
-        {required && <span className="text-red-500 ml-0.5">*</span>}
+        {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {children}
     </div>
@@ -1710,11 +1718,13 @@ function SummaryCard({
   accent?: 'amber' | 'red';
 }) {
   const subCls =
-    accent === 'red' ? 'text-red-500' : accent === 'amber' ? 'text-amber-600' : 'text-zinc-500';
+    accent === 'red' ? 'text-red-400' : accent === 'amber' ? 'text-amber-400' : 'text-white/40';
+  const valCls =
+    accent === 'red' ? 'text-red-400' : accent === 'amber' ? 'text-amber-400' : 'text-white';
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 px-4 py-4">
-      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-2xl font-bold text-zinc-900">{value}</p>
+    <div className="bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl px-4 py-4">
+      <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-2xl font-bold leading-tight ${valCls}`}>{value}</p>
       <p className={`text-xs mt-0.5 ${subCls}`}>{sub}</p>
     </div>
   );

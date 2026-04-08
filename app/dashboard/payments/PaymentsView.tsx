@@ -1,21 +1,12 @@
-"use client";
+'use client';
 
-import { useState } from "react";
-import {
-  useStore,
-  type Invoice,
-  type Client,
-  type InvoiceStatus,
-} from "../AppStore";
-import {
-  calcSubtotal,
-  calcEarned,
-  calcBalance,
-} from "@/app/_services/invoiceService";
-import { fmtUSD } from "@/app/_lib/formatters";
-import { STATUS_CONFIG } from "@/app/_config/statusConfig";
-import ModalShell from "@/app/_components/ModalShell";
-import InvoicePreviewModal from "@/app/_components/InvoicePreviewModal";
+import { useState } from 'react';
+import { useStore, type Invoice, type Client, type InvoiceStatus } from '../AppStore';
+import { calcSubtotal, calcEarned, calcBalance } from '@/app/_services/invoiceService';
+import { fmtUSD } from '@/app/_lib/formatters';
+import { STATUS_CONFIG } from '@/app/_config/statusConfig';
+import ModalShell from '@/app/_components/ModalShell';
+import InvoicePreviewModal from '@/app/_components/InvoicePreviewModal';
 
 const fmt = fmtUSD;
 
@@ -28,57 +19,53 @@ function PaymentActions({
   inv: Invoice;
   onAction: (id: string, from: InvoiceStatus, to: InvoiceStatus) => void;
 }) {
-  const status = inv.status ?? "draft";
-  if (status === "draft") {
+  const status = inv.status ?? 'draft';
+  const base = 'h-10 px-4 rounded-xl text-xs font-bold transition whitespace-nowrap';
+  if (status === 'draft')
     return (
       <button
-        onClick={() => onAction(inv.id, "draft", "sent")}
-        className="h-7 px-3 rounded-md bg-blue-50 border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-100 transition whitespace-nowrap"
+        onClick={() => onAction(inv.id, 'draft', 'sent')}
+        className={`${base} bg-blue-500/15 border border-blue-400/30 text-blue-300 hover:bg-blue-500/25`}
       >
         Mark Sent
       </button>
     );
-  }
-  if (status === "sent" && inv.depositPercent != null) {
+  if (status === 'sent' && inv.depositPercent != null)
     return (
       <button
-        onClick={() => onAction(inv.id, "sent", "partial")}
-        className="h-7 px-3 rounded-md bg-amber-100 text-amber-800 text-xs font-medium hover:bg-amber-200 transition whitespace-nowrap"
+        onClick={() => onAction(inv.id, 'sent', 'partial')}
+        className={`${base} bg-amber-500/15 border border-amber-400/30 text-amber-300 hover:bg-amber-500/25`}
       >
         Accept deposit
       </button>
     );
-  }
-  if (status === "partial") {
+  if (status === 'partial')
     return (
       <button
-        onClick={() => onAction(inv.id, "partial", "paid")}
-        className="h-7 px-3 rounded-md bg-green-100 text-green-800 text-xs font-medium hover:bg-green-200 transition whitespace-nowrap"
+        onClick={() => onAction(inv.id, 'partial', 'paid')}
+        className={`${base} bg-green-500/15 border border-green-400/30 text-green-300 hover:bg-green-500/25`}
       >
         Final payment
       </button>
     );
-  }
-  if (status === "sent" && inv.depositPercent == null) {
+  if (status === 'sent' && inv.depositPercent == null)
     return (
       <button
-        onClick={() => onAction(inv.id, "sent", "paid")}
-        className="h-7 px-3 rounded-md bg-green-100 text-green-800 text-xs font-medium hover:bg-green-200 transition whitespace-nowrap"
+        onClick={() => onAction(inv.id, 'sent', 'paid')}
+        className={`${base} bg-green-500/15 border border-green-400/30 text-green-300 hover:bg-green-500/25`}
       >
         Mark paid
       </button>
     );
-  }
-  if (status === "overdue") {
+  if (status === 'overdue')
     return (
       <button
-        onClick={() => onAction(inv.id, "overdue", "paid")}
-        className="h-7 px-3 rounded-md bg-green-100 text-green-800 text-xs font-medium hover:bg-green-200 transition whitespace-nowrap"
+        onClick={() => onAction(inv.id, 'overdue', 'paid')}
+        className={`${base} bg-green-500/15 border border-green-400/30 text-green-300 hover:bg-green-500/25`}
       >
         Mark paid
       </button>
     );
-  }
   return null;
 }
 
@@ -101,64 +88,59 @@ function InvoiceRow({
 }) {
   const client = clients.find((c) => c.id === inv.clientId);
   const sub = calcSubtotal(inv);
-  const invDeposit =
-    inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
+  const invDeposit = inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
   const invBalance = invDeposit != null ? sub - invDeposit : null;
   const received = calcEarned(inv);
   const balance = calcBalance(inv);
-  const sc = STATUS_CONFIG[inv.status ?? "draft"];
+  const sc = STATUS_CONFIG[inv.status ?? 'draft'];
 
   return (
-    <tr className="border-b border-zinc-100 last:border-0 hover:bg-zinc-50 transition text-sm">
-      <td className="px-4 py-3 whitespace-nowrap">
+    <tr className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition text-sm">
+      <td className="px-4 py-3.5 whitespace-nowrap">
         <button
           onClick={() => onPreview(inv.id)}
-          className="font-medium text-zinc-900 hover:text-brand hover:underline transition text-left"
+          className="font-semibold text-white hover:text-[#FFC206] transition text-left"
         >
           {inv.number}
         </button>
       </td>
-      <td className="px-4 py-3 text-zinc-600 truncate max-w-[160px]">
-        {client?.name ?? "—"}
-      </td>
-      <td className="px-4 py-3 text-zinc-500 whitespace-nowrap hidden sm:table-cell">
+      <td className="px-4 py-3.5 text-white/60 truncate max-w-[160px]">{client?.name ?? '—'}</td>
+      <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
         {inv.date}
       </td>
-      <td className="px-4 py-3 text-right whitespace-nowrap">
-        <span className="font-medium text-zinc-900">{fmt(sub)}</span>
+      <td className="px-4 py-3.5 text-right whitespace-nowrap">
+        <span className="font-semibold text-white">{fmt(sub)}</span>
         {invBalance != null && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
-            <span className="text-xs text-zinc-400">
+            <span className="text-xs text-white/35">
               {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
             </span>
           </div>
         )}
       </td>
       {showReceived && (
-        <td className="px-4 py-3 text-right font-semibold text-green-700 whitespace-nowrap">
+        <td className="px-4 py-3.5 text-right font-bold text-green-400 whitespace-nowrap">
           {fmt(received)}
         </td>
       )}
       {showBalance && (
-        <td className="px-4 py-3 text-right font-semibold text-amber-700 whitespace-nowrap">
+        <td className="px-4 py-3.5 text-right font-bold text-amber-400 whitespace-nowrap">
           {fmt(balance)}
         </td>
       )}
-      <td className="px-4 py-3">
-        <span
-          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}
-        >
+      <td className="px-4 py-3.5">
+        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
           {sc.label}
         </span>
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-4 py-3.5 text-right">
         <PaymentActions inv={inv} onAction={onAction} />
       </td>
     </tr>
   );
 }
 
-// ── Section ───────────────────────────────────────────────────────────────────
+// ── Section header ────────────────────────────────────────────────────────────
 
 function Section({
   title,
@@ -173,12 +155,10 @@ function Section({
 }) {
   return (
     <div>
-      <div className="flex items-center gap-2 px-1 mb-2">
-        <span className={`text-sm font-semibold ${accent ?? "text-zinc-700"}`}>
-          {title}
-        </span>
-        <span className="text-xs text-zinc-400">
-          {count} invoice{count !== 1 ? "s" : ""}
+      <div className="flex items-center gap-2 px-1 mb-3">
+        <span className={`text-sm font-bold ${accent ?? 'text-white/70'}`}>{title}</span>
+        <span className="text-xs text-white/35">
+          {count} invoice{count !== 1 ? 's' : ''}
         </span>
       </div>
       {children}
@@ -186,11 +166,10 @@ function Section({
   );
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function PaymentsView() {
   const { clients, invoices, setInvoices } = useStore();
-
   const [statusChange, setStatusChange] = useState<{
     id: string;
     from: InvoiceStatus;
@@ -201,57 +180,40 @@ export default function PaymentsView() {
   function handleAction(id: string, from: InvoiceStatus, to: InvoiceStatus) {
     setStatusChange({ id, from, to });
   }
-
   function confirmChange() {
     if (!statusChange) return;
     setInvoices(
       invoices.map((inv) =>
-        inv.id === statusChange.id ? { ...inv, status: statusChange.to } : inv,
-      ),
+        inv.id === statusChange.id ? { ...inv, status: statusChange.to } : inv
+      )
     );
     setStatusChange(null);
   }
 
-  // Group
-  const paid = invoices.filter((inv) => inv.status === "paid");
-  const partial = invoices.filter((inv) => inv.status === "partial");
-  const unpaid = invoices.filter(
-    (inv) => inv.status === "sent" || inv.status === "overdue",
-  );
-  const draft = invoices.filter((inv) => inv.status === "draft");
+  const paid = invoices.filter((inv) => inv.status === 'paid');
+  const partial = invoices.filter((inv) => inv.status === 'partial');
+  const unpaid = invoices.filter((inv) => inv.status === 'sent' || inv.status === 'overdue');
+  const draft = invoices.filter((inv) => inv.status === 'draft');
 
-  // Totals
   const totalReceived = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
-  const awaitingFinalTotal = partial.reduce(
-    (s, inv) => s + calcBalance(inv),
-    0,
-  );
-  const depositReceivedTotal = partial.reduce(
-    (s, inv) => s + calcEarned(inv),
-    0,
-  );
+  const awaitingFinalTotal = partial.reduce((s, inv) => s + calcBalance(inv), 0);
+  const depositReceivedTotal = partial.reduce((s, inv) => s + calcEarned(inv), 0);
   const outstandingTotal = unpaid.reduce((s, inv) => s + calcBalance(inv), 0);
-
-  const RIGHT_COLS = new Set([
-    "Total",
-    "Deposit rcvd",
-    "Balance due",
-    "Received",
-  ]);
-  const HIDDEN_SM = new Set(["Client", "Date"]);
 
   const tableHead = (cols: string[]) => (
     <thead>
-      <tr className="border-b border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-500">
+      <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
         {cols.map((h, i) => (
           <th
             key={`${h}-${i}`}
             className={[
-              "px-4 py-2.5",
-              RIGHT_COLS.has(h) ? "text-right" : "text-left",
-              HIDDEN_SM.has(h) ? "hidden sm:table-cell" : "",
+              'px-4 py-3',
+              ['Total', 'Deposit rcvd', 'Balance due', 'Received'].includes(h)
+                ? 'text-right'
+                : 'text-left',
+              ['Client', 'Date'].includes(h) ? 'hidden sm:table-cell' : '',
             ]
-              .join(" ")
+              .join(' ')
               .trim()}
           >
             {h}
@@ -261,78 +223,76 @@ export default function PaymentsView() {
     </thead>
   );
 
+  const glassTable =
+    'bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto';
+
   return (
     <div className="flex flex-col gap-6 pb-4">
-      {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">Payments</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-white">Payments</h1>
+        <p className="text-sm text-white/45 mt-0.5">
           Track received, pending, and outstanding payments
         </p>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl border border-zinc-200 p-4">
-          <p className="text-xs font-medium text-zinc-500 mb-1">
-            Total received
-          </p>
-          <p className="text-xl font-bold text-green-700">
-            {fmt(totalReceived)}
-          </p>
-          <p className="text-xs text-zinc-400 mt-1">
-            {paid.length} paid · {partial.length} deposit held
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-4">
-          <p className="text-xs font-medium text-zinc-500 mb-1">
-            Awaiting final payment
-          </p>
-          <p className="text-xl font-bold text-amber-600">
-            {fmt(awaitingFinalTotal)}
-          </p>
-          <p className="text-xs text-zinc-400 mt-1">
-            {partial.length} invoice{partial.length !== 1 ? "s" : ""} ·{" "}
-            {fmt(depositReceivedTotal)} deposit held
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-4">
-          <p className="text-xs font-medium text-zinc-500 mb-1">Outstanding</p>
-          <p
-            className={`text-xl font-bold ${unpaid.some((i) => i.status === "overdue") ? "text-red-600" : "text-zinc-700"}`}
+        {[
+          {
+            label: 'Total received',
+            value: fmt(totalReceived),
+            sub: `${paid.length} paid · ${partial.length} deposit held`,
+            color: 'text-green-400',
+            accent: 'border-l-green-400',
+          },
+          {
+            label: 'Awaiting final',
+            value: fmt(awaitingFinalTotal),
+            sub: `${partial.length} invoice${partial.length !== 1 ? 's' : ''} · ${fmt(depositReceivedTotal)} dep held`,
+            color: 'text-amber-400',
+            accent: 'border-l-amber-400',
+          },
+          {
+            label: 'Outstanding',
+            value: fmt(outstandingTotal),
+            sub: `${unpaid.filter((i) => i.status === 'sent').length} sent · ${unpaid.filter((i) => i.status === 'overdue').length} overdue`,
+            color: unpaid.some((i) => i.status === 'overdue') ? 'text-red-400' : 'text-white',
+            accent: unpaid.some((i) => i.status === 'overdue') ? 'border-l-red-400' : '',
+          },
+          {
+            label: 'Draft',
+            value: String(draft.length),
+            sub: 'not yet sent',
+            color: 'text-white/45',
+            accent: '',
+          },
+        ].map(({ label, value, sub, color, accent }) => (
+          <div
+            key={label}
+            className={`bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl p-5 ${accent ? `border-l-4 ${accent}` : ''}`}
           >
-            {fmt(outstandingTotal)}
-          </p>
-          <p className="text-xs text-zinc-400 mt-1">
-            {unpaid.filter((i) => i.status === "sent").length} sent ·{" "}
-            {unpaid.filter((i) => i.status === "overdue").length} overdue
-          </p>
-        </div>
-        <div className="bg-white rounded-xl border border-zinc-200 p-4">
-          <p className="text-xs font-medium text-zinc-500 mb-1">Draft</p>
-          <p className="text-xl font-bold text-zinc-400">{draft.length}</p>
-          <p className="text-xs text-zinc-400 mt-1">not yet sent</p>
-        </div>
+            <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">
+              {label}
+            </p>
+            <p className={`text-2xl font-bold leading-tight ${color}`}>{value}</p>
+            <p className="text-xs text-white/35 mt-1">{sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Awaiting final payment — shown first so action is prominent */}
       {partial.length > 0 && (
-        <Section
-          title="Awaiting final payment"
-          count={partial.length}
-          accent="text-amber-600"
-        >
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+        <Section title="Awaiting final payment" count={partial.length} accent="text-amber-400">
+          <div className={glassTable}>
             <table className="w-full text-sm">
               {tableHead([
-                "Invoice",
-                "Client",
-                "Date",
-                "Total",
-                "Deposit rcvd",
-                "Balance due",
-                "Status",
-                "",
+                'Invoice',
+                'Client',
+                'Date',
+                'Total',
+                'Deposit rcvd',
+                'Balance due',
+                'Status',
+                '',
               ])}
               <tbody>
                 {partial.map((inv) => (
@@ -352,20 +312,15 @@ export default function PaymentsView() {
         </Section>
       )}
 
-      {/* Outstanding */}
       {unpaid.length > 0 && (
         <Section
           title="Outstanding"
           count={unpaid.length}
-          accent={
-            unpaid.some((i) => i.status === "overdue")
-              ? "text-red-600"
-              : "text-blue-600"
-          }
+          accent={unpaid.some((i) => i.status === 'overdue') ? 'text-red-400' : 'text-blue-400'}
         >
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+          <div className={glassTable}>
             <table className="w-full text-sm">
-              {tableHead(["Invoice", "Client", "Date", "Total", "Status", ""])}
+              {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Status', ''])}
               <tbody>
                 {unpaid.map((inv) => (
                   <InvoiceRow
@@ -382,20 +337,11 @@ export default function PaymentsView() {
         </Section>
       )}
 
-      {/* Fully paid */}
       {paid.length > 0 && (
-        <Section title="Fully paid" count={paid.length} accent="text-green-700">
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+        <Section title="Fully paid" count={paid.length} accent="text-green-400">
+          <div className={glassTable}>
             <table className="w-full text-sm">
-              {tableHead([
-                "Invoice",
-                "Client",
-                "Date",
-                "Total",
-                "Received",
-                "Status",
-                "",
-              ])}
+              {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Received', 'Status', ''])}
               <tbody>
                 {paid.map((inv) => (
                   <InvoiceRow
@@ -413,12 +359,11 @@ export default function PaymentsView() {
         </Section>
       )}
 
-      {/* Draft */}
       {draft.length > 0 && (
-        <Section title="Draft" count={draft.length} accent="text-zinc-400">
-          <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden overflow-x-auto">
+        <Section title="Draft" count={draft.length} accent="text-white/45">
+          <div className={glassTable}>
             <table className="w-full text-sm">
-              {tableHead(["Invoice", "Client", "Date", "Total", "Status", ""])}
+              {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Status', ''])}
               <tbody>
                 {draft.map((inv) => (
                   <InvoiceRow
@@ -436,52 +381,41 @@ export default function PaymentsView() {
       )}
 
       {invoices.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+        <div className="flex flex-col items-center justify-center py-20 text-white/35">
           <p className="text-sm">No invoices yet.</p>
         </div>
       )}
 
-      {/* ── Invoice preview ─────────────────────────────────────────────────────── */}
       {previewInvId && (
-        <InvoicePreviewModal
-          invId={previewInvId}
-          onClose={() => setPreviewInvId(null)}
-        />
+        <InvoicePreviewModal invId={previewInvId} onClose={() => setPreviewInvId(null)} />
       )}
 
-      {/* ── Status change confirm ───────────────────────────────────────────────── */}
       {statusChange &&
         (() => {
           const { from, to } = statusChange;
           const hint =
-            from === "sent" && to === "partial"
+            from === 'sent' && to === 'partial'
               ? {
-                  title: "Accept deposit",
+                  title: 'Accept deposit',
                   desc: 'Confirm the client has paid the deposit. Invoice moves to "Deposit Rcvd" — collect the balance later.',
                 }
-              : from === "partial" && to === "paid"
+              : from === 'partial' && to === 'paid'
                 ? {
-                    title: "Final payment received",
-                    desc: "Confirm the client has paid the remaining balance. Invoice will be marked as fully Paid.",
+                    title: 'Final payment received',
+                    desc: 'Confirm the client has paid the remaining balance. Invoice will be marked as fully Paid.',
                   }
-                : (from === "sent" || from === "overdue") && to === "paid"
-                  ? {
-                      title: "Mark as paid",
-                      desc: "Confirm the client has paid the full amount.",
-                    }
+                : (from === 'sent' || from === 'overdue') && to === 'paid'
+                  ? { title: 'Mark as paid', desc: 'Confirm the client has paid the full amount.' }
                   : null;
           return (
-            <ModalShell
-              onClose={() => setStatusChange(null)}
-              maxWidth="max-w-sm"
-            >
+            <ModalShell onClose={() => setStatusChange(null)} maxWidth="max-w-sm">
               <div className="p-6">
-                <h2 className="text-lg font-semibold text-zinc-900 mb-1">
-                  {hint?.title ?? "Change status?"}
+                <h2 className="text-lg font-bold text-zinc-900 mb-1">
+                  {hint?.title ?? 'Change status?'}
                 </h2>
                 <div className="flex items-center gap-2 mb-3">
                   <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[from].cls}`}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_CONFIG[from].cls}`}
                   >
                     {STATUS_CONFIG[from].label}
                   </span>
@@ -492,31 +426,25 @@ export default function PaymentsView() {
                     stroke="currentColor"
                     strokeWidth={2}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                   <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_CONFIG[to].cls}`}
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${STATUS_CONFIG[to].cls}`}
                   >
                     {STATUS_CONFIG[to].label}
                   </span>
                 </div>
-                {hint && (
-                  <p className="text-sm text-zinc-500 mb-5">{hint.desc}</p>
-                )}
-                <div className="flex gap-3 justify-end">
+                {hint && <p className="text-sm text-zinc-500 mb-6">{hint.desc}</p>}
+                <div className="flex gap-3">
                   <button
                     onClick={() => setStatusChange(null)}
-                    className="h-9 px-4 rounded-lg border border-zinc-200 text-sm text-zinc-700 hover:bg-zinc-50 transition"
+                    className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={confirmChange}
-                    className="h-9 px-4 rounded-lg bg-zinc-900 text-white text-sm font-medium hover:bg-zinc-800 transition"
+                    className="flex-1 h-11 rounded-xl bg-zinc-900 text-white text-sm font-bold hover:bg-zinc-800 transition"
                   >
                     Confirm
                   </button>

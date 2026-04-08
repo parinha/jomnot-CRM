@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore, type CompanyProfile, type PaymentInfo } from '../AppStore';
-import FormField from '@/app/_components/FormField';
 
 export default function SettingsView() {
   const {
@@ -13,7 +12,6 @@ export default function SettingsView() {
     scopeOfWork,
     setScopeOfWork,
   } = useStore();
-
   const [profile, setProfileLocal] = useState<CompanyProfile>(companyProfile);
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
   const [savedProfile, setSavedProfile] = useState(false);
@@ -22,7 +20,6 @@ export default function SettingsView() {
   useEffect(() => {
     setProfileLocal(companyProfile);
   }, [companyProfile]);
-
   useEffect(() => {
     setPaymentLocal(paymentInfo);
   }, [paymentInfo]);
@@ -34,7 +31,6 @@ export default function SettingsView() {
     setProfileLocal((prev) => ({ ...prev, [k]: v }));
     setSavedProfile(false);
   }
-
   function setPay<K extends keyof PaymentInfo>(k: K, v: PaymentInfo[K]) {
     setPaymentLocal((prev) => ({ ...prev, [k]: v }));
     setSavedPayment(false);
@@ -43,8 +39,8 @@ export default function SettingsView() {
   function handleImageUpload(file: File, onResult: (b64: string) => void) {
     const reader = new FileReader();
     reader.onload = (e) => {
-      const result = e.target?.result;
-      if (typeof result === 'string') onResult(result);
+      const r = e.target?.result;
+      if (typeof r === 'string') onResult(r);
     };
     reader.readAsDataURL(file);
   }
@@ -54,30 +50,33 @@ export default function SettingsView() {
     setSavedProfile(true);
     setTimeout(() => setSavedProfile(false), 2000);
   }
-
   function handleSavePayment() {
     setPaymentInfo(payment);
     setSavedPayment(true);
     setTimeout(() => setSavedPayment(false), 2000);
   }
 
+  const inputCls =
+    'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full backdrop-blur-sm';
+  const labelCls = 'text-xs font-semibold text-white/50 uppercase tracking-wider';
+  const sectionCls = 'bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-6';
+
   return (
     <div className="max-w-2xl flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-zinc-900">Settings</h1>
-        <p className="text-sm text-zinc-500 mt-0.5">
+        <h1 className="text-2xl font-bold text-white">Settings</h1>
+        <p className="text-sm text-white/45 mt-0.5">
           Company profile and payment information used on invoices
         </p>
       </div>
 
       {/* Company Profile */}
-      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-5">Company Profile</h2>
-
-        <div className="flex flex-col gap-4">
+      <section className={sectionCls}>
+        <h2 className="text-sm font-semibold text-white mb-5">Company Profile</h2>
+        <div className="flex flex-col gap-5">
           {/* Logo */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">Logo</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelCls}>Logo</label>
             <div className="flex items-center gap-4">
               {profile.logo ? (
                 <div className="relative group">
@@ -85,19 +84,19 @@ export default function SettingsView() {
                   <img
                     src={profile.logo}
                     alt="Logo"
-                    className="h-14 max-w-[160px] object-contain rounded border border-zinc-200 bg-zinc-50 p-1"
+                    className="h-14 max-w-[160px] object-contain rounded-xl border border-white/20 bg-white/5 p-1"
                   />
                   <button
                     onClick={() => setP('logo', '')}
-                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-800 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                   >
                     ×
                   </button>
                 </div>
               ) : (
-                <div className="h-14 w-28 rounded border-2 border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center">
+                <div className="h-14 w-28 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
                   <svg
-                    className="w-5 h-5 text-zinc-300"
+                    className="w-5 h-5 text-white/25"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -114,13 +113,11 @@ export default function SettingsView() {
               <div>
                 <button
                   onClick={() => logoInputRef.current?.click()}
-                  className="text-sm text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50 transition"
+                  className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition"
                 >
                   {profile.logo ? 'Replace' : 'Upload logo'}
                 </button>
-                <p className="text-xs text-zinc-400 mt-1">
-                  PNG, JPG, SVG — shown in invoice header
-                </p>
+                <p className="text-xs text-white/35 mt-1.5">PNG, JPG, SVG — invoice header</p>
                 <input
                   ref={logoInputRef}
                   type="file"
@@ -136,41 +133,38 @@ export default function SettingsView() {
             </div>
           </div>
 
-          <FormField
-            label="Company Name"
-            value={profile.name}
-            onChange={(v) => setP('name', v)}
-            placeholder="Acme Studio Co., Ltd."
-          />
-          <FormField
-            label="Address"
-            value={profile.address}
-            onChange={(v) => setP('address', v)}
-            placeholder="123 Studio Street, Bangkok 10110"
-            textarea
-          />
-          <FormField
-            label="Phone"
-            value={profile.phone}
-            onChange={(v) => setP('phone', v)}
-            placeholder="+66 2 000 0000"
-          />
-          <FormField
-            label="Website"
-            value={profile.website}
-            onChange={(v) => setP('website', v)}
-            placeholder="www.yourstudio.com"
-          />
-          <FormField
-            label="Authorized Signatory Name"
-            value={profile.signatoryName ?? ''}
-            onChange={(v) => setP('signatoryName', v)}
-            placeholder="UM Kannika"
-          />
+          {[
+            { label: 'Company Name', key: 'name', placeholder: 'Acme Studio Co., Ltd.' },
+            { label: 'Phone', key: 'phone', placeholder: '+66 2 000 0000' },
+            { label: 'Website', key: 'website', placeholder: 'www.yourstudio.com' },
+            { label: 'Authorized Signatory Name', key: 'signatoryName', placeholder: 'UM Kannika' },
+          ].map(({ label, key, placeholder }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className={labelCls}>{label}</label>
+              <input
+                type="text"
+                value={(profile as unknown as Record<string, string>)[key] ?? ''}
+                onChange={(e) => setP(key as keyof CompanyProfile, e.target.value)}
+                placeholder={placeholder}
+                className={inputCls}
+              />
+            </div>
+          ))}
 
-          {/* Signatory Signature */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">Signatory Signature</label>
+            <label className={labelCls}>Address</label>
+            <textarea
+              value={profile.address}
+              onChange={(e) => setP('address', e.target.value)}
+              placeholder="123 Studio Street, Bangkok 10110"
+              rows={3}
+              className={`${inputCls} h-auto py-3 resize-none`}
+            />
+          </div>
+
+          {/* Signature */}
+          <div className="flex flex-col gap-2">
+            <label className={labelCls}>Signatory Signature</label>
             <div className="flex items-center gap-4">
               {profile.signatorySignature ? (
                 <div className="relative group">
@@ -178,19 +172,19 @@ export default function SettingsView() {
                   <img
                     src={profile.signatorySignature}
                     alt="Signature"
-                    className="h-14 max-w-[180px] object-contain rounded border border-zinc-200 bg-zinc-50 p-1"
+                    className="h-14 max-w-[180px] object-contain rounded-xl border border-white/20 bg-white/5 p-1"
                   />
                   <button
                     onClick={() => setP('signatorySignature', '')}
-                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-800 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                   >
                     ×
                   </button>
                 </div>
               ) : (
-                <div className="h-14 w-36 rounded border-2 border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center">
+                <div className="h-14 w-36 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
                   <svg
-                    className="w-5 h-5 text-zinc-300"
+                    className="w-5 h-5 text-white/25"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -218,21 +212,21 @@ export default function SettingsView() {
                 />
                 <label
                   htmlFor="sig-upload"
-                  className="cursor-pointer text-sm text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50 transition inline-block"
+                  className="cursor-pointer h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition inline-flex items-center"
                 >
                   {profile.signatorySignature ? 'Replace' : 'Upload signature'}
                 </label>
-                <p className="text-xs text-zinc-400 mt-1">Shown on printed invoices</p>
+                <p className="text-xs text-white/35 mt-1.5">Shown on printed invoices</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
-          {savedProfile && <span className="text-xs text-green-600 font-medium">Saved</span>}
+        <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
+          {savedProfile && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
           <button
             onClick={handleSaveProfile}
-            className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+            className="h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15"
           >
             Save profile
           </button>
@@ -240,47 +234,42 @@ export default function SettingsView() {
       </section>
 
       {/* Payment Information */}
-      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-1">Payment Information</h2>
-        <p className="text-xs text-zinc-400 mb-5">
+      <section className={sectionCls}>
+        <h2 className="text-sm font-semibold text-white mb-1">Payment Information</h2>
+        <p className="text-xs text-white/40 mb-5">
           Shown at the bottom of every invoice so clients know how to pay.
         </p>
-
-        <div className="flex flex-col gap-4">
-          <FormField
-            label="Bank Name"
-            value={payment.bankName}
-            onChange={(v) => setPay('bankName', v)}
-            placeholder="Advanced Bank Of Asia Ltd. (ABA Bank)"
-          />
-          <FormField
-            label="Account Name"
-            value={payment.accountName}
-            onChange={(v) => setPay('accountName', v)}
-            placeholder="OR SEREIPARINHA AND UM KANNIKA"
-          />
-          <FormField
-            label="Account Number"
-            value={payment.accountNumber}
-            onChange={(v) => setPay('accountNumber', v)}
-            placeholder="002 575 816"
-          />
-          <FormField
-            label="SWIFT Code"
-            value={payment.swiftCode}
-            onChange={(v) => setPay('swiftCode', v)}
-            placeholder="ABAAKHPP"
-          />
-          <FormField
-            label="Currency"
-            value={payment.currency}
-            onChange={(v) => setPay('currency', v)}
-            placeholder="United States Dollars"
-          />
+        <div className="flex flex-col gap-5">
+          {[
+            {
+              label: 'Bank Name',
+              key: 'bankName',
+              placeholder: 'Advanced Bank Of Asia Ltd. (ABA Bank)',
+            },
+            {
+              label: 'Account Name',
+              key: 'accountName',
+              placeholder: 'OR SEREIPARINHA AND UM KANNIKA',
+            },
+            { label: 'Account Number', key: 'accountNumber', placeholder: '002 575 816' },
+            { label: 'SWIFT Code', key: 'swiftCode', placeholder: 'ABAAKHPP' },
+            { label: 'Currency', key: 'currency', placeholder: 'United States Dollars' },
+          ].map(({ label, key, placeholder }) => (
+            <div key={key} className="flex flex-col gap-1.5">
+              <label className={labelCls}>{label}</label>
+              <input
+                type="text"
+                value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                placeholder={placeholder}
+                className={inputCls}
+              />
+            </div>
+          ))}
 
           {/* QR Code */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-zinc-700">Payment QR Code</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelCls}>Payment QR Code</label>
             <div className="flex items-center gap-4">
               {payment.qrImage ? (
                 <div className="relative group">
@@ -288,19 +277,19 @@ export default function SettingsView() {
                   <img
                     src={payment.qrImage}
                     alt="QR Code"
-                    className="h-20 w-20 object-contain rounded border border-zinc-200 bg-zinc-50 p-1"
+                    className="h-20 w-20 object-contain rounded-xl border border-white/20 bg-white/5 p-1"
                   />
                   <button
                     onClick={() => setPay('qrImage', '')}
-                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-zinc-800 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                   >
                     ×
                   </button>
                 </div>
               ) : (
-                <div className="h-20 w-20 rounded border-2 border-dashed border-zinc-300 bg-zinc-50 flex items-center justify-center">
+                <div className="h-20 w-20 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
                   <svg
-                    className="w-6 h-6 text-zinc-300"
+                    className="w-6 h-6 text-white/25"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -317,11 +306,11 @@ export default function SettingsView() {
               <div>
                 <button
                   onClick={() => qrInputRef.current?.click()}
-                  className="text-sm text-zinc-600 border border-zinc-200 rounded-lg px-3 py-1.5 hover:bg-zinc-50 transition"
+                  className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition"
                 >
                   {payment.qrImage ? 'Replace QR' : 'Upload QR code'}
                 </button>
-                <p className="text-xs text-zinc-400 mt-1">Printed on invoice for easy payment</p>
+                <p className="text-xs text-white/35 mt-1.5">Printed on invoice for easy payment</p>
                 <input
                   ref={qrInputRef}
                   type="file"
@@ -336,42 +325,48 @@ export default function SettingsView() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Telegram */}
-        <div className="pt-2 border-t border-zinc-100">
-          <label className="text-sm font-medium text-zinc-700 block mb-1">Telegram Bot</label>
-          <p className="text-xs text-zinc-400 mb-3">
-            Used to send invoice PDFs to Telegram. Create a bot via @BotFather and add the token and
-            your chat ID.
-          </p>
-          <div className="flex flex-col gap-3">
-            <FormField
-              label="Bot Token"
-              value={payment.telegramBotToken ?? ''}
-              onChange={(v) => setPay('telegramBotToken', v)}
-              placeholder="123456:ABCdef..."
-            />
-            <FormField
-              label="Chat ID"
-              value={payment.telegramChatId ?? ''}
-              onChange={(v) => setPay('telegramChatId', v)}
-              placeholder="-1001234567890 or @username"
-            />
-            <FormField
-              label="Topic ID (optional)"
-              value={payment.telegramTopicId ?? ''}
-              onChange={(v) => setPay('telegramTopicId', v)}
-              placeholder="Leave blank if not using topics"
-            />
+          {/* Telegram */}
+          <div className="pt-4 border-t border-white/[0.08]">
+            <label className="text-sm font-semibold text-white block mb-1">Telegram Bot</label>
+            <p className="text-xs text-white/40 mb-4">
+              Used to send invoice PDFs to Telegram. Create a bot via @BotFather and add the token
+              and your chat ID.
+            </p>
+            <div className="flex flex-col gap-4">
+              {[
+                { label: 'Bot Token', key: 'telegramBotToken', placeholder: '123456:ABCdef...' },
+                {
+                  label: 'Chat ID',
+                  key: 'telegramChatId',
+                  placeholder: '-1001234567890 or @username',
+                },
+                {
+                  label: 'Topic ID (optional)',
+                  key: 'telegramTopicId',
+                  placeholder: 'Leave blank if not using topics',
+                },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className={labelCls}>{label}</label>
+                  <input
+                    type="text"
+                    value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                    onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                    placeholder={placeholder}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 mt-6 pt-4 border-t border-zinc-100">
-          {savedPayment && <span className="text-xs text-green-600 font-medium">Saved</span>}
+        <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
+          {savedPayment && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
           <button
             onClick={handleSavePayment}
-            className="h-9 px-4 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+            className="h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15"
           >
             Save payment info
           </button>
@@ -379,9 +374,9 @@ export default function SettingsView() {
       </section>
 
       {/* Scope of Work */}
-      <section className="bg-white rounded-xl border border-zinc-200 p-4 sm:p-6">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-1">Scope of Work Suggestions</h2>
-        <p className="text-xs text-zinc-400 mb-5">
+      <section className={sectionCls}>
+        <h2 className="text-sm font-semibold text-white mb-1">Scope of Work Suggestions</h2>
+        <p className="text-xs text-white/40 mb-5">
           These appear as autocomplete suggestions when adding line items to invoices.
         </p>
         <ScopeList scopes={scopeOfWork} onChange={setScopeOfWork} />
@@ -396,13 +391,12 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
   const [newValue, setNewValue] = useState('');
 
   const inputCls =
-    'h-9 rounded-lg border border-zinc-300 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand focus:border-transparent transition';
+    'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition backdrop-blur-sm';
 
   function startEdit(i: number) {
     setEditingIdx(i);
     setEditValue(scopes[i]);
   }
-
   function commitEdit(i: number) {
     if (!editValue.trim()) {
       setEditingIdx(null);
@@ -411,11 +405,9 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
     onChange(scopes.map((s, idx) => (idx === i ? editValue.trim() : s)));
     setEditingIdx(null);
   }
-
   function deleteScope(i: number) {
     onChange(scopes.filter((_, idx) => idx !== i));
   }
-
   function addScope() {
     if (!newValue.trim()) return;
     onChange([...scopes, newValue.trim()]);
@@ -440,31 +432,31 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
               />
               <button
                 onClick={() => commitEdit(i)}
-                className="h-9 px-3 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover transition"
+                className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0"
               >
                 Save
               </button>
               <button
                 onClick={() => setEditingIdx(null)}
-                className="h-9 px-3 rounded-lg border border-zinc-200 text-sm text-zinc-600 hover:bg-zinc-50 transition"
+                className="h-11 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 transition shrink-0"
               >
                 Cancel
               </button>
             </>
           ) : (
             <>
-              <span className="flex-1 text-sm text-zinc-700 py-2 px-3 bg-zinc-50 rounded-lg border border-zinc-200 truncate">
+              <span className="flex-1 text-sm text-white/75 py-3 px-4 bg-white/[0.06] rounded-xl border border-white/10 truncate">
                 {s}
               </span>
               <button
                 onClick={() => startEdit(i)}
-                className="h-9 px-3 rounded-lg border border-zinc-200 text-xs text-zinc-600 hover:bg-zinc-100 transition shrink-0"
+                className="h-11 px-4 rounded-xl border border-white/20 text-xs font-semibold text-white/60 hover:bg-white/10 hover:text-white transition shrink-0"
               >
                 Edit
               </button>
               <button
                 onClick={() => deleteScope(i)}
-                className="h-9 px-3 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 transition shrink-0"
+                className="h-11 px-4 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition shrink-0"
               >
                 Delete
               </button>
@@ -473,7 +465,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         </div>
       ))}
 
-      <div className="flex items-center gap-2 mt-1 pt-3 border-t border-zinc-100">
+      <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/[0.08]">
         <input
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
@@ -486,7 +478,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         <button
           onClick={addScope}
           disabled={!newValue.trim()}
-          className="h-9 px-3 rounded-lg bg-brand text-zinc-900 text-sm font-medium hover:bg-brand-hover disabled:opacity-40 transition shrink-0"
+          className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 disabled:opacity-40 transition shrink-0"
         >
           Add
         </button>

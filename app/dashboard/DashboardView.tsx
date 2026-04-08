@@ -27,7 +27,7 @@ function projectProgress(items: { status: string }[]): number {
   return Math.round((items.filter((i) => i.status === 'done').length / items.length) * 100);
 }
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+// ── Stat Card ─────────────────────────────────────────────────────────────────
 
 function StatCard({
   label,
@@ -39,19 +39,20 @@ function StatCard({
   label: string;
   value: string;
   sub?: string;
-  accent?: string; // Tailwind bg class for left border
+  accent?: string;
   href?: string;
 }) {
   const inner = (
     <div
       className={[
-        'bg-white rounded-xl border border-zinc-200 p-5 flex flex-col gap-1 hover:shadow-sm transition',
+        'bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl p-5 flex flex-col gap-1',
+        'hover:bg-white/[0.09] transition group',
         accent ? `border-l-4 ${accent}` : '',
       ].join(' ')}
     >
-      <p className="text-xs font-medium text-zinc-400 uppercase tracking-wider">{label}</p>
-      <p className="text-2xl font-bold text-zinc-900 leading-tight">{value}</p>
-      {sub && <p className="text-xs text-zinc-400 mt-0.5">{sub}</p>}
+      <p className="text-[11px] font-semibold text-white/45 uppercase tracking-wider">{label}</p>
+      <p className="text-2xl font-bold text-white leading-tight">{value}</p>
+      {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -64,38 +65,31 @@ export default function DashboardView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-48 text-zinc-400 text-sm">Loading…</div>
+      <div className="flex items-center justify-center h-48 text-white/40 text-sm">Loading…</div>
     );
   }
 
   const som = startOfMonth();
   const eom = endOfMonth();
 
-  // ── This-month invoices ──────────────────────────────────────────────────────
   const thisMonth = invoices.filter((inv) => inv.date >= som && inv.date <= eom);
   const invoicedThisMonth = thisMonth.reduce((s, inv) => s + calcSubtotal(inv), 0);
   const earnedThisMonth = thisMonth.reduce((s, inv) => s + calcEarned(inv), 0);
 
-  // ── Overdue ──────────────────────────────────────────────────────────────────
   const overdueInvoices = invoices.filter((inv) => inv.status === 'overdue');
   const overdueAmount = overdueInvoices.reduce((s, inv) => s + calcBalance(inv), 0);
 
-  // ── Outstanding (all unpaid) ─────────────────────────────────────────────────
   const outstanding = invoices
     .filter((inv) => inv.status === 'sent' || inv.status === 'partial' || inv.status === 'overdue')
     .reduce((s, inv) => s + calcBalance(inv), 0);
 
-  // ── All-time earned ──────────────────────────────────────────────────────────
   const totalEarned = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
 
-  // ── Projects ─────────────────────────────────────────────────────────────────
   const activeProjects = projects.filter((p) => p.status === 'active');
   const completedProjects = projects.filter((p) => p.status === 'completed');
 
-  // ── Recent invoices (last 5, sorted by date desc) ────────────────────────────
   const recentInvoices = [...invoices].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);
 
-  // ── Invoice status breakdown ─────────────────────────────────────────────────
   const statusCounts: Record<string, number> = {};
   for (const inv of invoices) {
     statusCounts[inv.status] = (statusCounts[inv.status] ?? 0) + 1;
@@ -103,39 +97,43 @@ export default function DashboardView() {
 
   return (
     <div className="flex flex-col gap-6 max-w-6xl">
-      {/* ── Header ── */}
+      {/* Header */}
       <div>
-        <h1 className="text-xl font-bold text-zinc-900">Overview</h1>
-        <p className="text-sm text-zinc-400 mt-0.5">{monthLabel()}</p>
+        <h1 className="text-2xl font-bold text-white">Overview</h1>
+        <p className="text-sm text-white/45 mt-0.5">{monthLabel()}</p>
       </div>
 
-      {/* ── Overdue alert ── */}
+      {/* Overdue alert */}
       {overdueInvoices.length > 0 && (
         <Link
           href="/dashboard/invoices"
-          className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-5 py-3.5 hover:bg-red-100 transition"
+          className="flex items-center gap-3 bg-red-500/15 border border-red-500/25 rounded-2xl px-5 py-4 hover:bg-red-500/20 transition backdrop-blur-sm"
         >
-          <svg
-            className="w-5 h-5 text-red-500 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-            />
-          </svg>
+          <div className="w-9 h-9 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
+            <svg
+              className="w-5 h-5 text-red-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
+            </svg>
+          </div>
           <div className="flex-1 min-w-0">
-            <span className="text-sm font-semibold text-red-700">
+            <span className="text-sm font-bold text-red-300">
               {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? 's' : ''}
             </span>
-            <span className="text-sm text-red-500 ml-2">— {fmtUSD(overdueAmount)} outstanding</span>
+            <span className="text-sm text-red-400/70 ml-2">
+              — {fmtUSD(overdueAmount)} outstanding
+            </span>
           </div>
           <svg
-            className="w-4 h-4 text-red-400 shrink-0"
+            className="w-4 h-4 text-red-400/60 shrink-0"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -146,7 +144,7 @@ export default function DashboardView() {
         </Link>
       )}
 
-      {/* ── Stat cards ── */}
+      {/* Stat cards row 1 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           label="Invoiced this month"
@@ -177,7 +175,7 @@ export default function DashboardView() {
         />
       </div>
 
-      {/* ── Second row: clients + projects ── */}
+      {/* Stat cards row 2 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           label="Clients"
@@ -206,45 +204,46 @@ export default function DashboardView() {
         />
       </div>
 
-      {/* ── Bottom: Recent invoices + Active projects ── */}
+      {/* Bottom grid: recent invoices + active projects */}
       <div className="grid md:grid-cols-2 gap-6">
         {/* Recent invoices */}
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-            <h2 className="text-sm font-semibold text-zinc-800">Recent Invoices</h2>
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+            <h2 className="text-sm font-semibold text-white">Recent Invoices</h2>
             <Link
               href="/dashboard/invoices"
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              className="text-xs text-[#FFC206] hover:text-amber-300 font-semibold transition"
             >
               View all
             </Link>
           </div>
-          <div className="divide-y divide-zinc-50">
+          <div className="divide-y divide-white/[0.05]">
             {recentInvoices.length === 0 && (
-              <p className="px-5 py-8 text-sm text-zinc-400 text-center">No invoices yet</p>
+              <p className="px-5 py-8 text-sm text-white/35 text-center">No invoices yet</p>
             )}
             {recentInvoices.map((inv) => {
               const client = clients.find((c) => c.id === inv.clientId);
               const sc = STATUS_CONFIG[inv.status];
               const net = calcNet(inv);
               return (
-                <div key={inv.id} className="flex items-center gap-3 px-5 py-3">
+                <div
+                  key={inv.id}
+                  className="flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.04] transition"
+                >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-800">{inv.number}</span>
+                      <span className="text-sm font-semibold text-white">{inv.number}</span>
                       <span
-                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${sc.cls}`}
+                        className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
                       >
                         {sc.label}
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 truncate mt-0.5">
+                    <p className="text-xs text-white/40 truncate mt-0.5">
                       {client?.name ?? '—'} · {inv.date}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-zinc-800 shrink-0">
-                    {fmtUSD(net)}
-                  </span>
+                  <span className="text-sm font-bold text-white shrink-0">{fmtUSD(net)}</span>
                 </div>
               );
             })}
@@ -252,19 +251,19 @@ export default function DashboardView() {
         </div>
 
         {/* Active projects */}
-        <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-            <h2 className="text-sm font-semibold text-zinc-800">Active Projects</h2>
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
+            <h2 className="text-sm font-semibold text-white">Active Projects</h2>
             <Link
               href="/dashboard/projects"
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+              className="text-xs text-[#FFC206] hover:text-amber-300 font-semibold transition"
             >
               View all
             </Link>
           </div>
-          <div className="divide-y divide-zinc-50">
+          <div className="divide-y divide-white/[0.05]">
             {activeProjects.length === 0 && (
-              <p className="px-5 py-8 text-sm text-zinc-400 text-center">No active projects</p>
+              <p className="px-5 py-8 text-sm text-white/35 text-center">No active projects</p>
             )}
             {activeProjects.slice(0, 6).map((proj) => {
               const client = clients.find((c) => c.id === proj.clientId);
@@ -272,27 +271,27 @@ export default function DashboardView() {
               const sc = PROJECT_STATUS_CONFIG[proj.status];
               const done = proj.items.filter((i) => i.status === 'done').length;
               return (
-                <div key={proj.id} className="px-5 py-3">
+                <div key={proj.id} className="px-5 py-3.5 hover:bg-white/[0.04] transition">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-sm font-medium text-zinc-800 flex-1 truncate min-w-0">
+                    <span className="text-sm font-semibold text-white flex-1 truncate min-w-0">
                       {proj.name}
                     </span>
                     <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${sc.cls} shrink-0`}
+                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls} shrink-0`}
                     >
                       {sc.label}
                     </span>
                   </div>
-                  <p className="text-xs text-zinc-400 mb-2">
+                  <p className="text-xs text-white/40 mb-2">
                     {client?.name ?? '—'} · {done}/{proj.items.length} tasks
                   </p>
-                  <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-amber-400 rounded-full transition-all"
+                      className="h-full bg-[#FFC206] rounded-full transition-all"
                       style={{ width: `${pct}%` }}
                     />
                   </div>
-                  <p className="text-[10px] text-zinc-400 mt-1">{pct}% complete</p>
+                  <p className="text-[10px] text-white/35 mt-1">{pct}% complete</p>
                 </div>
               );
             })}
@@ -300,12 +299,12 @@ export default function DashboardView() {
         </div>
       </div>
 
-      {/* ── Invoice status breakdown ── */}
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-zinc-100">
-          <h2 className="text-sm font-semibold text-zinc-800">Invoice Status Breakdown</h2>
+      {/* Invoice status breakdown */}
+      <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/[0.07]">
+          <h2 className="text-sm font-semibold text-white">Invoice Status Breakdown</h2>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-zinc-100">
+        <div className="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-white/[0.07]">
           {(['draft', 'sent', 'partial', 'paid', 'overdue'] as const).map((status) => {
             const sc = STATUS_CONFIG[status];
             const count = statusCounts[status] ?? 0;
@@ -313,14 +312,17 @@ export default function DashboardView() {
               .filter((inv) => inv.status === status)
               .reduce((s, inv) => s + calcSubtotal(inv), 0);
             return (
-              <div key={status} className="px-5 py-4 flex flex-col gap-1">
+              <div
+                key={status}
+                className="px-5 py-4 flex flex-col gap-1 hover:bg-white/[0.04] transition"
+              >
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-medium self-start ${sc.cls}`}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold self-start ${sc.cls}`}
                 >
                   {sc.label}
                 </span>
-                <p className="text-xl font-bold text-zinc-900">{count}</p>
-                <p className="text-xs text-zinc-400">{fmtShort(amount)}</p>
+                <p className="text-2xl font-bold text-white">{count}</p>
+                <p className="text-xs text-white/40">{fmtShort(amount)}</p>
               </div>
             );
           })}
