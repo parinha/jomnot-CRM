@@ -233,35 +233,6 @@ export function Sheet({
         flexDirection: 'column',
       }}
     >
-      {/* DRAFT watermark */}
-      {invoice.status === 'draft' && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            pointerEvents: 'none',
-            zIndex: 10,
-          }}
-        >
-          <span
-            style={{
-              fontSize: '88px',
-              fontWeight: 900,
-              color: 'rgba(0,0,0,0.05)',
-              textTransform: 'uppercase',
-              transform: 'rotate(-30deg)',
-              userSelect: 'none',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            DRAFT
-          </span>
-        </div>
-      )}
-
       {/* ── Content wrapper ── */}
       <div style={{ padding: '14mm 14mm 10mm', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* ═══ HEADER ═══ */}
