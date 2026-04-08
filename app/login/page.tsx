@@ -1,33 +1,36 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { AuthProvider, useAuth } from '@/app/_context/AuthContext'
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { AuthProvider, useAuth } from '@/app/_context/AuthContext';
 
 function LoginForm() {
-  const router = useRouter()
-  const { user, loading, signIn } = useAuth()
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [error,    setError]    = useState('')
-  const [busy,     setBusy]     = useState(false)
+  const router = useRouter();
+  const { user, loading, signIn } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard/clients')
-  }, [user, loading, router])
+    if (!loading && user) router.replace('/dashboard');
+  }, [user, loading, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError('')
-    if (!email || !password) { setError('Please fill in all fields.'); return }
-    setBusy(true)
+    e.preventDefault();
+    setError('');
+    if (!email || !password) {
+      setError('Please fill in all fields.');
+      return;
+    }
+    setBusy(true);
     try {
-      await signIn(email, password)
-      router.replace('/dashboard/clients')
+      await signIn(email, password);
+      router.replace('/dashboard');
     } catch {
-      setError('Invalid email or password.')
+      setError('Invalid email or password.');
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
@@ -36,7 +39,7 @@ function LoginForm() {
       <div className="min-h-screen flex items-center justify-center bg-zinc-100">
         <div className="w-6 h-6 rounded-full border-2 border-brand border-t-transparent animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -49,7 +52,9 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="email" className="text-sm font-medium text-zinc-700">Email</label>
+            <label htmlFor="email" className="text-sm font-medium text-zinc-700">
+              Email
+            </label>
             <input
               id="email"
               type="email"
@@ -62,7 +67,9 @@ function LoginForm() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="password" className="text-sm font-medium text-zinc-700">Password</label>
+            <label htmlFor="password" className="text-sm font-medium text-zinc-700">
+              Password
+            </label>
             <input
               id="password"
               type="password"
@@ -86,7 +93,7 @@ function LoginForm() {
         </form>
       </div>
     </div>
-  )
+  );
 }
 
 export default function LoginPage() {
@@ -94,5 +101,5 @@ export default function LoginPage() {
     <AuthProvider>
       <LoginForm />
     </AuthProvider>
-  )
+  );
 }
