@@ -108,6 +108,7 @@ export default function ProjectsView() {
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [activeTab, setActiveTab] = useState<'all' | 'draft' | 'completed'>('all');
 
   function handleSort(col: string) {
     if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -210,8 +211,17 @@ export default function ProjectsView() {
     }
   }
 
+  const ACTIVE_STATUSES = ['confirmed', 'in-progress', 'on-hold'] as const;
+
   const filtered = projects.filter((p) => {
-    if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+    if (activeTab === 'draft' && p.status !== 'draft') return false;
+    if (activeTab === 'completed' && p.status !== 'completed') return false;
+    if (
+      activeTab === 'all' &&
+      !ACTIVE_STATUSES.includes(p.status as (typeof ACTIVE_STATUSES)[number])
+    )
+      return false;
+    if (activeTab === 'all' && statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const client = clients.find((c) => c.id === p.clientId);
@@ -529,20 +539,61 @@ export default function ProjectsView() {
         );
       })()}
 
-      {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-4">
-        <SearchInput
-          value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          placeholder="Search by name, client, invoice…"
-          className="flex-1"
-        />
-        <div className="flex gap-1.5 flex-wrap">
-          {(['all', 'draft', 'confirmed', 'in-progress', 'on-hold', 'completed'] as const).map(
-            (f) => (
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
+        {(
+          [
+            {
+              key: 'all',
+              label: 'All',
+              count: projects.filter((p) =>
+                ['confirmed', 'in-progress', 'on-hold'].includes(p.status)
+              ).length,
+            },
+            {
+              key: 'draft',
+              label: 'Draft',
+              count: projects.filter((p) => p.status === 'draft').length,
+            },
+            {
+              key: 'completed',
+              label: 'Completed',
+              count: projects.filter((p) => p.status === 'completed').length,
+            },
+          ] as const
+        ).map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setPage(1);
+            }}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${activeTab === tab.key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
+          >
+            {tab.label}
+            <span
+              className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
+            >
+              {tab.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search + filter (All tab only) */}
+      {activeTab === 'all' && (
+        <div className="flex flex-col sm:flex-row gap-2 mb-4">
+          <SearchInput
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by name, client, invoice…"
+            className="flex-1"
+          />
+          <div className="flex gap-1.5 flex-wrap">
+            {(['all', 'confirmed', 'in-progress', 'on-hold'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => {
@@ -551,12 +602,26 @@ export default function ProjectsView() {
                 }}
                 className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === f ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
               >
-                {f === 'all' ? 'All' : PROJECT_STATUS_CONFIG[f].label}
+                {f === 'all' ? 'All Active' : PROJECT_STATUS_CONFIG[f].label}
               </button>
-            )
-          )}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Search (Draft / Completed tabs) */}
+      {activeTab !== 'all' && (
+        <div className="mb-4">
+          <SearchInput
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by name, client, invoice…"
+          />
+        </div>
+      )}
 
       {/* Empty states */}
       {projects.length === 0 ? (
@@ -578,16 +643,32 @@ export default function ProjectsView() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
-          <p className="text-sm">No projects match your filters.</p>
-          <button
-            onClick={() => {
-              setSearch('');
-              setStatusFilter('all');
-            }}
-            className="mt-2 text-xs text-[#FFC206] hover:underline"
-          >
-            Clear filters
-          </button>
+          <p className="text-sm">
+            {activeTab === 'draft'
+              ? 'No draft projects.'
+              : activeTab === 'completed'
+                ? 'No completed projects.'
+                : 'No active projects match your filters.'}
+          </p>
+          {activeTab === 'all' && (
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+              }}
+              className="mt-2 text-xs text-[#FFC206] hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+          {search.trim() && activeTab !== 'all' && (
+            <button
+              onClick={() => setSearch('')}
+              className="mt-2 text-xs text-[#FFC206] hover:underline"
+            >
+              Clear search
+            </button>
+          )}
         </div>
       ) : (
         <>
