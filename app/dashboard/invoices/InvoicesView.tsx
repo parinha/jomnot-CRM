@@ -641,9 +641,10 @@ export default function InvoicesView() {
             {pagedInvoices.map((inv) => {
               const client = clients.find((c) => c.id === inv.clientId);
               const sub = calcSubtotal(inv);
+              const wht = inv.withWHT ? sub * WHT_RATE : null;
+              const net = wht != null ? sub - wht : sub;
               const invDeposit =
-                inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
-              const invBalance = invDeposit != null ? sub - invDeposit : null;
+                inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
               const status = (inv.status ?? 'draft') as InvoiceStatus;
               const sc = STATUS_CONFIG[status];
               const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
@@ -667,8 +668,14 @@ export default function InvoicesView() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-white">{fmt(sub)}</p>
-                      {invBalance != null && (
-                        <p className="text-xs text-white/35 mt-0.5">{fmt(invDeposit!)} dep</p>
+                      {wht != null && (
+                        <p className="text-xs text-orange-400/80 mt-0.5">−{fmt(wht)} WHT</p>
+                      )}
+                      {wht != null && (
+                        <p className="text-xs text-white/50 mt-0.5">{fmt(net)} net</p>
+                      )}
+                      {invDeposit != null && (
+                        <p className="text-xs text-white/35 mt-0.5">{fmt(invDeposit)} dep</p>
                       )}
                     </div>
                   </div>
