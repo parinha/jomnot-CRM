@@ -833,7 +833,7 @@ export default function ProjectsView() {
                     Invoice(s)
                   </SortTh>
                   <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
-                    SOW
+                    Phases
                   </th>
                   <SortTh
                     col="budget"
