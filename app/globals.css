@@ -14,7 +14,59 @@
   --font-mono: var(--font-geist-mono);
 }
 
+*,
+*::before,
+*::after {
+  /* Remove iOS tap highlight flash */
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  overflow-x: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
+  height: 100%;
+  /* Disable pull-to-refresh and overscroll bounce */
+  overscroll-behavior: none;
+  /* Crisp text rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Prevent font inflation on orientation change */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Prevent iOS Safari from zooming on input focus (requires 16px font-size) */
+input,
+select,
+textarea {
+  font-size: max(16px, 1em);
+}
+
+/* Remove default blue outline on iOS buttons */
+button {
+  -webkit-appearance: none;
+}
+
+/* Touch-friendly active states */
+@media (hover: none) {
+  button:active,
+  a:active {
+    opacity: 0.7;
+  }
+}
+
+/* Main content bottom padding — accounts for mobile bottom nav + safe area */
+.main-content-pad {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 768px) {
+  .main-content-pad {
+    padding-bottom: 1.5rem;
+  }
 }
