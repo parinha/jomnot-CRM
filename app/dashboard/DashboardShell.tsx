@@ -129,6 +129,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
         }}
       >
         <button
@@ -244,7 +245,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           className="sticky top-0 z-30 bg-black/30 backdrop-blur-xl border-b border-white/[0.08] shrink-0"
           style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
-          <div className="h-14 md:h-16 flex items-center px-4 md:px-6 gap-3">
+          <div
+            className="h-14 md:h-16 flex items-center gap-3"
+            style={{
+              paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+              paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+            }}
+          >
             {/* Search */}
             <div ref={searchRef} className="relative flex-1 max-w-md">
               <svg
@@ -418,7 +425,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </header>
 
         {/* Page content */}
-        <main className="flex-1 p-4 md:p-6 overflow-y-auto overscroll-y-contain main-content-pad">
+        <main className="flex-1 overflow-y-auto overscroll-y-contain main-content-pad">
           {children}
         </main>
       </div>
@@ -426,7 +433,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {/* ── Bottom Navigation — mobile only ──────────────────── */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-30 md:hidden"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        style={{
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
+        }}
       >
         {/* Gradient fade above nav for depth */}
         <div className="absolute inset-x-0 bottom-full h-8 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
