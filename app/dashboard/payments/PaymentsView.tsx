@@ -269,7 +269,7 @@ export default function PaymentsView() {
           {
             label: 'Outstanding',
             value: fmt(outstandingTotal),
-            sub: `${unpaid.filter((i) => i.status === 'sent').length} sent · ${unpaid.filter((i) => i.status === 'overdue').length} overdue`,
+            sub: `${unpaid.filter((i) => i.status === 'sent').length} sent · ${unpaid.filter((i) => i.status === 'overdue').length} late`,
             color: unpaid.some((i) => i.status === 'overdue') ? 'text-red-400' : 'text-white',
             accent: unpaid.some((i) => i.status === 'overdue') ? 'border-l-red-400' : '',
           },

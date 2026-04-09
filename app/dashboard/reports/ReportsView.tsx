@@ -312,7 +312,7 @@ export default function ReportsView() {
         <StatCard
           label="Outstanding"
           value={fmt(outstanding)}
-          sub={`${overdueCount} overdue · incl. partial balance`}
+          sub={`${overdueCount} late · incl. partial balance`}
           accent={overdueCount > 0 ? 'red' : undefined}
         />
         <StatCard

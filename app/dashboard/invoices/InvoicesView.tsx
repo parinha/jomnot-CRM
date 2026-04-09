@@ -553,7 +553,7 @@ export default function InvoicesView() {
             value={String(
               invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length
             )}
-            sub={`${invoices.filter((i) => i.status === 'overdue').length} overdue`}
+            sub={`${invoices.filter((i) => i.status === 'overdue').length} late`}
             accent={invoices.some((i) => i.status === 'overdue') ? 'red' : undefined}
           />
           <SummaryCard
@@ -579,7 +579,7 @@ export default function InvoicesView() {
               { key: 'active', label: 'Active' },
               { key: 'partial', label: 'Deposit Rcvd' },
               { key: 'paid', label: 'Paid' },
-              { key: 'overdue', label: 'Overdue' },
+              { key: 'overdue', label: 'Late' },
               { key: 'draft', label: 'Draft' },
             ] as const
           ).map(({ key, label }) => (

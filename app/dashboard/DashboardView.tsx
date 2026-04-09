@@ -128,7 +128,7 @@ export default function DashboardView() {
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-sm font-bold text-red-300">
-              {overdueInvoices.length} overdue invoice{overdueInvoices.length > 1 ? 's' : ''}
+              {overdueInvoices.length} late invoice{overdueInvoices.length > 1 ? 's' : ''}
             </span>
             <span className="text-sm text-red-400/70 ml-2">
               — {fmtUSD(overdueAmount)} outstanding
@@ -198,7 +198,7 @@ export default function DashboardView() {
           href="/dashboard/invoices"
         />
         <StatCard
-          label="Overdue"
+          label="Late"
           value={String(overdueInvoices.length)}
           sub={overdueInvoices.length > 0 ? fmtUSD(overdueAmount) : 'All clear'}
           accent={overdueInvoices.length > 0 ? 'border-l-red-400' : undefined}

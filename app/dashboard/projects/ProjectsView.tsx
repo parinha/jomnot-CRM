@@ -54,11 +54,11 @@ function getTimelineBadge(filmingDate?: string, deliverDate?: string): TimelineB
     filming.setHours(0, 0, 0, 0);
     if (today < filming) {
       const daysLeft = Math.round((filming.getTime() - today.getTime()) / 86400000);
-      if (daysLeft === 0) return { label: 'Today', cls: 'bg-red-500/20 text-red-400' };
+      if (daysLeft === 0) return { label: 'Film Today', cls: 'bg-red-500/20 text-red-400' };
       if (daysLeft >= 5) {
-        return { label: `${daysLeft}d till filming`, cls: 'bg-sky-500/20 text-sky-300' };
+        return { label: `Film in ${daysLeft}d`, cls: 'bg-sky-500/20 text-sky-300' };
       }
-      return { label: `Only ${daysLeft}d left`, cls: 'bg-amber-500/20 text-amber-300' };
+      return { label: `Film in ${daysLeft}d`, cls: 'bg-amber-500/20 text-amber-300' };
     }
   }
 
@@ -68,15 +68,15 @@ function getTimelineBadge(filmingDate?: string, deliverDate?: string): TimelineB
 
   if (today <= deliver) {
     const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
-    if (daysLeft === 0) return { label: 'Today', cls: 'bg-red-500/20 text-red-400' };
+    if (daysLeft === 0) return { label: 'Due Today', cls: 'bg-red-500/20 text-red-400' };
     if (daysLeft > 5) {
-      return { label: `${daysLeft}d to go`, cls: 'bg-emerald-500/20 text-emerald-300' };
+      return { label: `Due in ${daysLeft}d`, cls: 'bg-emerald-500/20 text-emerald-300' };
     }
-    return { label: `Only ${daysLeft}d left`, cls: 'bg-amber-500/20 text-amber-300' };
+    return { label: `Due in ${daysLeft}d`, cls: 'bg-amber-500/20 text-amber-300' };
   }
 
   const daysLate = Math.round((today.getTime() - deliver.getTime()) / 86400000);
-  return { label: `Late ${daysLate}d ago`, cls: 'bg-red-500/20 text-red-400' };
+  return { label: `${daysLate}d Late`, cls: 'bg-red-500/20 text-red-400' };
 }
 
 const inputCls =
@@ -140,23 +140,52 @@ export default function ProjectsView() {
     }
     setSendingTelegram(project.id);
     try {
-      const client = clients.find((c) => c.id === project.clientId);
-      const done = project.items.filter((it) => it.status === 'done').length;
-      const scopeLines = project.items
-        .map(
-          (it) =>
-            `${it.status === 'done' ? '✅' : it.status === 'in-progress' ? '🔄' : '⬜'} ${it.description}`
-        )
-        .join('\n');
-      const text = [
-        `📁 *${project.name}*`,
-        `👤 Client: ${client?.name ?? '—'}`,
-        `📊 Status: ${project.status}`,
-        `📋 Progress: ${done}/${project.items.length} done`,
-        scopeLines ? `\n${scopeLines}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n');
+      const statusLabel = PROJECT_STATUS_CONFIG[project.status]?.label ?? project.status;
+
+      const deliverText = (() => {
+        if (!project.deliverDate) return null;
+        const d = new Date(project.deliverDate);
+        d.setHours(0, 0, 0, 0);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const month = d.toLocaleString('en-US', { month: 'long' });
+        const dateStr = `${d.getFullYear()}/${month}/${d.getDate()}`;
+        const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+        const relative =
+          diff > 0
+            ? `${diff} days to go`
+            : diff === 0
+              ? 'Due Today'
+              : `${Math.abs(diff)} days late`;
+        return `🚀 DELIVER DATE: ${dateStr} (${relative})`;
+      })();
+
+      const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
+      const badgeEmoji = badge
+        ? badge.cls.includes('sky')
+          ? '🔵'
+          : badge.cls.includes('amber')
+            ? '🟡'
+            : badge.cls.includes('emerald')
+              ? '🟢'
+              : '🔴'
+        : null;
+      const timelineText = badge ? `⏰ TIMELINE: ${badgeEmoji} ${badge.label}` : null;
+
+      const scopeLines = project.items.map((it, i) => {
+        const prefix = i === 0 ? '┌' : i === project.items.length - 1 ? '└' : '├';
+        const emoji = /photo|picture/i.test(it.description) ? '📸' : '🎥';
+        return `${prefix} ${emoji} ${it.description}`;
+      });
+
+      const parts: string[] = [
+        `📁 PROJECT: ${project.name}`,
+        `🏷️ STATUS: ${statusLabel}`,
+        ...(deliverText ? [deliverText] : []),
+        ...(timelineText ? [timelineText] : []),
+        ...(project.items.length > 0 ? ['📋 SCOPE OF WORK', ...scopeLines] : []),
+      ];
+      const text = parts.join('\n\n');
 
       const formData = new FormData();
       formData.append('chat_id', chatId);

@@ -40,7 +40,7 @@ export const STATUS_CONFIG: Record<
     bar: 'bg-green-500',
   },
   overdue: {
-    label: 'Overdue',
+    label: 'Late',
     cls: 'bg-red-100 text-red-600',
     color: 'text-red-700',
     bg: 'bg-red-50 border-red-200',
