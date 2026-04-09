@@ -50,11 +50,11 @@ export const STATUS_CONFIG: Record<
 
 // ── Project status ─────────────────────────────────────────────────────────────
 export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; cls: string }> = {
-  draft: { label: 'Draft', cls: 'bg-zinc-100 text-zinc-500' },
-  confirmed: { label: 'Confirmed', cls: 'bg-blue-100 text-blue-700' },
-  'in-progress': { label: 'In Progress', cls: 'bg-amber-100 text-amber-700' },
-  'on-hold': { label: 'On Hold', cls: 'bg-zinc-100 text-zinc-600' },
-  completed: { label: 'Completed', cls: 'bg-green-100 text-green-700' },
+  draft: { label: 'Quoted', cls: 'bg-zinc-700 text-zinc-300' },
+  confirmed: { label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
+  'in-progress': { label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
+  'on-hold': { label: 'On Hold', cls: 'bg-amber-500/20 text-amber-300' },
+  completed: { label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
 };
 
 // ── Project scope item status ──────────────────────────────────────────────────

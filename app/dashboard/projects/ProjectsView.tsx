@@ -6,16 +6,34 @@ import {
   type Project,
   type ProjectItem,
   type ProjectItemStatus,
+  type ProjectPhases,
   type ProjectStatus,
   type Client,
 } from '../AppStore';
-import {
-  PROJECT_STATUS_CONFIG,
-  ITEM_STATUS_CONFIG,
-  ITEM_STATUS_NEXT,
-} from '@/app/_config/statusConfig';
+import { PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
+
+// ── Phases config ─────────────────────────────────────────────────────────────
+const PHASES: { key: keyof ProjectPhases; label: string }[] = [
+  { key: 'filming', label: 'Filming' },
+  { key: 'roughCut', label: 'Rough Cut' },
+  { key: 'draft', label: 'Draft' },
+  { key: 'master', label: 'Master' },
+  { key: 'delivered', label: 'Delivered' },
+];
+const DEFAULT_PHASES: ProjectPhases = {
+  filming: false,
+  roughCut: false,
+  draft: false,
+  master: false,
+  delivered: false,
+};
+function phasesDone(phases?: ProjectPhases): number {
+  if (!phases) return 0;
+  return PHASES.filter((p) => phases[p.key]).length;
+}
 import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE } from '@/app/_config/constants';
+import { calcNet, calcEarned, calcBalance } from '@/app/_services/invoiceService';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
 import SortTh from '@/app/_components/SortTh';
@@ -30,6 +48,7 @@ function blankForm(): ProjectFormState {
     clientId: '',
     invoiceIds: [],
     items: [],
+    phases: { ...DEFAULT_PHASES },
     status: 'draft',
     filmingDate: '',
     deliverDate: '',
@@ -38,45 +57,70 @@ function blankForm(): ProjectFormState {
 }
 
 // ── Timeline helper ────────────────────────────────────────────────────────────
-type TimelineBadge = {
-  label: string;
-  cls: string;
+// Badge + bar both count purely from today ↔ deliverDate.
+// Bar always shows when deliverDate exists, using a 28-day virtual window
+// (deliver - 28d → deliver). Overdue counts from deliverDate → today.
+type TimelineBar = {
+  daysLeft: number; // positive = remaining, negative = overdue
+  isOverdue: boolean;
+  badgeLabel: string;
+  badgeCls: string;
+  bar: { pct: number; barCls: string };
 };
 
-function getTimelineBadge(filmingDate?: string, deliverDate?: string): TimelineBadge | null {
+const TIMELINE_WINDOW = 28; // days
+
+function getTimelineBar(deliverDate?: string): TimelineBar | null {
   if (!deliverDate) return null;
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  // Show filming countdown if filming hasn't started yet
-  if (filmingDate) {
-    const filming = new Date(filmingDate);
-    filming.setHours(0, 0, 0, 0);
-    if (today < filming) {
-      const daysLeft = Math.round((filming.getTime() - today.getTime()) / 86400000);
-      if (daysLeft === 0) return { label: 'Film Today', cls: 'bg-red-500/20 text-red-400' };
-      if (daysLeft >= 5) {
-        return { label: `Film in ${daysLeft}d`, cls: 'bg-sky-500/20 text-sky-300' };
-      }
-      return { label: `Film in ${daysLeft}d`, cls: 'bg-amber-500/20 text-amber-300' };
-    }
-  }
-
-  // Delivery countdown / overdue
   const deliver = new Date(deliverDate);
   deliver.setHours(0, 0, 0, 0);
 
-  if (today <= deliver) {
-    const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
-    if (daysLeft === 0) return { label: 'Due Today', cls: 'bg-red-500/20 text-red-400' };
-    if (daysLeft > 5) {
-      return { label: `Due in ${daysLeft}d`, cls: 'bg-emerald-500/20 text-emerald-300' };
-    }
-    return { label: `Due in ${daysLeft}d`, cls: 'bg-amber-500/20 text-amber-300' };
+  const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
+  const isOverdue = daysLeft < 0;
+
+  // Badge: how many days until deliver, or how many days late
+  const badgeLabel = isOverdue
+    ? `${Math.abs(daysLeft)}d Late`
+    : daysLeft === 0
+      ? 'Due Today'
+      : `Due in ${daysLeft}d`;
+
+  const badgeCls =
+    isOverdue || daysLeft === 0
+      ? 'bg-red-500/20 text-red-400'
+      : daysLeft <= 3
+        ? 'bg-orange-500/20 text-orange-400'
+        : daysLeft <= 10
+          ? 'bg-yellow-500/20 text-yellow-300'
+          : 'bg-emerald-500/20 text-emerald-300';
+
+  // Bar: progress through a 28-day window ending at deliverDate.
+  // When overdue: counts forward from deliverDate → today (same 28-day window).
+  let pct: number;
+  if (isOverdue) {
+    // How far past the deadline we are, out of TIMELINE_WINDOW days
+    pct = Math.min(100, Math.round((Math.abs(daysLeft) / TIMELINE_WINDOW) * 100));
+  } else {
+    // How far through the final TIMELINE_WINDOW days we are
+    pct = Math.min(
+      100,
+      Math.max(0, Math.round(((TIMELINE_WINDOW - daysLeft) / TIMELINE_WINDOW) * 100))
+    );
   }
 
-  const daysLate = Math.round((today.getTime() - deliver.getTime()) / 86400000);
-  return { label: `${daysLate}d Late`, cls: 'bg-red-500/20 text-red-400' };
+  const barCls =
+    isOverdue || daysLeft === 0
+      ? 'bg-red-500'
+      : pct >= 90
+        ? 'bg-orange-500'
+        : pct >= 50
+          ? 'bg-yellow-400'
+          : 'bg-emerald-500';
+
+  return { daysLeft, isOverdue, badgeLabel, badgeCls, bar: { pct, barCls } };
 }
 
 const inputCls =
@@ -85,17 +129,24 @@ const darkInputCls =
   'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
-const FALLBACK_STATUS_CFG = { label: 'Unknown', cls: 'bg-zinc-100 text-zinc-500' };
+const FALLBACK_STATUS_CFG = { label: 'Unknown', cls: 'bg-zinc-700 text-zinc-300' };
 function getStatusCfg(status: string) {
   return PROJECT_STATUS_CONFIG[status as ProjectStatus] ?? FALLBACK_STATUS_CFG;
 }
+
+// Simplified status options shown in the form (hides legacy 'confirmed' — maps to in-progress)
+const FORM_STATUS_OPTIONS: { value: ProjectStatus; label: string; cls: string }[] = [
+  { value: 'draft', label: 'Quoted', cls: 'bg-zinc-700 text-zinc-300' },
+  { value: 'in-progress', label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
+  { value: 'on-hold', label: 'On Hold', cls: 'bg-amber-500/20 text-amber-300' },
+  { value: 'completed', label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
+];
 
 export default function ProjectsView() {
   const { clients, setClients, invoices, projects, setProjects, scopeOfWork, paymentInfo } =
     useStore();
 
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<ProjectStatus | 'all'>('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(blankForm());
@@ -108,7 +159,7 @@ export default function ProjectsView() {
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [activeTab, setActiveTab] = useState<'all' | 'draft' | 'completed'>('all');
+  const [activeTab, setActiveTab] = useState<'active' | 'on-hold' | 'quoted' | 'done'>('active');
 
   function handleSort(col: string) {
     if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -161,17 +212,17 @@ export default function ProjectsView() {
         return `🚀 DELIVER DATE: ${dateStr} (${relative})`;
       })();
 
-      const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
-      const badgeEmoji = badge
-        ? badge.cls.includes('sky')
-          ? '🔵'
-          : badge.cls.includes('amber')
-            ? '🟡'
-            : badge.cls.includes('emerald')
-              ? '🟢'
-              : '🔴'
+      const tl = getTimelineBar(project.deliverDate);
+      const badgeEmoji = tl
+        ? tl.isOverdue || tl.daysLeft === 0
+          ? '🔴'
+          : tl.badgeCls.includes('orange')
+            ? '🟠'
+            : tl.badgeCls.includes('yellow')
+              ? '🟡'
+              : '🟢'
         : null;
-      const timelineText = badge ? `⏰ TIMELINE: ${badgeEmoji} ${badge.label}` : null;
+      const timelineText = tl ? `⏰ TIMELINE: ${badgeEmoji} ${tl.badgeLabel}` : null;
 
       const scopeLines = project.items.map((it, i) => {
         const prefix = i === 0 ? '┌' : i === project.items.length - 1 ? '└' : '├';
@@ -211,17 +262,12 @@ export default function ProjectsView() {
     }
   }
 
-  const ACTIVE_STATUSES = ['confirmed', 'in-progress', 'on-hold'] as const;
-
   const filtered = projects.filter((p) => {
-    if (activeTab === 'draft' && p.status !== 'draft') return false;
-    if (activeTab === 'completed' && p.status !== 'completed') return false;
-    if (
-      activeTab === 'all' &&
-      !ACTIVE_STATUSES.includes(p.status as (typeof ACTIVE_STATUSES)[number])
-    )
+    if (activeTab === 'quoted' && p.status !== 'draft') return false;
+    if (activeTab === 'on-hold' && p.status !== 'on-hold') return false;
+    if (activeTab === 'done' && p.status !== 'completed') return false;
+    if (activeTab === 'active' && p.status !== 'confirmed' && p.status !== 'in-progress')
       return false;
-    if (activeTab === 'all' && statusFilter !== 'all' && p.status !== statusFilter) return false;
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const client = clients.find((c) => c.id === p.clientId);
@@ -295,6 +341,7 @@ export default function ProjectsView() {
       clientId: project.clientId,
       invoiceIds: [...project.invoiceIds],
       items: project.items.map((it) => ({ ...it })),
+      phases: { ...DEFAULT_PHASES, ...project.phases },
       status: project.status,
       filmingDate: project.filmingDate ?? '',
       deliverDate: project.deliverDate ?? '',
@@ -390,15 +437,6 @@ export default function ProjectsView() {
   function removeItem(itemId: string) {
     setForm((prev) => ({ ...prev, items: prev.items.filter((it) => it.id !== itemId) }));
   }
-  function cycleItemStatus(itemId: string) {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((it) =>
-        it.id === itemId ? { ...it, status: ITEM_STATUS_NEXT[it.status] } : it
-      ),
-    }));
-  }
-
   function saveProject(): Project | null {
     if (!form.name.trim()) {
       setFormError('Project name is required.');
@@ -406,6 +444,14 @@ export default function ProjectsView() {
     }
     if (!form.clientId) {
       setFormError('Please select a client.');
+      return null;
+    }
+    if (!form.deliverDate?.trim()) {
+      setFormError('Deliver date is required.');
+      return null;
+    }
+    if (form.status === 'completed' && phasesDone(form.phases) < 5) {
+      setFormError('All 5 phases must be completed before marking the project as Done.');
       return null;
     }
     const cleanedForm = {
@@ -442,16 +488,12 @@ export default function ProjectsView() {
     setDeleteId(null);
   }
 
-  function cycleDetailItemStatus(projectId: string, itemId: string) {
+  function toggleDetailPhase(projectId: string, phaseKey: keyof ProjectPhases) {
     setProjects(
       projects.map((p) => {
         if (p.id !== projectId) return p;
-        return {
-          ...p,
-          items: p.items.map((it) =>
-            it.id === itemId ? { ...it, status: ITEM_STATUS_NEXT[it.status] } : it
-          ),
-        };
+        const current = { ...DEFAULT_PHASES, ...p.phases };
+        return { ...p, phases: { ...current, [phaseKey]: !current[phaseKey] } };
       })
     );
   }
@@ -486,41 +528,73 @@ export default function ProjectsView() {
 
       {/* Summary widgets */}
       {(() => {
-        const fmt = (n: number) => (n === 0 ? '—' : `$${n.toLocaleString()}`);
-        const total = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
-        const earned = projects
-          .filter((p) => p.status === 'completed')
-          .reduce((s, p) => s + (p.budget ?? 0), 0);
-        const outstanding = projects
-          .filter((p) => p.status === 'confirmed' || p.status === 'in-progress')
-          .reduce((s, p) => s + (p.budget ?? 0), 0);
-        const awaitConfirm = projects
-          .filter((p) => p.status === 'draft')
-          .reduce((s, p) => s + (p.budget ?? 0), 0);
+        const fmt = (n: number) =>
+          n === 0 ? '—' : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+        // Net actually received (paid invoices only)
+        const allTimeEarned = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
+
+        // What came in this month (paid invoices dated this month)
+        const earnedThisMonth = invoices
+          .filter((inv) => {
+            if (inv.status !== 'paid' && inv.status !== 'partial') return false;
+            const d = new Date(inv.date);
+            return d >= monthStart && d <= monthEnd;
+          })
+          .reduce((s, inv) => s + calcEarned(inv), 0);
+
+        // If all active projects with delivery this month complete — net invoice value
+        const activeProjectIds = new Set(
+          projects
+            .filter((p) => {
+              if (p.status !== 'confirmed' && p.status !== 'in-progress') return false;
+              if (!p.deliverDate) return false;
+              const d = new Date(p.deliverDate);
+              return d >= monthStart && d <= monthEnd;
+            })
+            .map((p) => p.id)
+        );
+        const projThisMonth = projects.filter((p) => activeProjectIds.has(p.id));
+        const potentialThisMonth = projThisMonth.reduce((s, p) => {
+          const invNet = p.invoiceIds
+            .map((id) => invoices.find((i) => i.id === id))
+            .filter(Boolean)
+            .reduce((sum, inv) => sum + calcNet(inv!), 0);
+          return s + (invNet > 0 ? invNet : (p.budget ?? 0));
+        }, 0);
+
+        // Balance still owed (sent + partial invoices)
+        const awaitingPayment = invoices
+          .filter((inv) => inv.status === 'sent' || inv.status === 'partial')
+          .reduce((s, inv) => s + calcBalance(inv), 0);
+
         const widgets = [
           {
-            label: 'Total Payment',
-            value: fmt(total),
-            sub: `${projects.length} projects`,
-            color: 'text-white',
-          },
-          {
-            label: 'Total Earned',
-            value: fmt(earned),
-            sub: `${projects.filter((p) => p.status === 'completed').length} completed`,
+            label: 'Earned This Month',
+            value: fmt(earnedThisMonth),
+            sub: `invoices paid in ${now.toLocaleString('en-US', { month: 'long' })}`,
             color: 'text-emerald-400',
           },
           {
-            label: 'Outstanding',
-            value: fmt(outstanding),
-            sub: `${projects.filter((p) => p.status === 'confirmed' || p.status === 'in-progress').length} active`,
+            label: 'If All Delivered',
+            value: fmt(potentialThisMonth),
+            sub: `${projThisMonth.length} active project${projThisMonth.length !== 1 ? 's' : ''} due this month`,
+            color: 'text-[#FFC206]',
+          },
+          {
+            label: 'Awaiting Payment',
+            value: fmt(awaitingPayment),
+            sub: `${invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length} open invoices`,
             color: 'text-sky-400',
           },
           {
-            label: 'Await Confirm',
-            value: fmt(awaitConfirm),
-            sub: `${projects.filter((p) => p.status === 'draft').length} drafts`,
-            color: 'text-amber-400',
+            label: 'All Time Earned',
+            value: fmt(allTimeEarned),
+            sub: `net after WHT`,
+            color: 'text-white',
           },
         ];
         return (
@@ -541,27 +615,29 @@ export default function ProjectsView() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
-        {(
-          [
-            {
-              key: 'all',
-              label: 'All',
-              count: projects.filter((p) =>
-                ['confirmed', 'in-progress', 'on-hold'].includes(p.status)
-              ).length,
-            },
-            {
-              key: 'draft',
-              label: 'Draft',
-              count: projects.filter((p) => p.status === 'draft').length,
-            },
-            {
-              key: 'completed',
-              label: 'Completed',
-              count: projects.filter((p) => p.status === 'completed').length,
-            },
-          ] as const
-        ).map((tab) => (
+        {[
+          {
+            key: 'active' as const,
+            label: 'Active',
+            count: projects.filter((p) => p.status === 'confirmed' || p.status === 'in-progress')
+              .length,
+          },
+          {
+            key: 'on-hold' as const,
+            label: 'On Hold',
+            count: projects.filter((p) => p.status === 'on-hold').length,
+          },
+          {
+            key: 'quoted' as const,
+            label: 'Quoted',
+            count: projects.filter((p) => p.status === 'draft').length,
+          },
+          {
+            key: 'done' as const,
+            label: 'Done',
+            count: projects.filter((p) => p.status === 'completed').length,
+          },
+        ].map((tab) => (
           <button
             key={tab.key}
             onClick={() => {
@@ -580,48 +656,17 @@ export default function ProjectsView() {
         ))}
       </div>
 
-      {/* Search + filter (All tab only) */}
-      {activeTab === 'all' && (
-        <div className="flex flex-col sm:flex-row gap-2 mb-4">
-          <SearchInput
-            value={search}
-            onChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            placeholder="Search by name, client, invoice…"
-            className="flex-1"
-          />
-          <div className="flex gap-1.5 flex-wrap">
-            {(['all', 'confirmed', 'in-progress', 'on-hold'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => {
-                  setStatusFilter(f);
-                  setPage(1);
-                }}
-                className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === f ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
-              >
-                {f === 'all' ? 'All Active' : PROJECT_STATUS_CONFIG[f].label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Search (Draft / Completed tabs) */}
-      {activeTab !== 'all' && (
-        <div className="mb-4">
-          <SearchInput
-            value={search}
-            onChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            placeholder="Search by name, client, invoice…"
-          />
-        </div>
-      )}
+      {/* Search */}
+      <div className="mb-4">
+        <SearchInput
+          value={search}
+          onChange={(v) => {
+            setSearch(v);
+            setPage(1);
+          }}
+          placeholder="Search by name, client, invoice…"
+        />
+      </div>
 
       {/* Empty states */}
       {projects.length === 0 ? (
@@ -644,24 +689,15 @@ export default function ProjectsView() {
       ) : filtered.length === 0 ? (
         <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
           <p className="text-sm">
-            {activeTab === 'draft'
-              ? 'No draft projects.'
-              : activeTab === 'completed'
-                ? 'No completed projects.'
-                : 'No active projects match your filters.'}
+            {activeTab === 'quoted'
+              ? 'No quoted projects.'
+              : activeTab === 'on-hold'
+                ? 'No projects on hold.'
+                : activeTab === 'done'
+                  ? 'No completed projects.'
+                  : 'No active projects match your filters.'}
           </p>
-          {activeTab === 'all' && (
-            <button
-              onClick={() => {
-                setSearch('');
-                setStatusFilter('all');
-              }}
-              className="mt-2 text-xs text-[#FFC206] hover:underline"
-            >
-              Clear filters
-            </button>
-          )}
-          {search.trim() && activeTab !== 'all' && (
+          {search.trim() && (
             <button
               onClick={() => setSearch('')}
               className="mt-2 text-xs text-[#FFC206] hover:underline"
@@ -676,9 +712,7 @@ export default function ProjectsView() {
           <div className="sm:hidden flex flex-col gap-3">
             {paged.map((project) => {
               const client = clients.find((c) => c.id === project.clientId);
-              const doneCount = project.items.filter((it) => it.status === 'done').length;
-              const totalItems = project.items.length;
-              const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+              const mobileDone = phasesDone(project.phases);
               const sc = getStatusCfg(project.status);
               return (
                 <div
@@ -717,33 +751,30 @@ export default function ProjectsView() {
                         {sc.label}
                       </span>
                       {(() => {
-                        const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
-                        return badge ? (
+                        const tl = getTimelineBar(project.deliverDate);
+                        if (!tl) return null;
+                        return (
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
                           >
-                            {badge.label}
+                            {tl.badgeLabel}
                           </span>
-                        ) : null;
+                        );
                       })()}
                     </div>
                   </div>
-                  {totalItems > 0 && (
-                    <div className="mb-3">
-                      <div className="flex items-center justify-between text-xs text-white/40 mb-1">
-                        <span>
-                          {doneCount}/{totalItems} tasks
-                        </span>
-                        <span>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-[#FFC206] rounded-full transition-all"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs text-white/40 mb-1">
+                      <span>{mobileDone}/5 phases</span>
+                      <span>{Math.round((mobileDone / 5) * 100)}%</span>
                     </div>
-                  )}
+                    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${mobileDone === 5 ? 'bg-emerald-400' : mobileDone >= 3 ? 'bg-amber-400' : mobileDone > 0 ? 'bg-sky-400' : 'bg-white/20'}`}
+                        style={{ width: `${Math.round((mobileDone / 5) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setDetailId(project.id)}
@@ -802,7 +833,7 @@ export default function ProjectsView() {
                     Invoice(s)
                   </SortTh>
                   <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
-                    Progress
+                    SOW
                   </th>
                   <SortTh
                     col="budget"
@@ -840,8 +871,7 @@ export default function ProjectsView() {
                   const linkedInvoices = project.invoiceIds
                     .map((id) => invoices.find((inv) => inv.id === id))
                     .filter(Boolean);
-                  const doneCount = project.items.filter((it) => it.status === 'done').length;
-                  const totalItems = project.items.length;
+                  const done = phasesDone(project.phases);
                   const sc = getStatusCfg(project.status);
                   return (
                     <tr
@@ -889,21 +919,37 @@ export default function ProjectsView() {
                         )}
                       </td>
                       <td className="px-4 py-3.5 hidden sm:table-cell">
-                        {totalItems > 0 ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                              <div
-                                className="h-full rounded-full bg-[#FFC206] transition-all"
-                                style={{ width: `${(doneCount / totalItems) * 100}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-white/50">
-                              {doneCount}/{totalItems}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
+                        {(() => {
+                          const cls =
+                            done === 0
+                              ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 hover:text-zinc-300'
+                              : done < 3
+                                ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-sky-200'
+                                : done < 5
+                                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200'
+                                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 hover:text-emerald-200';
+                          return (
+                            <button
+                              onClick={() => setDetailId(project.id)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${cls}`}
+                            >
+                              <svg
+                                className="w-3 h-3 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                                />
+                              </svg>
+                              {done}/5
+                            </button>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         {project.budget ? (
@@ -916,15 +962,21 @@ export default function ProjectsView() {
                       </td>
                       <td className="px-4 py-3.5 hidden lg:table-cell">
                         {(() => {
-                          const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
-                          return badge ? (
+                          if (project.status === 'completed') {
+                            return (
+                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap bg-emerald-500/20 text-emerald-300">
+                                Delivered
+                              </span>
+                            );
+                          }
+                          const tl = getTimelineBar(project.deliverDate);
+                          if (!tl) return <span className="text-white/25 text-xs">—</span>;
+                          return (
                             <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${badge.cls}`}
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tl.badgeCls}`}
                             >
-                              {badge.label}
+                              {tl.badgeLabel}
                             </span>
-                          ) : (
-                            <span className="text-white/25 text-xs">—</span>
                           );
                         })()}
                       </td>
@@ -937,25 +989,6 @@ export default function ProjectsView() {
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => setDetailId(project.id)}
-                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
-                            title="View scope"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                              />
-                            </svg>
-                          </button>
                           <button
                             onClick={() => openEdit(project)}
                             className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
@@ -1096,104 +1129,199 @@ export default function ProjectsView() {
                 </button>
               </div>
             </div>
-            {(detailProject.filmingDate || detailProject.deliverDate) && (
-              <div className="px-6 py-3 border-b border-white/[0.08] flex gap-4 shrink-0">
-                {detailProject.filmingDate && (
-                  <div>
-                    <p className="text-xs text-white/35">Filming</p>
-                    <p className="text-sm font-semibold text-white">{detailProject.filmingDate}</p>
-                  </div>
-                )}
-                {detailProject.deliverDate && (
-                  <div>
-                    <p className="text-xs text-white/35">Deliver</p>
-                    <p className="text-sm font-semibold text-white">{detailProject.deliverDate}</p>
-                  </div>
-                )}
-                {(() => {
-                  const badge = getTimelineBadge(
-                    detailProject.filmingDate,
-                    detailProject.deliverDate
-                  );
-                  return badge ? (
-                    <div className="ml-auto flex items-center">
-                      <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${badge.cls}`}
-                      >
-                        {badge.label}
-                      </span>
+            {(detailProject.filmingDate || detailProject.deliverDate) &&
+              (() => {
+                const tl =
+                  detailProject.status === 'completed'
+                    ? null
+                    : getTimelineBar(detailProject.deliverDate);
+                return (
+                  <div className="px-6 py-4 border-b border-white/[0.08] shrink-0 flex flex-col gap-3">
+                    {/* Dates + badge row */}
+                    <div className="flex items-center gap-4">
+                      {detailProject.filmingDate && (
+                        <div>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wide">
+                            Filming
+                          </p>
+                          <p className="text-sm font-semibold text-white">
+                            {detailProject.filmingDate}
+                          </p>
+                        </div>
+                      )}
+                      {detailProject.deliverDate && (
+                        <div>
+                          <p className="text-[10px] text-white/35 uppercase tracking-wide">
+                            Deliver
+                          </p>
+                          <p className="text-sm font-semibold text-white">
+                            {detailProject.deliverDate}
+                          </p>
+                        </div>
+                      )}
+                      {detailProject.status === 'completed' ? (
+                        <span className="ml-auto px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300">
+                          Delivered
+                        </span>
+                      ) : tl ? (
+                        <span
+                          className={`ml-auto px-2.5 py-1 rounded-full text-xs font-bold ${tl.badgeCls}`}
+                        >
+                          {tl.badgeLabel}
+                        </span>
+                      ) : null}
                     </div>
-                  ) : null;
+                    {/* Progress bar */}
+                    {tl && (
+                      <div>
+                        <div className="flex justify-between text-[10px] text-white/35 mb-1.5">
+                          <span>{detailProject.filmingDate}</span>
+                          <span
+                            className="font-bold"
+                            style={{
+                              color: tl.isOverdue
+                                ? '#ef4444'
+                                : tl.bar.pct >= 90
+                                  ? '#f97316'
+                                  : tl.bar.pct >= 50
+                                    ? '#facc15'
+                                    : '#34d399',
+                            }}
+                          >
+                            {tl.badgeLabel}
+                          </span>
+                          <span>{detailProject.deliverDate}</span>
+                        </div>
+                        <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${tl.bar.barCls}`}
+                            style={{ width: `${tl.bar.pct}%` }}
+                          />
+                        </div>
+                        <div className="flex justify-between text-[10px] text-white/20 mt-1">
+                          <span>Filming</span>
+                          <span>{tl.bar.pct}% elapsed</span>
+                          <span>Deliver</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+              {/* Phase checklist */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                    Phases
+                  </p>
+                  <p className="text-xs text-white/40">{phasesDone(detailProject.phases)}/5 done</p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {PHASES.map((phase) => {
+                    const checked = detailProject.phases?.[phase.key] ?? false;
+                    return (
+                      <button
+                        key={phase.key}
+                        onClick={() => toggleDetailPhase(detailProject.id, phase.key)}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left ${
+                          checked
+                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
+                            : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
+                        }`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+                        >
+                          {checked && (
+                            <svg
+                              className="w-3 h-3 text-zinc-900"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={3}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/80'}`}
+                        >
+                          {phase.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Deliverables list */}
+              {detailProject.items.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-3">
+                    Deliverables
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {detailProject.items.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start gap-2.5 px-3 py-2 rounded-lg bg-white/[0.03]"
+                      >
+                        <span className="w-1 h-1 rounded-full bg-white/30 mt-2 shrink-0" />
+                        <span className="text-sm text-white/65">{item.description}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Mark as Done footer */}
+            {detailProject.status !== 'completed' && (
+              <div className="px-6 py-4 border-t border-white/[0.08] shrink-0">
+                {(() => {
+                  const allDone = phasesDone(detailProject.phases) === 5;
+                  return (
+                    <button
+                      disabled={!allDone}
+                      onClick={() => {
+                        setProjects(
+                          projects.map((p) =>
+                            p.id === detailProject.id ? { ...p, status: 'completed' } : p
+                          )
+                        );
+                        setDetailId(null);
+                      }}
+                      className={`w-full h-11 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 ${
+                        allDone
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30'
+                          : 'bg-white/[0.04] text-white/25 border border-white/[0.06] cursor-not-allowed'
+                      }`}
+                    >
+                      {allDone ? (
+                        <>
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          Mark Project as Done
+                        </>
+                      ) : (
+                        `Complete all phases first (${phasesDone(detailProject.phases)}/5)`
+                      )}
+                    </button>
+                  );
                 })()}
               </div>
             )}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
-              {detailProject.items.length === 0 ? (
-                <p className="text-sm text-white/35 text-center py-8">
-                  No scope items. Edit project to add them.
-                </p>
-              ) : (
-                <>
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-sm font-semibold text-white/70">Scope of Work</p>
-                    <p className="text-xs text-white/40">
-                      {detailProject.items.filter((it) => it.status === 'done').length}/
-                      {detailProject.items.length} done
-                    </p>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {detailProject.items.map((item) => {
-                      const cfg = ITEM_STATUS_CONFIG[item.status];
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07] transition"
-                        >
-                          <button
-                            onClick={() => cycleDetailItemStatus(detailProject.id, item.id)}
-                            className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition hover:opacity-80 ${cfg.cls}`}
-                            title="Click to cycle status"
-                          >
-                            {cfg.label}
-                          </button>
-                          <span
-                            className={`text-sm flex-1 ${item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
-                          >
-                            {item.description}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-white/[0.08]">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-white/45">Overall progress</span>
-                      <span className="text-xs font-semibold text-white/70">
-                        {Math.round(
-                          (detailProject.items.filter((it) => it.status === 'done').length /
-                            detailProject.items.length) *
-                            100
-                        )}
-                        %
-                      </span>
-                    </div>
-                    <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-[#FFC206] transition-all"
-                        style={{
-                          width: `${(detailProject.items.filter((it) => it.status === 'done').length / detailProject.items.length) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-            <div className="px-6 py-3.5 border-t border-white/[0.08] shrink-0">
-              <p className="text-xs text-white/30">
-                Tap status badge to cycle: To Do → In Progress → Done
-              </p>
-            </div>
           </div>
         </div>
       )}
@@ -1433,16 +1561,18 @@ export default function ProjectsView() {
                   Status
                 </label>
                 <div className="flex gap-2 flex-wrap">
-                  {(Object.keys(PROJECT_STATUS_CONFIG) as ProjectStatus[]).map((s) => {
-                    const cfg = PROJECT_STATUS_CONFIG[s];
-                    const active = form.status === s;
+                  {FORM_STATUS_OPTIONS.map((opt) => {
+                    // treat confirmed as equivalent to in-progress in the form
+                    const isActive =
+                      form.status === opt.value ||
+                      (opt.value === 'in-progress' && form.status === 'confirmed');
                     return (
                       <button
-                        key={s}
-                        onClick={() => setForm((p) => ({ ...p, status: s }))}
-                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${active ? `${cfg.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
+                        key={opt.value}
+                        onClick={() => setForm((p) => ({ ...p, status: opt.value }))}
+                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${isActive ? `${opt.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
                       >
-                        {cfg.label}
+                        {opt.label}
                       </button>
                     );
                   })}
@@ -1529,7 +1659,60 @@ export default function ProjectsView() {
                   </div>
                 </div>
               )}
-              {/* Scope items */}
+              {/* Phases */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Phases
+                </label>
+                <div className="flex flex-col gap-2">
+                  {PHASES.map((phase) => {
+                    const checked = form.phases?.[phase.key] ?? false;
+                    return (
+                      <button
+                        key={phase.key}
+                        type="button"
+                        onClick={() =>
+                          setForm((p) => ({
+                            ...p,
+                            phases: { ...DEFAULT_PHASES, ...p.phases, [phase.key]: !checked },
+                          }))
+                        }
+                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition text-left ${
+                          checked
+                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
+                            : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
+                        }`}
+                      >
+                        <span
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+                        >
+                          {checked && (
+                            <svg
+                              className="w-3 h-3 text-zinc-900"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={3}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          )}
+                        </span>
+                        <span
+                          className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/75'}`}
+                        >
+                          {phase.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Deliverables */}
               <div className="relative">
                 {!form.clientId && (
                   <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
@@ -1553,14 +1736,8 @@ export default function ProjectsView() {
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                        Scope of Work
+                        Deliverables
                       </label>
-                      {form.items.length > 0 && (
-                        <span className="text-xs text-white/40">
-                          {form.items.filter((it) => it.status === 'done').length}/
-                          {form.items.length} done
-                        </span>
-                      )}
                     </div>
                     {form.items.length === 0 && form.clientId && (
                       <button
@@ -1581,47 +1758,36 @@ export default function ProjectsView() {
                     )}
                     {form.items.length > 0 && (
                       <div className="rounded-xl border border-white/[0.1] overflow-hidden">
-                        {form.items.map((item, idx) => {
-                          const cfg = ITEM_STATUS_CONFIG[item.status];
-                          return (
-                            <div
-                              key={item.id}
-                              className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
+                        {form.items.map((item, idx) => (
+                          <div
+                            key={item.id}
+                            className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-white/25 shrink-0" />
+                            <span className="text-sm flex-1 min-w-0 text-white/80">
+                              {item.description}
+                            </span>
+                            <button
+                              onClick={() => removeItem(item.id)}
+                              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition"
+                              title="Remove"
                             >
-                              <button
-                                onClick={() => cycleItemStatus(item.id)}
-                                className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold transition hover:opacity-75 ${cfg.cls}`}
-                                title="Click to cycle status"
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
                               >
-                                {cfg.label}
-                              </button>
-                              <span
-                                className={`text-sm flex-1 min-w-0 ${item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
-                              >
-                                {item.description}
-                              </span>
-                              <button
-                                onClick={() => removeItem(item.id)}
-                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition"
-                                title="Remove"
-                              >
-                                <svg
-                                  className="w-3.5 h-3.5"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={2.5}
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          );
-                        })}
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ))}
                       </div>
                     )}
                     <div className="flex gap-2">
@@ -1635,7 +1801,7 @@ export default function ProjectsView() {
                             addScopeItem();
                           }
                         }}
-                        placeholder="Add scope item… (Enter)"
+                        placeholder="Add deliverable… (Enter)"
                         list="scope-suggestions-proj"
                         className={`${darkInputCls} flex-1`}
                       />

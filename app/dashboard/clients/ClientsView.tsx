@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useStore, type Client } from '../AppStore';
-import { calcEarned, calcSubtotal, calcBalance } from '@/app/_services/invoiceService';
+import { calcEarned, calcNet, calcSubtotal, calcBalance } from '@/app/_services/invoiceService';
 import { fmtUSD } from '@/app/_lib/formatters';
 import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants';
@@ -617,54 +617,129 @@ export default function ClientsView() {
                       No projects for this client.
                     </p>
                   ) : (
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
-                        <tr>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                            Name
-                          </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                            Status
-                          </th>
-                          <th className="text-center px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
-                            Scope Items
-                          </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
-                            Created
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clientProjects.map((p, i) => {
-                          const sc = PROJECT_STATUS_CONFIG[p.status ?? 'active'];
+                    <>
+                      <table className="w-full text-sm">
+                        <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
+                          <tr>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
+                              Project
+                            </th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
+                              Status
+                            </th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden md:table-cell">
+                              Progress
+                            </th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden md:table-cell">
+                              Deliver
+                            </th>
+                            <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
+                              Net Value
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {clientProjects.map((p, i) => {
+                            const sc = PROJECT_STATUS_CONFIG[p.status] ?? {
+                              label: 'Unknown',
+                              cls: 'bg-zinc-700 text-zinc-300',
+                            };
+                            const doneCount = p.items.filter((it) => it.status === 'done').length;
+                            const totalItems = p.items.length;
+                            const pct =
+                              totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
+                            // Net from linked invoices; fall back to budget
+                            const linkedInvNet = p.invoiceIds
+                              .map((id) => invoices.find((inv) => inv.id === id))
+                              .filter(Boolean)
+                              .reduce((s, inv) => s + calcNet(inv!), 0);
+                            const netValue = linkedInvNet > 0 ? linkedInvNet : (p.budget ?? 0);
+                            return (
+                              <tr
+                                key={p.id}
+                                className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
+                              >
+                                <td className="px-4 py-3 font-semibold text-white">{p.name}</td>
+                                <td className="px-4 py-3 hidden sm:table-cell">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                                  >
+                                    {sc.label}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 hidden md:table-cell">
+                                  {totalItems > 0 ? (
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                                        <div
+                                          className="h-full rounded-full bg-[#FFC206]"
+                                          style={{ width: `${pct}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs text-white/50">
+                                        {doneCount}/{totalItems}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-white/25 text-xs">—</span>
+                                  )}
+                                </td>
+                                <td className="px-4 py-3 text-white/60 text-xs hidden md:table-cell">
+                                  {p.deliverDate ?? <span className="text-white/25">—</span>}
+                                </td>
+                                <td className="px-4 py-3 text-right">
+                                  {netValue > 0 ? (
+                                    <span className="font-semibold text-white">
+                                      {fmt(netValue)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-white/25 text-xs">—</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                      {/* Totals footer */}
+                      {clientProjects.length > 0 &&
+                        (() => {
+                          const totalNet = clientProjects.reduce((s, p) => {
+                            const linked = p.invoiceIds
+                              .map((id) => invoices.find((inv) => inv.id === id))
+                              .filter(Boolean)
+                              .reduce((sum, inv) => sum + calcNet(inv!), 0);
+                            return s + (linked > 0 ? linked : (p.budget ?? 0));
+                          }, 0);
+                          const earned = invoices
+                            .filter(
+                              (inv) =>
+                                inv.clientId === projectsClientId &&
+                                (inv.status === 'paid' || inv.status === 'partial')
+                            )
+                            .reduce((s, inv) => s + calcEarned(inv), 0);
                           return (
-                            <tr
-                              key={p.id}
-                              className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                            >
-                              <td className="px-4 py-3 font-semibold text-white">{p.name}</td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                                >
-                                  {sc.label}
+                            <div className="border-t border-white/[0.08] px-4 py-3 flex justify-between text-xs text-white/50">
+                              <span>
+                                {clientProjects.length} project
+                                {clientProjects.length !== 1 ? 's' : ''}
+                              </span>
+                              <div className="flex gap-4">
+                                <span>
+                                  Earned:{' '}
+                                  <span className="text-emerald-400 font-semibold">
+                                    {fmt(earned)}
+                                  </span>
                                 </span>
-                              </td>
-                              <td className="px-4 py-3 text-center text-white/60 hidden sm:table-cell">
-                                {p.items.length > 0 ? (
-                                  p.items.length
-                                ) : (
-                                  <span className="text-white/25">—</span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
-                                {p.createdAt ? p.createdAt.slice(0, 10) : '—'}
-                              </td>
-                            </tr>
+                                <span>
+                                  Total Net:{' '}
+                                  <span className="text-white font-semibold">{fmt(totalNet)}</span>
+                                </span>
+                              </div>
+                            </div>
                           );
-                        })}
-                      </tbody>
-                    </table>
+                        })()}
+                    </>
                   )}
                 </div>
               </div>

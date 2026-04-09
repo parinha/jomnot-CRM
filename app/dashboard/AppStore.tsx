@@ -84,12 +84,21 @@ export interface ProjectItem {
 
 export type ProjectStatus = 'draft' | 'confirmed' | 'in-progress' | 'on-hold' | 'completed';
 
+export interface ProjectPhases {
+  filming: boolean;
+  roughCut: boolean;
+  draft: boolean;
+  master: boolean;
+  delivered: boolean;
+}
+
 export interface Project extends RecordMeta {
   id: string;
   name: string;
   clientId: string;
   invoiceIds: string[];
   items: ProjectItem[];
+  phases?: ProjectPhases;
   status: ProjectStatus;
   createdAt: string;
   filmingDate?: string;
@@ -254,6 +263,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   }
 
   function setProjects(next: Project[]) {
+    setProjectsState(next); // optimistic — update UI immediately
     batchReplace(COL.projects, projects, next);
   }
 
