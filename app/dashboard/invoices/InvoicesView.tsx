@@ -309,7 +309,7 @@ export default function InvoicesView() {
       ...prev,
       projectName: project.name,
       clientId: project.clientId,
-      items: [{ id: uid(), description, qty: 1, unitPrice: 0 }],
+      items: [{ id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 }],
     }));
     setProjectSearch('');
     setProjectDropOpen(false);
@@ -775,9 +775,11 @@ export default function InvoicesView() {
                 {pagedInvoices.map((inv) => {
                   const client = clients.find((c) => c.id === inv.clientId);
                   const sub = calcSubtotal(inv);
+                  const wht = inv.withWHT ? sub * WHT_RATE : null;
+                  const net = wht != null ? sub - wht : sub;
                   const invDeposit =
-                    inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
-                  const invBalance = invDeposit != null ? sub - invDeposit : null;
+                    inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
+                  const invBalance = invDeposit != null ? net - invDeposit : null;
                   const status = (inv.status ?? 'draft') as InvoiceStatus;
                   const sc = STATUS_CONFIG[status];
                   const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
@@ -802,6 +804,14 @@ export default function InvoicesView() {
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <span className="font-semibold text-white">{fmt(sub)}</span>
+                        {wht != null && (
+                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                            <span className="text-xs text-orange-400/80">−{fmt(wht)} WHT</span>
+                            <span className="text-xs font-medium text-white/70">
+                              {fmt(net)} net
+                            </span>
+                          </div>
+                        )}
                         {invBalance != null && (
                           <div className="flex flex-col items-end gap-0.5 mt-0.5">
                             <span className="text-xs text-white/35">
@@ -1071,9 +1081,10 @@ export default function InvoicesView() {
                   {projectDropOpen &&
                     (() => {
                       const q = projectSearch.toLowerCase().trim();
+                      const nonDraft = projects.filter((p) => p.status !== 'draft');
                       const filtered = q
-                        ? projects.filter((p) => p.name.toLowerCase().includes(q))
-                        : projects;
+                        ? nonDraft.filter((p) => p.name.toLowerCase().includes(q))
+                        : nonDraft;
                       if (filtered.length === 0) return null;
                       return (
                         <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
@@ -1086,7 +1097,16 @@ export default function InvoicesView() {
                                 onMouseDown={() => selectProject(p)}
                                 className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.projectName === p.name ? 'bg-[#FFC206]/10' : ''}`}
                               >
-                                <div className="text-sm font-medium text-white">{p.name}</div>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="text-sm font-medium text-white truncate">
+                                    {p.name}
+                                  </div>
+                                  {p.budget ? (
+                                    <div className="text-xs text-[#FFC206] shrink-0">
+                                      ${p.budget.toLocaleString()}
+                                    </div>
+                                  ) : null}
+                                </div>
                                 {pc && (
                                   <div className="text-xs text-white/40 truncate">{pc.name}</div>
                                 )}
@@ -1918,7 +1938,7 @@ export default function InvoicesView() {
                             clientId: inv.clientId,
                             invoiceIds: [inv.id],
                             items: cpItems.filter((it) => !cpExcluded.has(it.id)),
-                            status: 'active',
+                            status: 'confirmed',
                             createdAt: new Date().toISOString(),
                           },
                         ]);

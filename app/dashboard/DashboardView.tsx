@@ -85,7 +85,9 @@ export default function DashboardView() {
 
   const totalEarned = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
 
-  const activeProjects = projects.filter((p) => p.status === 'active');
+  const activeProjects = projects.filter(
+    (p) => p.status === 'confirmed' || p.status === 'in-progress'
+  );
   const completedProjects = projects.filter((p) => p.status === 'completed');
 
   const recentInvoices = [...invoices].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);

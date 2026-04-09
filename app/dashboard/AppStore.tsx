@@ -82,7 +82,7 @@ export interface ProjectItem {
   status: ProjectItemStatus;
 }
 
-export type ProjectStatus = 'active' | 'completed' | 'on-hold';
+export type ProjectStatus = 'draft' | 'confirmed' | 'in-progress' | 'on-hold' | 'completed';
 
 export interface Project extends RecordMeta {
   id: string;
@@ -92,6 +92,9 @@ export interface Project extends RecordMeta {
   items: ProjectItem[];
   status: ProjectStatus;
   createdAt: string;
+  filmingDate?: string;
+  deliverDate?: string;
+  budget?: number;
 }
 
 // ── Firestore paths ───────────────────────────────────────────────────────────

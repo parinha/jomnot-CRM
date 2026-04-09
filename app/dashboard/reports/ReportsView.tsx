@@ -9,6 +9,8 @@ import {
   calcBalance,
   calcInvoiceTotal,
   calcSubtotal,
+  calcNet,
+  WHT_RATE,
 } from '@/app/_services/invoiceService';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
@@ -119,6 +121,10 @@ export default function ReportsView() {
 
   const totalReceived = base.reduce((s, inv) => s + calcEarned(inv), 0);
   const totalInvoiced = base.reduce((s, inv) => s + calcInvoiceTotal(inv), 0);
+  const totalWHT = base
+    .filter((inv) => inv.withWHT)
+    .reduce((s, inv) => s + calcSubtotal(inv) * WHT_RATE, 0);
+  const totalNet = base.reduce((s, inv) => s + calcNet(inv), 0);
   const outstanding = base
     .filter((inv) => ['sent', 'overdue', 'partial'].includes(inv.status ?? 'draft'))
     .reduce((s, inv) => s + calcBalance(inv), 0);
@@ -194,20 +200,40 @@ export default function ReportsView() {
             .map((id) => invoices.find((i) => i.id === id))
             .filter(Boolean) as typeof invoices;
           const revenue = linkedInvs.reduce((s, inv) => s + calcSubtotal(inv), 0);
+          const revenueNet = linkedInvs.reduce((s, inv) => s + calcNet(inv), 0);
+          const hasWHT = linkedInvs.some((inv) => inv.withWHT);
           const doneCount = p.items.filter((it) => it.status === 'done').length;
           const totalItems = p.items.length;
           const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
-          return { project: p, client, linkedInvs, revenue, doneCount, totalItems, pct };
+          return {
+            project: p,
+            client,
+            linkedInvs,
+            revenue,
+            revenueNet,
+            hasWHT,
+            doneCount,
+            totalItems,
+            pct,
+          };
         })
         .sort((a, b) => {
-          const order = { active: 0, completed: 1, 'on-hold': 2 };
-          const diff = order[a.project.status] - order[b.project.status];
+          const order: Record<string, number> = {
+            draft: 0,
+            confirmed: 1,
+            'in-progress': 2,
+            'on-hold': 3,
+            completed: 4,
+          };
+          const diff = (order[a.project.status] ?? 99) - (order[b.project.status] ?? 99);
           return diff !== 0 ? diff : b.revenue - a.revenue;
         }),
     [filteredProjects, clients, invoices]
   );
 
-  const projectStatusCounts = (['active', 'completed', 'on-hold'] as const).map((s) => ({
+  const projectStatusCounts = (
+    ['draft', 'confirmed', 'in-progress', 'on-hold', 'completed'] as const
+  ).map((s) => ({
     status: s,
     count: filteredProjects.filter((p) => p.status === s).length,
   }));
@@ -276,11 +302,11 @@ export default function ReportsView() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Received"
           value={fmt(totalReceived)}
-          sub={`of ${fmt(totalInvoiced)} invoiced`}
+          sub={`of ${fmt(totalNet)} net invoiced`}
           accent="green"
         />
         <StatCard
@@ -294,6 +320,14 @@ export default function ReportsView() {
           value={fmt(totalInvoiced)}
           sub={`${base.length} invoice${base.length !== 1 ? 's' : ''}`}
         />
+        {totalWHT > 0 && (
+          <StatCard
+            label="Total WHT"
+            value={fmt(totalWHT)}
+            sub={`net ${fmt(totalNet)}`}
+            accent="orange"
+          />
+        )}
       </div>
 
       {/* Revenue over time */}
@@ -444,7 +478,7 @@ export default function ReportsView() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-5 gap-4">
             {projectStatusCounts.map(({ status, count }) => {
               const cfg = PROJECT_STATUS_CONFIG[status];
               return (
@@ -488,7 +522,17 @@ export default function ReportsView() {
                 </thead>
                 <tbody>
                   {projectRows.map(
-                    ({ project, client, linkedInvs, revenue, doneCount, totalItems, pct }) => {
+                    ({
+                      project,
+                      client,
+                      linkedInvs,
+                      revenue,
+                      revenueNet,
+                      hasWHT,
+                      doneCount,
+                      totalItems,
+                      pct,
+                    }) => {
                       const cfg = PROJECT_STATUS_CONFIG[project.status];
                       return (
                         <tr
@@ -525,12 +569,22 @@ export default function ReportsView() {
                               <span className="text-xs text-white/30">No items</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right whitespace-nowrap">
                             <span className="font-semibold text-white">{fmt(revenue)}</span>
                             {linkedInvs.length > 0 && (
                               <span className="text-xs text-white/35 ml-1.5">
                                 {linkedInvs.length} inv
                               </span>
+                            )}
+                            {hasWHT && (
+                              <div className="flex flex-col items-end gap-0.5 mt-0.5">
+                                <span className="text-xs text-orange-400/80">
+                                  −{fmt(revenue - revenueNet)} WHT
+                                </span>
+                                <span className="text-xs font-medium text-white/70">
+                                  {fmt(revenueNet)} net
+                                </span>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -556,12 +610,24 @@ function StatCard({
   label: string;
   value: string;
   sub?: string;
-  accent?: 'green' | 'red';
+  accent?: 'green' | 'red' | 'orange';
 }) {
   const accentCls =
-    accent === 'green' ? 'border-l-green-400' : accent === 'red' ? 'border-l-red-400' : '';
+    accent === 'green'
+      ? 'border-l-green-400'
+      : accent === 'red'
+        ? 'border-l-red-400'
+        : accent === 'orange'
+          ? 'border-l-orange-400'
+          : '';
   const subColor =
-    accent === 'green' ? 'text-green-400' : accent === 'red' ? 'text-red-400' : 'text-white/40';
+    accent === 'green'
+      ? 'text-green-400'
+      : accent === 'red'
+        ? 'text-red-400'
+        : accent === 'orange'
+          ? 'text-orange-400'
+          : 'text-white/40';
   return (
     <div
       className={`bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl p-5 ${accentCls ? `border-l-4 ${accentCls}` : ''}`}

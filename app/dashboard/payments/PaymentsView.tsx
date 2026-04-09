@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { useStore, type Invoice, type Client, type InvoiceStatus } from '../AppStore';
-import { calcSubtotal, calcEarned, calcBalance } from '@/app/_services/invoiceService';
+import {
+  calcSubtotal,
+  calcNet,
+  calcEarned,
+  calcBalance,
+  WHT_RATE,
+} from '@/app/_services/invoiceService';
 import { fmtUSD } from '@/app/_lib/formatters';
 import { STATUS_CONFIG } from '@/app/_config/statusConfig';
 import ModalShell from '@/app/_components/ModalShell';
@@ -88,8 +94,10 @@ function InvoiceRow({
 }) {
   const client = clients.find((c) => c.id === inv.clientId);
   const sub = calcSubtotal(inv);
-  const invDeposit = inv.depositPercent != null ? sub * (inv.depositPercent / 100) : null;
-  const invBalance = invDeposit != null ? sub - invDeposit : null;
+  const wht = inv.withWHT ? sub * WHT_RATE : null;
+  const net = calcNet(inv);
+  const invDeposit = inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
+  const invBalance = invDeposit != null ? net - invDeposit : null;
   const received = calcEarned(inv);
   const balance = calcBalance(inv);
   const sc = STATUS_CONFIG[inv.status ?? 'draft'];
@@ -110,6 +118,12 @@ function InvoiceRow({
       </td>
       <td className="px-4 py-3.5 text-right whitespace-nowrap">
         <span className="font-semibold text-white">{fmt(sub)}</span>
+        {wht != null && (
+          <div className="flex flex-col items-end gap-0.5 mt-0.5">
+            <span className="text-xs text-orange-400/80">−{fmt(wht)} WHT</span>
+            <span className="text-xs font-medium text-white/70">{fmt(net)} net</span>
+          </div>
+        )}
         {invBalance != null && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
             <span className="text-xs text-white/35">

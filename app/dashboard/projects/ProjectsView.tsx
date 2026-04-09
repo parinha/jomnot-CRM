@@ -18,12 +18,65 @@ import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE } from '@/app/_config/constants';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
+import SortTh from '@/app/_components/SortTh';
 import ModalShell from '@/app/_components/ModalShell';
 import ConfirmDeleteModal from '@/app/_components/ConfirmDeleteModal';
+import InvoicePreviewModal from '@/app/_components/InvoicePreviewModal';
 
 type ProjectFormState = Omit<Project, 'id' | 'createdAt'>;
 function blankForm(): ProjectFormState {
-  return { name: '', clientId: '', invoiceIds: [], items: [], status: 'active' };
+  return {
+    name: '',
+    clientId: '',
+    invoiceIds: [],
+    items: [],
+    status: 'draft',
+    filmingDate: '',
+    deliverDate: '',
+    budget: undefined,
+  };
+}
+
+// ── Timeline helper ────────────────────────────────────────────────────────────
+type TimelineBadge = {
+  label: string;
+  cls: string;
+};
+
+function getTimelineBadge(filmingDate?: string, deliverDate?: string): TimelineBadge | null {
+  if (!deliverDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Show filming countdown if filming hasn't started yet
+  if (filmingDate) {
+    const filming = new Date(filmingDate);
+    filming.setHours(0, 0, 0, 0);
+    if (today < filming) {
+      const daysLeft = Math.round((filming.getTime() - today.getTime()) / 86400000);
+      if (daysLeft === 0) return { label: 'Today', cls: 'bg-red-500/20 text-red-400' };
+      if (daysLeft >= 5) {
+        return { label: `${daysLeft}d till filming`, cls: 'bg-sky-500/20 text-sky-300' };
+      }
+      return { label: `Only ${daysLeft}d left`, cls: 'bg-amber-500/20 text-amber-300' };
+    }
+  }
+
+  // Delivery countdown / overdue
+  const deliver = new Date(deliverDate);
+  deliver.setHours(0, 0, 0, 0);
+
+  if (today <= deliver) {
+    const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
+    if (daysLeft === 0) return { label: 'Today', cls: 'bg-red-500/20 text-red-400' };
+    if (daysLeft > 5) {
+      return { label: `${daysLeft}d to go`, cls: 'bg-emerald-500/20 text-emerald-300' };
+    }
+    return { label: `Only ${daysLeft}d left`, cls: 'bg-amber-500/20 text-amber-300' };
+  }
+
+  const daysLate = Math.round((today.getTime() - deliver.getTime()) / 86400000);
+  return { label: `Late ${daysLate}d ago`, cls: 'bg-red-500/20 text-red-400' };
 }
 
 const inputCls =
@@ -32,6 +85,10 @@ const darkInputCls =
   'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
+const FALLBACK_STATUS_CFG = { label: 'Unknown', cls: 'bg-zinc-100 text-zinc-500' };
+function getStatusCfg(status: string) {
+  return PROJECT_STATUS_CONFIG[status as ProjectStatus] ?? FALLBACK_STATUS_CFG;
+}
 
 export default function ProjectsView() {
   const { clients, setClients, invoices, projects, setProjects, scopeOfWork, paymentInfo } =
@@ -46,7 +103,20 @@ export default function ProjectsView() {
   const [formError, setFormError] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewClientId, setViewClientId] = useState<string | null>(null);
+  const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
+  const [sortCol, setSortCol] = useState('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  function handleSort(col: string) {
+    if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+    else {
+      setSortCol(col);
+      setSortDir('asc');
+    }
+    setPage(1);
+  }
 
   // Client combobox
   const [clientSearch, setClientSearch] = useState('');
@@ -126,9 +196,42 @@ export default function ProjectsView() {
     );
   });
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const STATUS_ORDER: Record<string, number> = {
+    draft: 0,
+    confirmed: 1,
+    'in-progress': 2,
+    'on-hold': 3,
+    completed: 4,
+  };
+
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0;
+    if (sortCol === 'name') {
+      cmp = a.name.localeCompare(b.name);
+    } else if (sortCol === 'client') {
+      const ca = clients.find((c) => c.id === a.clientId)?.name ?? '';
+      const cb = clients.find((c) => c.id === b.clientId)?.name ?? '';
+      cmp = ca.localeCompare(cb);
+    } else if (sortCol === 'invoices') {
+      cmp = a.invoiceIds.length - b.invoiceIds.length;
+    } else if (sortCol === 'budget') {
+      cmp = (a.budget ?? 0) - (b.budget ?? 0);
+    } else if (sortCol === 'timeline') {
+      const da = a.deliverDate ?? '';
+      const db = b.deliverDate ?? '';
+      if (!da && !db) cmp = 0;
+      else if (!da) cmp = 1;
+      else if (!db) cmp = -1;
+      else cmp = da.localeCompare(db);
+    } else if (sortCol === 'status') {
+      cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function resetClientCombo() {
     setClientSearch('');
@@ -154,6 +257,9 @@ export default function ProjectsView() {
       invoiceIds: [...project.invoiceIds],
       items: project.items.map((it) => ({ ...it })),
       status: project.status,
+      filmingDate: project.filmingDate ?? '',
+      deliverDate: project.deliverDate ?? '',
+      budget: project.budget,
     });
     setNewItemText('');
     setFormError('');
@@ -263,13 +369,19 @@ export default function ProjectsView() {
       setFormError('Please select a client.');
       return null;
     }
+    const cleanedForm = {
+      ...form,
+      filmingDate: form.filmingDate?.trim() || undefined,
+      deliverDate: form.deliverDate?.trim() || undefined,
+      budget: form.budget && form.budget > 0 ? form.budget : undefined,
+    };
     if (editingId) {
       const existing = projects.find((p) => p.id === editingId)!;
-      const updated = { ...existing, ...form };
+      const updated = { ...existing, ...cleanedForm };
       setProjects(projects.map((p) => (p.id === editingId ? updated : p)));
       return updated;
     } else {
-      const created: Project = { id: uid(), createdAt: new Date().toISOString(), ...form };
+      const created: Project = { id: uid(), createdAt: new Date().toISOString(), ...cleanedForm };
       setProjects([...projects, created]);
       return created;
     }
@@ -333,27 +445,60 @@ export default function ProjectsView() {
         </button>
       </div>
 
-      {/* Status cards */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {(Object.keys(PROJECT_STATUS_CONFIG) as ProjectStatus[]).map((s) => {
-          const count = projects.filter((p) => p.status === s).length;
-          const cfg = PROJECT_STATUS_CONFIG[s];
-          const active = statusFilter === s;
-          return (
-            <button
-              key={s}
-              onClick={() => {
-                setStatusFilter(active ? 'all' : s);
-                setPage(1);
-              }}
-              className={`rounded-2xl border p-4 text-left transition backdrop-blur-xl ${active ? 'bg-white/15 border-white/30' : 'bg-white/[0.05] border-white/[0.09] hover:bg-white/10'}`}
-            >
-              <p className="text-2xl font-bold text-white">{count}</p>
-              <p className="text-xs mt-1 text-white/50">{cfg.label}</p>
-            </button>
-          );
-        })}
-      </div>
+      {/* Summary widgets */}
+      {(() => {
+        const fmt = (n: number) => (n === 0 ? '—' : `$${n.toLocaleString()}`);
+        const total = projects.reduce((s, p) => s + (p.budget ?? 0), 0);
+        const earned = projects
+          .filter((p) => p.status === 'completed')
+          .reduce((s, p) => s + (p.budget ?? 0), 0);
+        const outstanding = projects
+          .filter((p) => p.status === 'confirmed' || p.status === 'in-progress')
+          .reduce((s, p) => s + (p.budget ?? 0), 0);
+        const awaitConfirm = projects
+          .filter((p) => p.status === 'draft')
+          .reduce((s, p) => s + (p.budget ?? 0), 0);
+        const widgets = [
+          {
+            label: 'Total Payment',
+            value: fmt(total),
+            sub: `${projects.length} projects`,
+            color: 'text-white',
+          },
+          {
+            label: 'Total Earned',
+            value: fmt(earned),
+            sub: `${projects.filter((p) => p.status === 'completed').length} completed`,
+            color: 'text-emerald-400',
+          },
+          {
+            label: 'Outstanding',
+            value: fmt(outstanding),
+            sub: `${projects.filter((p) => p.status === 'confirmed' || p.status === 'in-progress').length} active`,
+            color: 'text-sky-400',
+          },
+          {
+            label: 'Await Confirm',
+            value: fmt(awaitConfirm),
+            sub: `${projects.filter((p) => p.status === 'draft').length} drafts`,
+            color: 'text-amber-400',
+          },
+        ];
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {widgets.map((w) => (
+              <div
+                key={w.label}
+                className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4"
+              >
+                <p className={`text-xl font-bold ${w.color}`}>{w.value}</p>
+                <p className="text-xs text-white/40 mt-0.5">{w.sub}</p>
+                <p className="text-xs text-white/55 mt-1">{w.label}</p>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* Search + filter */}
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -367,18 +512,20 @@ export default function ProjectsView() {
           className="flex-1"
         />
         <div className="flex gap-1.5 flex-wrap">
-          {(['all', 'active', 'completed', 'on-hold'] as const).map((f) => (
-            <button
-              key={f}
-              onClick={() => {
-                setStatusFilter(f);
-                setPage(1);
-              }}
-              className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === f ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
-            >
-              {f === 'all' ? 'All' : PROJECT_STATUS_CONFIG[f].label}
-            </button>
-          ))}
+          {(['all', 'draft', 'confirmed', 'in-progress', 'on-hold', 'completed'] as const).map(
+            (f) => (
+              <button
+                key={f}
+                onClick={() => {
+                  setStatusFilter(f);
+                  setPage(1);
+                }}
+                className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === f ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
+              >
+                {f === 'all' ? 'All' : PROJECT_STATUS_CONFIG[f].label}
+              </button>
+            )
+          )}
         </div>
       </div>
 
@@ -422,7 +569,7 @@ export default function ProjectsView() {
               const doneCount = project.items.filter((it) => it.status === 'done').length;
               const totalItems = project.items.length;
               const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
-              const sc = PROJECT_STATUS_CONFIG[project.status];
+              const sc = getStatusCfg(project.status);
               return (
                 <div
                   key={project.id}
@@ -436,13 +583,40 @@ export default function ProjectsView() {
                       >
                         {project.name}
                       </button>
-                      <p className="text-xs text-white/45 mt-0.5">{client?.name ?? '—'}</p>
+                      <p className="text-xs text-white/45 mt-0.5">
+                        {client ? (
+                          <button
+                            onClick={() => setViewClientId(client.id)}
+                            className="hover:text-[#FFC206] transition"
+                          >
+                            {client.name}
+                          </button>
+                        ) : (
+                          '—'
+                        )}
+                        {project.budget ? (
+                          <span className="text-white/30">
+                            {' '}
+                            · ${project.budget.toLocaleString()}
+                          </span>
+                        ) : null}
+                      </p>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${sc.cls}`}
-                    >
-                      {sc.label}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
+                        {sc.label}
+                      </span>
+                      {(() => {
+                        const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
+                        return badge ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-xs font-semibold ${badge.cls}`}
+                          >
+                            {badge.label}
+                          </span>
+                        ) : null;
+                      })()}
+                    </div>
                   </div>
                   {totalItems > 0 && (
                     <div className="mb-3">
@@ -490,17 +664,63 @@ export default function ProjectsView() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Project</th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
+                  <SortTh
+                    col="name"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5"
+                  >
+                    Project
+                  </SortTh>
+                  <SortTh
+                    col="client"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5 hidden sm:table-cell"
+                  >
                     Client
-                  </th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
+                  </SortTh>
+                  <SortTh
+                    col="invoices"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5 hidden md:table-cell"
+                  >
                     Invoice(s)
-                  </th>
+                  </SortTh>
                   <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
                     Progress
                   </th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Status</th>
+                  <SortTh
+                    col="budget"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5 hidden md:table-cell"
+                  >
+                    Budget
+                  </SortTh>
+                  <SortTh
+                    col="timeline"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5 hidden lg:table-cell"
+                  >
+                    Timeline
+                  </SortTh>
+                  <SortTh
+                    col="status"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5"
+                  >
+                    Status
+                  </SortTh>
                   <th className="px-4 py-3.5" />
                 </tr>
               </thead>
@@ -512,7 +732,7 @@ export default function ProjectsView() {
                     .filter(Boolean);
                   const doneCount = project.items.filter((it) => it.status === 'done').length;
                   const totalItems = project.items.length;
-                  const sc = PROJECT_STATUS_CONFIG[project.status];
+                  const sc = getStatusCfg(project.status);
                   return (
                     <tr
                       key={project.id}
@@ -526,8 +746,17 @@ export default function ProjectsView() {
                           {project.name}
                         </button>
                       </td>
-                      <td className="px-4 py-3.5 text-white/60 hidden sm:table-cell">
-                        {client?.name ?? '—'}
+                      <td className="px-4 py-3.5 hidden sm:table-cell">
+                        {client ? (
+                          <button
+                            onClick={() => setViewClientId(client.id)}
+                            className="text-white/60 hover:text-[#FFC206] transition text-left"
+                          >
+                            {client.name}
+                          </button>
+                        ) : (
+                          <span className="text-white/25">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         {linkedInvoices.length > 0 ? (
@@ -535,12 +764,13 @@ export default function ProjectsView() {
                             {linkedInvoices.map(
                               (inv) =>
                                 inv && (
-                                  <span
+                                  <button
                                     key={inv.id}
-                                    className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60"
+                                    onClick={() => setViewInvoiceId(inv.id)}
+                                    className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60 hover:bg-[#FFC206]/20 hover:text-[#FFC206] transition"
                                   >
                                     {inv.number}
-                                  </span>
+                                  </button>
                                 )
                             )}
                           </div>
@@ -564,6 +794,29 @@ export default function ProjectsView() {
                         ) : (
                           <span className="text-white/25 text-xs">—</span>
                         )}
+                      </td>
+                      <td className="px-4 py-3.5 hidden md:table-cell">
+                        {project.budget ? (
+                          <span className="text-sm text-white/80">
+                            ${project.budget.toLocaleString()}
+                          </span>
+                        ) : (
+                          <span className="text-white/25 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3.5 hidden lg:table-cell">
+                        {(() => {
+                          const badge = getTimelineBadge(project.filmingDate, project.deliverDate);
+                          return badge ? (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${badge.cls}`}
+                            >
+                              {badge.label}
+                            </span>
+                          ) : (
+                            <span className="text-white/25 text-xs">—</span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3.5">
                         <span
@@ -672,7 +925,7 @@ export default function ProjectsView() {
       <Pagination
         page={safePage}
         totalPages={totalPages}
-        totalItems={filtered.length}
+        totalItems={sorted.length}
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
       />
@@ -704,9 +957,9 @@ export default function ProjectsView() {
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span
-                  className={`px-2.5 py-1 rounded-full text-xs font-semibold ${PROJECT_STATUS_CONFIG[detailProject.status].cls}`}
+                  className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getStatusCfg(detailProject.status).cls}`}
                 >
-                  {PROJECT_STATUS_CONFIG[detailProject.status].label}
+                  {getStatusCfg(detailProject.status).label}
                 </span>
                 <button
                   onClick={() => {
@@ -733,6 +986,37 @@ export default function ProjectsView() {
                 </button>
               </div>
             </div>
+            {(detailProject.filmingDate || detailProject.deliverDate) && (
+              <div className="px-6 py-3 border-b border-white/[0.08] flex gap-4 shrink-0">
+                {detailProject.filmingDate && (
+                  <div>
+                    <p className="text-xs text-white/35">Filming</p>
+                    <p className="text-sm font-semibold text-white">{detailProject.filmingDate}</p>
+                  </div>
+                )}
+                {detailProject.deliverDate && (
+                  <div>
+                    <p className="text-xs text-white/35">Deliver</p>
+                    <p className="text-sm font-semibold text-white">{detailProject.deliverDate}</p>
+                  </div>
+                )}
+                {(() => {
+                  const badge = getTimelineBadge(
+                    detailProject.filmingDate,
+                    detailProject.deliverDate
+                  );
+                  return badge ? (
+                    <div className="ml-auto flex items-center">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${badge.cls}`}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {detailProject.items.length === 0 ? (
                 <p className="text-sm text-white/35 text-center py-8">
@@ -1054,6 +1338,62 @@ export default function ProjectsView() {
                   })}
                 </div>
               </div>
+              {/* Budget */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Budget
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
+                    $
+                  </span>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={form.budget ?? ''}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        budget: e.target.value === '' ? undefined : Number(e.target.value),
+                      }))
+                    }
+                    placeholder="0"
+                    className={`${darkInputCls} pl-7`}
+                  />
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Schedule
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-white/45">
+                      Filming Date <span className="text-white/25">(optional)</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={form.filmingDate ?? ''}
+                      onChange={(e) => setForm((p) => ({ ...p, filmingDate: e.target.value }))}
+                      className={`${darkInputCls} [color-scheme:dark]`}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-white/45">Deliver Date *</label>
+                    <input
+                      type="date"
+                      value={form.deliverDate ?? ''}
+                      onChange={(e) => setForm((p) => ({ ...p, deliverDate: e.target.value }))}
+                      min={form.filmingDate ?? undefined}
+                      className={`${darkInputCls} [color-scheme:dark]`}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Linked invoices */}
               {clientInvoices.length > 0 && (
                 <div className="flex flex-col gap-1.5">
@@ -1266,6 +1606,138 @@ export default function ProjectsView() {
           onClose={() => setDeleteId(null)}
         />
       )}
+
+      {/* Invoice preview */}
+      {viewInvoiceId && (
+        <InvoicePreviewModal invId={viewInvoiceId} onClose={() => setViewInvoiceId(null)} />
+      )}
+
+      {/* Client detail popup */}
+      {viewClientId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === viewClientId);
+          if (!c) return null;
+          const clientInvs = invoices.filter((inv) => inv.clientId === c.id);
+          const clientProjs = projects.filter((p) => p.clientId === c.id);
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setViewClientId(null)}
+              />
+              <div className="relative z-10 w-full max-w-md bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[80vh]">
+                {/* Header */}
+                <div className="flex items-start justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">{c.name}</h2>
+                    {c.contactPerson && (
+                      <p className="text-sm text-white/45 mt-0.5">{c.contactPerson}</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setViewClientId(null)}
+                    className="p-2 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
+                  {/* Contact info */}
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    {c.phone && (
+                      <div>
+                        <p className="text-xs text-white/35 mb-0.5">Phone</p>
+                        <p className="text-white/80">{c.phone}</p>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div>
+                        <p className="text-xs text-white/35 mb-0.5">Email</p>
+                        <p className="text-white/80 break-all">{c.email}</p>
+                      </div>
+                    )}
+                    {c.address && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-white/35 mb-0.5">Address</p>
+                        <p className="text-white/80">{c.address}</p>
+                      </div>
+                    )}
+                    {c.vat_tin && (
+                      <div>
+                        <p className="text-xs text-white/35 mb-0.5">VAT / TIN</p>
+                        <p className="text-white/80">{c.vat_tin}</p>
+                      </div>
+                    )}
+                    {c.note && (
+                      <div className="col-span-2">
+                        <p className="text-xs text-white/35 mb-0.5">Note</p>
+                        <p className="text-white/60 whitespace-pre-wrap">{c.note}</p>
+                      </div>
+                    )}
+                  </div>
+                  {/* Projects */}
+                  {clientProjs.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-white/35 uppercase tracking-wide mb-2">
+                        Projects ({clientProjs.length})
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {clientProjs.map((p) => {
+                          const cfg = getStatusCfg(p.status);
+                          return (
+                            <div
+                              key={p.id}
+                              className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2"
+                            >
+                              <span className="text-sm text-white/80 truncate">{p.name}</span>
+                              <span
+                                className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.cls}`}
+                              >
+                                {cfg.label}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* Invoices */}
+                  {clientInvs.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-white/35 uppercase tracking-wide mb-2">
+                        Invoices ({clientInvs.length})
+                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        {clientInvs.map((inv) => (
+                          <button
+                            key={inv.id}
+                            onClick={() => {
+                              setViewClientId(null);
+                              setViewInvoiceId(inv.id);
+                            }}
+                            className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 hover:bg-white/[0.08] hover:border-white/20 transition text-left"
+                          >
+                            <span className="text-sm text-white/80">{inv.number}</span>
+                            <span className="text-xs text-white/40">{inv.date}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </>
   );
 }

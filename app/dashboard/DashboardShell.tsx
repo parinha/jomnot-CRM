@@ -149,13 +149,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             pathname={pathname}
           />
           <NavItem
-            href="/dashboard/invoices"
-            label="Invoices"
-            onClick={close}
-            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            pathname={pathname}
-          />
-          <NavItem
             href="/dashboard/projects"
             label="Projects"
             onClick={close}
@@ -164,12 +157,20 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           />
           <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
+            href="/dashboard/invoices"
+            label="Invoices"
+            onClick={close}
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            pathname={pathname}
+          />
+          <NavItem
             href="/dashboard/payments"
             label="Payments"
             onClick={close}
             d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
             pathname={pathname}
           />
+          <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
             href="/dashboard/reports"
             label="Reports"
@@ -382,7 +383,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className="ml-auto flex items-center gap-2 shrink-0">
             <button
               onClick={() => setQuickPay(true)}
-              className="flex items-center gap-2 h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-white text-sm font-medium hover:bg-white/15 transition backdrop-blur-sm"
+              className="flex items-center gap-2 h-11 px-4 rounded-xl bg-green-500/20 border border-green-400/30 text-green-300 text-sm font-medium hover:bg-green-500/30 transition"
             >
               <svg
                 className="w-4 h-4"
@@ -399,21 +400,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               </svg>
               <span className="hidden sm:inline">Clear Payment</span>
             </button>
-            <Link
-              href="/dashboard/invoices?new=1"
-              className="flex items-center gap-2 h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 active:bg-amber-500 transition shadow-lg shadow-amber-500/20"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline">New Invoice</span>
-            </Link>
           </div>
         </header>
 
