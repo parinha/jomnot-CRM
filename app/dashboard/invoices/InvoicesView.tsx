@@ -583,43 +583,60 @@ export default function InvoicesView() {
         </div>
       )}
 
-      {/* Search + filter */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-3">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
+        {(
+          [
+            { key: 'all', label: 'All', count: invoices.length },
+            {
+              key: 'active',
+              label: 'Active',
+              count: invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length,
+            },
+            {
+              key: 'partial',
+              label: 'Deposit Rcvd',
+              count: invoices.filter((i) => i.status === 'partial').length,
+            },
+            {
+              key: 'paid',
+              label: 'Paid',
+              count: invoices.filter((i) => i.status === 'paid').length,
+            },
+            {
+              key: 'overdue',
+              label: 'Late',
+              count: invoices.filter((i) => i.status === 'overdue').length,
+            },
+            {
+              key: 'draft',
+              label: 'Draft',
+              count: invoices.filter((i) => i.status === 'draft').length,
+            },
+          ] as const
+        ).map(({ key, label, count }) => (
+          <button
+            key={key}
+            onClick={() => setStatusFilter(key)}
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap ${statusFilter === key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
+          >
+            {label}
+            <span
+              className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${statusFilter === key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
+            >
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="mb-4">
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Search by invoice #, client, amount…"
-          className="flex-1"
         />
-        <div className="flex gap-1.5 flex-wrap">
-          {(
-            [
-              { key: 'all', label: 'All' },
-              { key: 'active', label: 'Active' },
-              { key: 'partial', label: 'Deposit Rcvd' },
-              { key: 'paid', label: 'Paid' },
-              { key: 'overdue', label: 'Late' },
-              { key: 'draft', label: 'Draft' },
-            ] as const
-          ).map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setStatusFilter(key)}
-              className={`h-11 px-4 rounded-xl text-xs font-semibold border transition whitespace-nowrap ${statusFilter === key ? 'bg-[#FFC206] text-zinc-900 border-[#FFC206]' : 'bg-white/[0.08] text-white border-white/20 hover:bg-white/[0.14]'}`}
-            >
-              {label}
-              <span
-                className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === key ? 'bg-zinc-900/20 text-zinc-900' : 'bg-white/15 text-white'}`}
-              >
-                {key === 'all'
-                  ? invoices.length
-                  : key === 'active'
-                    ? invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length
-                    : invoices.filter((i) => i.status === key).length}
-              </span>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Empty states */}
@@ -809,7 +826,7 @@ export default function InvoicesView() {
                 </tr>
               </thead>
               <tbody>
-                {pagedInvoices.map((inv) => {
+                {pagedInvoices.map((inv, i) => {
                   const client = clients.find((c) => c.id === inv.clientId);
                   const sub = calcSubtotal(inv);
                   const wht = inv.withWHT ? sub * WHT_RATE : null;
@@ -828,7 +845,7 @@ export default function InvoicesView() {
                   return (
                     <tr
                       key={inv.id}
-                      className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition"
+                      className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                     >
                       <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
                         {inv.number}
