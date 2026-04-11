@@ -566,7 +566,7 @@ export default function ProjectsView() {
         const filmingDate =
           phaseKey === 'filming'
             ? isChecking
-              ? new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+              ? (p.filmingDate ?? new Date().toISOString().slice(0, 10)) // keep existing date if already set
               : undefined
             : p.filmingDate;
 
