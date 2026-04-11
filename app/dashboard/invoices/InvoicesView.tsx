@@ -47,8 +47,6 @@ type FormState = Omit<Invoice, 'id'>;
 const inputCls =
   'h-11 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
-const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
-
 export default function InvoicesView() {
   const {
     clients,
@@ -193,7 +191,8 @@ export default function InvoicesView() {
 
   const [form, setForm] = useState<FormState>(blankForm);
 
-  // Project combobox
+  // Project combobox + multi-select
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [projectSearch, setProjectSearch] = useState('');
   const [projectDropOpen, setProjectDropOpen] = useState(false);
   const projectComboRef = useRef<HTMLDivElement>(null);
@@ -203,22 +202,15 @@ export default function InvoicesView() {
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientComboRef = useRef<HTMLDivElement>(null);
 
-  // Inline client creation
-  const [showClientForm, setShowClientForm] = useState(false);
-  const [clientForm, setClientForm] = useState(EMPTY_CLIENT_FORM);
-  const [clientFormError, setClientFormError] = useState('');
-
   function openNew() {
     setEditingId(null);
     setForm(blankForm());
     setFormError('');
-    setShowClientForm(false);
-    setClientForm(EMPTY_CLIENT_FORM);
-    setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
     setProjectSearch('');
     setProjectDropOpen(false);
+    setSelectedProjectIds([]);
     setPanelOpen(true);
   }
 
@@ -246,10 +238,8 @@ export default function InvoicesView() {
       withWHT: inv.withWHT,
       showVatTin: inv.showVatTin,
     });
+    setSelectedProjectIds(projects.filter((p) => p.invoiceIds.includes(inv.id)).map((p) => p.id));
     setFormError('');
-    setShowClientForm(false);
-    setClientForm(EMPTY_CLIENT_FORM);
-    setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
     setProjectSearch('');
@@ -260,13 +250,11 @@ export default function InvoicesView() {
     setPanelOpen(false);
     setEditingId(null);
     setFormError('');
-    setShowClientForm(false);
-    setClientForm(EMPTY_CLIENT_FORM);
-    setClientFormError('');
     setClientSearch('');
     setClientDropOpen(false);
     setProjectSearch('');
     setProjectDropOpen(false);
+    setSelectedProjectIds([]);
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -289,20 +277,11 @@ export default function InvoicesView() {
     );
   }
 
-  function saveNewClient() {
-    if (!clientForm.name.trim()) {
-      setClientFormError('Name is required.');
-      return;
-    }
-    const newClient: Client = { id: uid(), ...clientForm };
-    setClients([...clients, newClient]);
-    setField('clientId', newClient.id);
-    setShowClientForm(false);
-    setClientForm(EMPTY_CLIENT_FORM);
-    setClientFormError('');
-  }
+  // Conflict popup: project already linked to another invoice
+  const [conflictProject, setConflictProject] = useState<Project | null>(null);
 
-  function selectProject(project: Project) {
+  function addProjectToForm(project: Project) {
+    setSelectedProjectIds((prev) => [...prev, project.id]);
     const scopeLines = project.items.map((i) => i.description).filter(Boolean);
     const description = project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
     const newItem = { id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 };
@@ -315,8 +294,27 @@ export default function InvoicesView() {
         items: [...existingItems, newItem],
       };
     });
+  }
+
+  function selectProject(project: Project) {
+    if (selectedProjectIds.includes(project.id)) {
+      setProjectSearch('');
+      setProjectDropOpen(false);
+      return;
+    }
     setProjectSearch('');
     setProjectDropOpen(false);
+    // Check if already linked to another invoice (excluding the one being edited)
+    const alreadyLinked = project.invoiceIds.filter((id) => id !== editingId);
+    if (alreadyLinked.length > 0) {
+      setConflictProject(project);
+      return;
+    }
+    addProjectToForm(project);
+  }
+
+  function removeSelectedProject(projectId: string) {
+    setSelectedProjectIds((prev) => prev.filter((id) => id !== projectId));
   }
 
   function handleSave(): string | null {
@@ -345,14 +343,29 @@ export default function InvoicesView() {
     }
     if (editingId) {
       setInvoices(invoices.map((inv) => (inv.id === editingId ? { id: editingId, ...form } : inv)));
+      syncProjectLinks(editingId);
       closePanel();
       return editingId;
     } else {
       const newId = uid();
       setInvoices([...invoices, { id: newId, ...form }]);
+      syncProjectLinks(newId);
       closePanel();
       return newId;
     }
+  }
+
+  function syncProjectLinks(invoiceId: string) {
+    setProjects(
+      projects.map((p) => {
+        const wasLinked = p.invoiceIds.includes(invoiceId);
+        const isSelected = selectedProjectIds.includes(p.id);
+        if (isSelected && !wasLinked) return { ...p, invoiceIds: [...p.invoiceIds, invoiceId] };
+        if (!isSelected && wasLinked)
+          return { ...p, invoiceIds: p.invoiceIds.filter((id) => id !== invoiceId) };
+        return p;
+      })
+    );
   }
 
   function handleSaveAndPreview() {
@@ -1099,241 +1112,184 @@ export default function InvoicesView() {
                 </PanelField>
               </div>
 
-              <PanelField label="Project / Campaign Name" required>
-                <div ref={projectComboRef} className="relative">
+              {/* Client */}
+              <PanelField label="Client" required>
+                <div ref={clientComboRef} className="relative">
+                  {(() => {
+                    const selected = clients.find((c) => c.id === form.clientId);
+                    const q = clientSearch.toLowerCase().trim();
+                    const filtered = q
+                      ? clients.filter((c) =>
+                          [
+                            c.name,
+                            c.contactPerson ?? '',
+                            c.phone,
+                            c.email,
+                            c.address,
+                            c.note ?? '',
+                          ].some((f) => f.toLowerCase().includes(q))
+                        )
+                      : clients;
+                    return (
+                      <>
+                        <input
+                          value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
+                          onChange={(e) => {
+                            setClientSearch(e.target.value);
+                            setClientDropOpen(true);
+                            if (!e.target.value) {
+                              setField('clientId', '');
+                              setSelectedProjectIds([]);
+                            }
+                          }}
+                          onFocus={() => {
+                            setClientSearch('');
+                            setClientDropOpen(true);
+                          }}
+                          onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
+                          placeholder="Search clients…"
+                          className={inputCls}
+                        />
+                        {clientDropOpen && (
+                          <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-2 text-sm text-white/40">
+                                No clients found
+                              </div>
+                            ) : (
+                              filtered.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    if (c.id !== form.clientId) setSelectedProjectIds([]);
+                                    setField('clientId', c.id);
+                                    setClientSearch('');
+                                    setClientDropOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
+                                >
+                                  <div className="text-sm font-medium text-white">{c.name}</div>
+                                  {(c.contactPerson || c.email || c.phone) && (
+                                    <div className="text-xs text-white/40 truncate">
+                                      {[c.contactPerson, c.email, c.phone]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                    </div>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </PanelField>
+
+              <PanelField label="Linked Projects">
+                <div ref={projectComboRef} className="relative flex flex-col gap-2">
+                  {selectedProjectIds.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedProjectIds.map((pid) => {
+                        const lp = projects.find((p) => p.id === pid);
+                        if (!lp) return null;
+                        return (
+                          <span
+                            key={pid}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-400/25 text-xs text-blue-300"
+                          >
+                            {lp.name}
+                            <button
+                              type="button"
+                              onClick={() => removeSelectedProject(pid)}
+                              className="ml-0.5 text-blue-300/60 hover:text-blue-200 transition"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="10"
+                                height="10"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M18 6L6 18M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                   <input
-                    value={projectDropOpen ? projectSearch : (form.projectName ?? '')}
+                    value={projectSearch}
                     onChange={(e) => {
                       setProjectSearch(e.target.value);
                       setProjectDropOpen(true);
-                      setField('projectName', e.target.value);
                     }}
                     onFocus={() => {
-                      setProjectSearch(form.projectName ?? '');
-                      setProjectDropOpen(true);
+                      if (form.clientId) setProjectDropOpen(true);
                     }}
                     onBlur={() => setTimeout(() => setProjectDropOpen(false), 150)}
-                    placeholder="Search or type campaign name…"
-                    className={inputCls}
+                    placeholder={
+                      form.clientId ? 'Search and add projects…' : 'Select a client first'
+                    }
+                    disabled={!form.clientId}
+                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
                   />
                   {projectDropOpen &&
+                    form.clientId &&
                     (() => {
                       const q = projectSearch.toLowerCase().trim();
-                      const nonDraft = projects.filter((p) => p.status !== 'draft');
+                      const available = projects.filter(
+                        (p) =>
+                          p.clientId === form.clientId &&
+                          p.status !== 'draft' &&
+                          !selectedProjectIds.includes(p.id)
+                      );
                       const filtered = q
-                        ? nonDraft.filter((p) => p.name.toLowerCase().includes(q))
-                        : nonDraft;
+                        ? available.filter((p) => p.name.toLowerCase().includes(q))
+                        : available;
                       if (filtered.length === 0) return null;
                       return (
                         <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                          {filtered.map((p) => {
-                            const pc = clients.find((c) => c.id === p.clientId);
-                            return (
-                              <button
-                                key={p.id}
-                                type="button"
-                                onMouseDown={() => selectProject(p)}
-                                className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.projectName === p.name ? 'bg-[#FFC206]/10' : ''}`}
-                              >
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="text-sm font-medium text-white truncate">
-                                    {p.name}
-                                  </div>
-                                  {p.budget ? (
-                                    <div className="text-xs text-[#FFC206] shrink-0">
-                                      ${p.budget.toLocaleString()}
-                                    </div>
-                                  ) : null}
+                          {filtered.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onMouseDown={() => selectProject(p)}
+                              className="w-full text-left px-3 py-2 hover:bg-white/10 transition"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-sm font-medium text-white truncate">
+                                  {p.name}
                                 </div>
-                                {pc && (
-                                  <div className="text-xs text-white/40 truncate">{pc.name}</div>
-                                )}
-                              </button>
-                            );
-                          })}
+                                {p.budget ? (
+                                  <div className="text-xs text-[#FFC206] shrink-0">
+                                    ${p.budget.toLocaleString()}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </button>
+                          ))}
                         </div>
                       );
                     })()}
                 </div>
               </PanelField>
 
-              {/* Client field + inline create */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium text-white/70">
-                    Client <span className="text-red-400">*</span>
-                  </label>
-                  {!showClientForm && (
-                    <button
-                      onClick={() => {
-                        setShowClientForm(true);
-                        setField('clientId', '');
-                      }}
-                      className="flex items-center gap-0.5 text-xs text-[#FFC206] hover:underline"
-                    >
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      New client
-                    </button>
-                  )}
-                </div>
-                {!showClientForm ? (
-                  <div ref={clientComboRef} className="relative">
-                    {(() => {
-                      const selected = clients.find((c) => c.id === form.clientId);
-                      const q = clientSearch.toLowerCase().trim();
-                      const filtered = q
-                        ? clients.filter((c) =>
-                            [
-                              c.name,
-                              c.contactPerson ?? '',
-                              c.phone,
-                              c.email,
-                              c.address,
-                              c.note ?? '',
-                            ].some((f) => f.toLowerCase().includes(q))
-                          )
-                        : clients;
-                      return (
-                        <>
-                          <input
-                            value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
-                            onChange={(e) => {
-                              setClientSearch(e.target.value);
-                              setClientDropOpen(true);
-                              if (!e.target.value) setField('clientId', '');
-                            }}
-                            onFocus={() => {
-                              setClientSearch('');
-                              setClientDropOpen(true);
-                            }}
-                            onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
-                            placeholder="Search clients…"
-                            className={inputCls}
-                          />
-                          {clientDropOpen && (
-                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                              {filtered.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-white/40">
-                                  No clients found
-                                </div>
-                              ) : (
-                                filtered.map((c) => (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      setField('clientId', c.id);
-                                      setClientSearch('');
-                                      setClientDropOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
-                                  >
-                                    <div className="text-sm font-medium text-white">{c.name}</div>
-                                    {(c.contactPerson || c.email || c.phone) && (
-                                      <div className="text-xs text-white/40 truncate">
-                                        {[c.contactPerson, c.email, c.phone]
-                                          .filter(Boolean)
-                                          .join(' · ')}
-                                      </div>
-                                    )}
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-[#FFC206]/30 bg-white/[0.05] p-4 flex flex-col gap-3">
-                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
-                      Create new client
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">
-                          Company Name <span className="text-red-400">*</span>
-                        </label>
-                        <input
-                          value={clientForm.name}
-                          onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
-                          placeholder="ANYMIND (Cambodia) CO.,LTD"
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Contact Person (To)</label>
-                        <input
-                          value={clientForm.contactPerson}
-                          onChange={(e) =>
-                            setClientForm((p) => ({ ...p, contactPerson: e.target.value }))
-                          }
-                          placeholder="Mr. Siv Chinh"
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Email</label>
-                        <input
-                          type="email"
-                          value={clientForm.email}
-                          onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
-                          placeholder="billing@example.com"
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Phone</label>
-                        <input
-                          value={clientForm.phone}
-                          onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
-                          placeholder="+855 23 901 415"
-                          className={inputCls}
-                        />
-                      </div>
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Address</label>
-                        <input
-                          value={clientForm.address}
-                          onChange={(e) =>
-                            setClientForm((p) => ({ ...p, address: e.target.value }))
-                          }
-                          placeholder="16/F, Phnom Penh Tower, No 445, St. Monivong, Phnom Penh, Cambodia"
-                          className={inputCls}
-                        />
-                      </div>
-                    </div>
-                    {clientFormError && <p className="text-xs text-red-400">{clientFormError}</p>}
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => {
-                          setShowClientForm(false);
-                          setClientForm(EMPTY_CLIENT_FORM);
-                          setClientFormError('');
-                        }}
-                        className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/60 hover:bg-white/10 transition"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={saveNewClient}
-                        className="h-9 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-xs font-bold hover:bg-yellow-400 transition"
-                      >
-                        Add &amp; select
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <PanelField label="Project / Campaign Name" required>
+                <input
+                  value={form.projectName ?? ''}
+                  onChange={(e) => setField('projectName', e.target.value)}
+                  placeholder="Campaign or event name…"
+                  className={inputCls}
+                />
+              </PanelField>
 
               <PanelField label="Status">
                 <div className="flex gap-2 flex-wrap">
@@ -1787,6 +1743,58 @@ export default function InvoicesView() {
           onClose={() => setDeleteId(null)}
         />
       )}
+
+      {/* ── Project already linked conflict ────────────────────────────────────── */}
+      {conflictProject &&
+        (() => {
+          const conflictInvoices = conflictProject.invoiceIds
+            .filter((id) => id !== editingId)
+            .map((id) => invoices.find((inv) => inv.id === id))
+            .filter(Boolean) as Invoice[];
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <div className="w-full max-w-sm bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                  <p className="font-semibold text-white">Project already invoiced</p>
+                  <p className="text-sm text-white/60">
+                    <span className="text-white font-medium">{conflictProject.name}</span> is
+                    already linked to {conflictInvoices.length === 1 ? 'invoice' : 'invoices'}{' '}
+                    <span className="text-[#FFC206] font-medium">
+                      {conflictInvoices.map((inv) => inv.number).join(', ')}
+                    </span>
+                    . Do you still want to add it?
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {conflictInvoices.map((inv) => (
+                    <button
+                      key={inv.id}
+                      onClick={() => window.open(`/invoices/${inv.id}`, '_blank')}
+                      className="w-full h-10 px-4 rounded-xl border border-blue-400/30 bg-blue-500/15 text-sm text-blue-300 hover:bg-blue-500/25 transition"
+                    >
+                      View {inv.number}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => {
+                      addProjectToForm(conflictProject);
+                      setConflictProject(null);
+                    }}
+                    className="w-full h-10 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
+                  >
+                    Still Add
+                  </button>
+                  <button
+                    onClick={() => setConflictProject(null)}
+                    className="w-full h-10 px-4 rounded-xl border border-white/20 text-sm text-white/60 hover:bg-white/10 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
       {/* ── Link / Create project ───────────────────────────────────────────────── */}
       {linkProjectInvId &&
