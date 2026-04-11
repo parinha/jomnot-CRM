@@ -158,7 +158,7 @@ export default function ProjectsView() {
   const [viewClientId, setViewClientId] = useState<string | null>(null);
   const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
-  const [sortCol, setSortCol] = useState('name');
+  const [sortCol, setSortCol] = useState('timeline');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [activeTab, setActiveTab] = useState<'active' | 'on-hold' | 'quoted' | 'done'>('active');
 
