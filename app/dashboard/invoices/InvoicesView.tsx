@@ -305,12 +305,16 @@ export default function InvoicesView() {
   function selectProject(project: Project) {
     const scopeLines = project.items.map((i) => i.description).filter(Boolean);
     const description = project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
-    setForm((prev) => ({
-      ...prev,
-      projectName: project.name,
-      clientId: project.clientId,
-      items: [{ id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 }],
-    }));
+    const newItem = { id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 };
+    setForm((prev) => {
+      const existingItems = prev.items.filter((it) => it.description.trim() || it.unitPrice > 0);
+      return {
+        ...prev,
+        projectName: prev.projectName?.trim() || project.name,
+        clientId: project.clientId,
+        items: [...existingItems, newItem],
+      };
+    });
     setProjectSearch('');
     setProjectDropOpen(false);
   }
@@ -649,7 +653,7 @@ export default function InvoicesView() {
                 inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
               const status = (inv.status ?? 'draft') as InvoiceStatus;
               const sc = STATUS_CONFIG[status];
-              const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
+              const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
               return (
                 <div
                   key={inv.id}
@@ -687,13 +691,18 @@ export default function InvoicesView() {
                       )}
                     </div>
                   </div>
-                  {linkedProject && (
-                    <button
-                      onClick={() => setViewProjectId(linkedProject.id)}
-                      className="w-full text-left mb-3 px-3 py-2 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-300"
-                    >
-                      {linkedProject.name}
-                    </button>
+                  {linkedProjects.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {linkedProjects.map((lp) => (
+                        <button
+                          key={lp.id}
+                          onClick={() => setViewProjectId(lp.id)}
+                          className="text-left px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-300"
+                        >
+                          {lp.name}
+                        </button>
+                      ))}
+                    </div>
                   )}
                   <div className="flex items-center gap-2">
                     {status === 'draft' && (
@@ -797,10 +806,10 @@ export default function InvoicesView() {
                   const invBalance = invDeposit != null ? net - invDeposit : null;
                   const status = (inv.status ?? 'draft') as InvoiceStatus;
                   const sc = STATUS_CONFIG[status];
-                  const linkedProject = projects.find((p) => p.invoiceIds.includes(inv.id));
-                  const doneCount =
-                    linkedProject?.items.filter((it) => it.status === 'done').length ?? 0;
-                  const totalItems = linkedProject?.items.length ?? 0;
+                  const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
+                  const allItems = linkedProjects.flatMap((p) => p.items);
+                  const doneCount = allItems.filter((it) => it.status === 'done').length;
+                  const totalItems = allItems.length;
                   const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
 
                   return (
@@ -840,29 +849,40 @@ export default function InvoicesView() {
                       </td>
                       {/* Project column */}
                       <td className="px-4 py-3 hidden md:table-cell">
-                        {linkedProject ? (
-                          <button
-                            onClick={() => setViewProjectId(linkedProject.id)}
-                            className="w-full text-left group"
-                            title={`${linkedProject.name} — ${pct}%`}
-                          >
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
-                                {linkedProject.name}
-                              </span>
-                              <span className="text-xs text-white/35 shrink-0">{pct}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                                style={{ width: `${Math.max(pct, pct > 0 ? 4 : 0)}%` }}
-                              />
-                            </div>
-                          </button>
-                        ) : (
+                        <div className="flex flex-col gap-1">
+                          {linkedProjects.map((lp) => {
+                            const lpDone = lp.items.filter((it) => it.status === 'done').length;
+                            const lpTotal = lp.items.length;
+                            const lpPct = lpTotal > 0 ? Math.round((lpDone / lpTotal) * 100) : 0;
+                            return (
+                              <button
+                                key={lp.id}
+                                onClick={() => setViewProjectId(lp.id)}
+                                className="text-left group"
+                                title={`${lp.name} — ${lpPct}%`}
+                              >
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
+                                    {lp.name}
+                                  </span>
+                                  {lpTotal > 0 && (
+                                    <span className="text-xs text-white/35 shrink-0">{lpPct}%</span>
+                                  )}
+                                </div>
+                                {lpTotal > 0 && (
+                                  <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${lpPct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
+                                      style={{ width: `${Math.max(lpPct, lpPct > 0 ? 4 : 0)}%` }}
+                                    />
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
                           <button
                             onClick={() => openLinkProject(inv)}
-                            className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group"
+                            className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group mt-0.5"
                           >
                             <svg
                               className="w-3 h-3 group-hover:scale-110 transition-transform"
@@ -877,9 +897,9 @@ export default function InvoicesView() {
                                 d="M12 4v16m8-8H4"
                               />
                             </svg>
-                            Link project
+                            {linkedProjects.length > 0 ? 'Add project' : 'Link project'}
                           </button>
-                        )}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -907,13 +927,13 @@ export default function InvoicesView() {
                           )}
                           {/* Mobile project button */}
                           <button
-                            onClick={() =>
-                              linkedProject
-                                ? setViewProjectId(linkedProject.id)
-                                : openLinkProject(inv)
+                            onClick={() => openLinkProject(inv)}
+                            className={`md:hidden p-2.5 rounded-xl border transition ${linkedProjects.length > 0 ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                            title={
+                              linkedProjects.length > 0
+                                ? linkedProjects.map((p) => p.name).join(', ')
+                                : 'Link project'
                             }
-                            className={`md:hidden p-2.5 rounded-xl border transition ${linkedProject ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
-                            title={linkedProject ? linkedProject.name : 'Link project'}
                           >
                             <svg
                               className="w-3.5 h-3.5"
