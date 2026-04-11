@@ -542,11 +542,35 @@ export default function ProjectsView() {
   }
 
   function toggleDetailPhase(projectId: string, phaseKey: keyof ProjectPhases) {
+    const phaseOrder = PHASES.map((ph) => ph.key);
+    const idx = phaseOrder.indexOf(phaseKey);
+
     setProjects(
       projects.map((p) => {
         if (p.id !== projectId) return p;
         const current = { ...DEFAULT_PHASES, ...p.phases };
-        return { ...p, phases: { ...current, [phaseKey]: !current[phaseKey] } };
+        const isChecking = !current[phaseKey];
+
+        // Block checking if any previous phase is not done
+        if (isChecking && idx > 0 && !current[phaseOrder[idx - 1]]) return p;
+
+        const updated = { ...current };
+        if (isChecking) {
+          updated[phaseKey] = true;
+        } else {
+          // Uncheck this phase and all subsequent phases
+          for (let i = idx; i < phaseOrder.length; i++) updated[phaseOrder[i]] = false;
+        }
+
+        // Auto-fill or clear filmingDate when filming phase is toggled
+        const filmingDate =
+          phaseKey === 'filming'
+            ? isChecking
+              ? new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+              : undefined
+            : p.filmingDate;
+
+        return { ...p, phases: updated, filmingDate };
       })
     );
   }
@@ -1336,20 +1360,26 @@ export default function ProjectsView() {
                   <p className="text-xs text-white/40">{phasesDone(detailProject.phases)}/5 done</p>
                 </div>
                 <div className="flex flex-col gap-2">
-                  {PHASES.map((phase) => {
+                  {PHASES.map((phase, idx) => {
                     const checked = detailProject.phases?.[phase.key] ?? false;
+                    const prevKey = idx > 0 ? PHASES[idx - 1].key : null;
+                    const locked =
+                      !checked && prevKey !== null && !(detailProject.phases?.[prevKey] ?? false);
                     return (
                       <button
                         key={phase.key}
+                        disabled={locked}
                         onClick={() => toggleDetailPhase(detailProject.id, phase.key)}
                         className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left ${
                           checked
                             ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
-                            : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
+                            : locked
+                              ? 'border-white/[0.04] bg-white/[0.01] opacity-40 cursor-not-allowed'
+                              : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
                         }`}
                       >
                         <span
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : locked ? 'border-white/15' : 'border-white/25'}`}
                         >
                           {checked && (
                             <svg
@@ -1368,7 +1398,7 @@ export default function ProjectsView() {
                           )}
                         </span>
                         <span
-                          className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/80'}`}
+                          className={`text-sm font-medium ${checked ? 'line-through text-white/30' : locked ? 'text-white/30' : 'text-white/80'}`}
                         >
                           {phase.label}
                         </span>
