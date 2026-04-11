@@ -514,6 +514,26 @@ export default function ProjectsView() {
     setDeleteId(null);
   }
 
+  function openDuplicate(project: Project) {
+    setEditingId(null);
+    setForm({
+      name: `${project.name} (Copy)`,
+      clientId: project.clientId,
+      invoiceIds: [...project.invoiceIds],
+      items: project.items.map((it) => ({ ...it })),
+      phases: { ...DEFAULT_PHASES, ...project.phases },
+      status: project.status,
+      filmingDate: project.filmingDate ?? '',
+      deliverDate: project.deliverDate ?? '',
+      budget: project.budget,
+      note: project.note ?? '',
+    });
+    setNewItemText('');
+    setFormError('');
+    resetClientCombo();
+    setModalOpen(true);
+  }
+
   function toggleDetailPhase(projectId: string, phaseKey: keyof ProjectPhases) {
     setProjects(
       projects.map((p) => {
@@ -948,12 +968,34 @@ export default function ProjectsView() {
                       className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                     >
                       <td className="px-4 py-3.5">
-                        <button
-                          onClick={() => setDetailId(project.id)}
-                          className="font-semibold text-white hover:text-[#FFC206] transition text-left"
-                        >
-                          {project.name}
-                        </button>
+                        <div className="flex items-center gap-2 group">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className="font-semibold text-white hover:text-[#FFC206] transition text-left"
+                          >
+                            {project.name}
+                          </button>
+                          <button
+                            onClick={() => openDuplicate(project)}
+                            title="Duplicate project"
+                            className="opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-[#FFC206]"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="14"
+                              height="14"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <rect x="9" y="9" width="13" height="13" rx="2" />
+                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                            </svg>
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3.5 hidden sm:table-cell">
                         {client ? (
