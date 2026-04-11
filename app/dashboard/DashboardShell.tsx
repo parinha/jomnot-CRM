@@ -10,6 +10,7 @@ import { STATUS_CONFIG } from '@/app/_config/statusConfig';
 import { fmtUSD } from '@/app/_lib/formatters';
 import { calcInvoiceTotal } from '@/app/_services/invoiceService';
 import QuickPayModal from '@/app/_components/QuickPayModal';
+import TelegramProjectsButton from './TelegramProjectsButton';
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
@@ -404,6 +405,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
             {/* Header actions */}
             <div className="ml-auto flex items-center gap-2 shrink-0">
+              {/* Send projects to Telegram */}
+              <TelegramProjectsButton />
               {/* Amounts visibility toggle */}
               <button
                 onClick={toggleAmountsVisible}
