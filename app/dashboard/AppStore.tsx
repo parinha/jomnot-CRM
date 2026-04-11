@@ -103,6 +103,7 @@ export interface Project extends RecordMeta {
   createdAt: string;
   filmingDate?: string;
   deliverDate?: string;
+  completedAt?: string;
   budget?: number;
   note?: string;
 }

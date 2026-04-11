@@ -16,7 +16,7 @@ import { PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
 const PHASES: { key: keyof ProjectPhases; label: string }[] = [
   { key: 'filming', label: 'Filming' },
   { key: 'roughCut', label: 'Rough Cut' },
-  { key: 'draft', label: 'Draft' },
+  { key: 'draft', label: 'Draft/VO' },
   { key: 'master', label: 'Master' },
   { key: 'delivered', label: 'Delivered' },
 ];
@@ -488,7 +488,14 @@ export default function ProjectsView() {
     };
     if (editingId) {
       const existing = projects.find((p) => p.id === editingId)!;
-      const updated = { ...existing, ...cleanedForm };
+      // Set completedAt when newly marked completed; clear it when status changes away
+      let completedAt = existing.completedAt;
+      if (cleanedForm.status === 'completed' && existing.status !== 'completed') {
+        completedAt = new Date().toISOString();
+      } else if (cleanedForm.status !== 'completed') {
+        completedAt = undefined;
+      }
+      const updated = { ...existing, ...cleanedForm, completedAt };
       setProjects(projects.map((p) => (p.id === editingId ? updated : p)));
       return updated;
     } else {
@@ -1401,7 +1408,9 @@ export default function ProjectsView() {
                       onClick={() => {
                         setProjects(
                           projects.map((p) =>
-                            p.id === detailProject.id ? { ...p, status: 'completed' } : p
+                            p.id === detailProject.id
+                              ? { ...p, status: 'completed', completedAt: new Date().toISOString() }
+                              : p
                           )
                         );
                         setDetailId(null);
