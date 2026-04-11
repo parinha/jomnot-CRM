@@ -1,14 +1,10 @@
-'use client';
+import { NextRequest, NextResponse } from 'next/server';
+import { adminDb } from '@/app/_lib/firebase-admin';
+import type { Project, PaymentInfo } from '@/app/dashboard/AppStore';
 
-import { useState } from 'react';
-import { useStore, type Project } from './AppStore';
+// ── Helpers (mirrors TelegramProjectsButton logic) ────────────────────────────
 
-function getTimelineInfo(deliverDate?: string): {
-  daysLeft: number;
-  isOverdue: boolean;
-  label: string;
-  emoji: string;
-} | null {
+function getTimelineInfo(deliverDate?: string) {
   if (!deliverDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -30,19 +26,6 @@ function getTimelineInfo(deliverDate?: string): {
       : `${daysLeft}d left`;
 
   return { daysLeft, isOverdue, label, emoji };
-}
-
-const PHASE_KEYS: (keyof NonNullable<Project['phases']>)[] = [
-  'filming',
-  'roughCut',
-  'draft',
-  'master',
-  'delivered',
-];
-
-function phasesDone(phases?: Project['phases']): number {
-  if (!phases) return 0;
-  return PHASE_KEYS.filter((k) => phases[k]).length;
 }
 
 function oneLiner(p: Project): string {
@@ -74,32 +57,24 @@ function buildSummaryMessage(projects: Project[]): string {
 
   const active = (p: Project) => p.status === 'confirmed' || p.status === 'in-progress';
 
-  // Buckets
   const deliveredThisMonth = projects
     .filter((p) => p.status === 'completed' && isThisMonth(p.completedAt))
     .sort(sortByUrgency);
-
   const waitConfirm = projects.filter((p) => p.status === 'draft');
-
   const awaitFilming = projects.filter((p) => active(p) && !p.phases?.filming).sort(sortByUrgency);
-
   const awaitRoughCut = projects
     .filter((p) => active(p) && p.phases?.filming && !p.phases?.roughCut)
     .sort(sortByUrgency);
-
   const awaitDraft = projects
     .filter((p) => active(p) && p.phases?.roughCut && !p.phases?.draft)
     .sort(sortByUrgency);
-
   const awaitMaster = projects
     .filter((p) => active(p) && p.phases?.draft && !p.phases?.master)
     .sort(sortByUrgency);
-
   const awaitDeliver = projects
     .filter((p) => active(p) && p.phases?.master && !p.phases?.delivered)
     .sort(sortByUrgency);
 
-  // Late counts across all active projects
   const allActive = [
     ...awaitFilming,
     ...awaitRoughCut,
@@ -114,16 +89,13 @@ function buildSummaryMessage(projects: Project[]): string {
   });
 
   const hasAny = deliveredThisMonth.length > 0 || waitConfirm.length > 0 || allActive.length > 0;
-
-  if (!hasAny) {
-    return `📊 PROJECT UPDATE — ${dateStr}\n\nNo active projects.`;
-  }
+  if (!hasAny) return `📊 PROJECT UPDATE — ${dateStr}\n\nNo active projects.`;
 
   const ln: string[] = [];
 
-  // ── Header ──────────────────────────────────────────────
   ln.push(`📊 PROJECT UPDATE — ${dateStr}`);
   ln.push('');
+
   const summary = [
     { emoji: '✅', label: 'Delivered this month', count: deliveredThisMonth.length },
     { emoji: '⬜', label: 'Unconfirmed', count: waitConfirm.length },
@@ -138,21 +110,18 @@ function buildSummaryMessage(projects: Project[]): string {
   ln.push('');
   ln.push(DIV);
 
-  // ── Delivered this month ─────────────────────────────────
   if (deliveredThisMonth.length > 0) {
     ln.push('');
     ln.push(`✅  Delivered this month (${deliveredThisMonth.length})`);
     for (const p of deliveredThisMonth) ln.push(`     — ${p.name}`);
   }
 
-  // ── Wait Project Confirm ─────────────────────────────────
   if (waitConfirm.length > 0) {
     ln.push('');
     ln.push(`⬜  Wait Project Confirm (${waitConfirm.length})`);
     for (const p of waitConfirm) ln.push(`     — ${p.name}`);
   }
 
-  // ── Phase sections ───────────────────────────────────────
   const phaseSections = [
     { emoji: '🎬', label: 'Await Filming', list: awaitFilming },
     { emoji: '✂️', label: 'Await Rough Cut', list: awaitRoughCut },
@@ -172,7 +141,6 @@ function buildSummaryMessage(projects: Project[]): string {
     }
   }
 
-  // ── Late summary ─────────────────────────────────────────
   if (veryLate.length > 0 || almostLate.length > 0) {
     ln.push('');
     if (veryLate.length > 0)
@@ -186,70 +154,61 @@ function buildSummaryMessage(projects: Project[]): string {
   return ln.join('\n');
 }
 
-export default function TelegramProjectsButton() {
-  const { projects, paymentInfo } = useStore();
-  const [sending, setSending] = useState(false);
+// ── Route handler ─────────────────────────────────────────────────────────────
 
-  async function handleSend() {
-    const token = paymentInfo.telegramBotToken?.trim();
-    const chatId = paymentInfo.projectTelegramChatId?.trim();
-    if (!token || !chatId) {
-      alert('Add your Telegram Bot Token and Project Chat ID in Settings first.');
-      return;
-    }
-    setSending(true);
-    try {
-      const text = buildSummaryMessage(projects);
-      const formData = new FormData();
-      formData.append('chat_id', chatId);
-      formData.append('text', text);
-      formData.append('parse_mode', 'Markdown');
-      if (paymentInfo.projectTelegramTopicId?.trim()) {
-        formData.append('message_thread_id', paymentInfo.projectTelegramTopicId.trim());
-      }
-      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        alert(`Telegram error: ${err.description ?? res.statusText}`);
-      }
-    } catch (e) {
-      alert(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
-    } finally {
-      setSending(false);
-    }
+export async function GET(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get('authorization');
+  const querySecret = req.nextUrl.searchParams.get('secret');
+
+  const authorized =
+    cronSecret && (authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret);
+
+  if (!authorized) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  return (
-    <button
-      onClick={handleSend}
-      disabled={sending}
-      title="Send project status to Telegram"
-      className="flex items-center justify-center w-10 h-10 rounded-xl text-sky-400/70 hover:text-sky-300 hover:bg-sky-500/15 active:bg-sky-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition"
-    >
-      {sending ? (
-        <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle
-            className="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="4"
-          />
-          <path
-            className="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-          />
-        </svg>
-      ) : (
-        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-        </svg>
-      )}
-    </button>
-  );
+  try {
+    const [projectsSnap, paymentSnap] = await Promise.all([
+      adminDb.collection('projects').get(),
+      adminDb.doc('settings/payment').get(),
+    ]);
+
+    const projects = projectsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project);
+    const payment = paymentSnap.exists ? (paymentSnap.data() as PaymentInfo) : null;
+
+    const token = payment?.telegramBotToken?.trim();
+    const chatId = payment?.projectTelegramChatId?.trim();
+
+    if (!token || !chatId) {
+      return NextResponse.json(
+        { error: 'Telegram credentials not configured in settings' },
+        { status: 400 }
+      );
+    }
+
+    const text = buildSummaryMessage(projects);
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('text', text);
+    formData.append('parse_mode', 'Markdown');
+    if (payment?.projectTelegramTopicId?.trim()) {
+      formData.append('message_thread_id', payment.projectTelegramTopicId.trim());
+    }
+
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      return NextResponse.json({ error: err.description ?? res.statusText }, { status: 502 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
