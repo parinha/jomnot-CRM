@@ -33,7 +33,7 @@ function phasesDone(phases?: ProjectPhases): number {
 }
 import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE } from '@/app/_config/constants';
-import { calcNet, calcEarned, calcBalance } from '@/app/_services/invoiceService';
+import { calcNet } from '@/app/_services/invoiceService';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
 import SortTh from '@/app/_components/SortTh';
@@ -161,6 +161,29 @@ export default function ProjectsView() {
   const [sortCol, setSortCol] = useState('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [activeTab, setActiveTab] = useState<'active' | 'on-hold' | 'quoted' | 'done'>('active');
+
+  // ── Date range filter (for widgets) ──────────────────────────────────────────
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  });
+  const [dateTo, setDateTo] = useState<string>(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  });
+
+  function selectThisMonth() {
+    const d = new Date();
+    setDateFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10));
+    setDateTo(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10));
+  }
+  function selectLastMonth() {
+    const d = new Date();
+    const y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
+    const m = d.getMonth() === 0 ? 11 : d.getMonth() - 1;
+    setDateFrom(new Date(y, m, 1).toISOString().slice(0, 10));
+    setDateTo(new Date(y, m + 1, 0).toISOString().slice(0, 10));
+  }
 
   function handleSort(col: string) {
     if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -529,91 +552,132 @@ export default function ProjectsView() {
         </button>
       </div>
 
-      {/* Summary widgets */}
+      {/* Date range filter + widgets */}
       {(() => {
-        const fmt = (n: number) =>
+        const fmtAmt = (n: number) =>
           n === 0 ? '—' : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-        const now = new Date();
-        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-        // Net actually received (paid invoices only)
-        const allTimeEarned = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
-
-        // What came in this month (paid invoices dated this month)
-        const earnedThisMonth = invoices
-          .filter((inv) => {
-            if (inv.status !== 'paid' && inv.status !== 'partial') return false;
-            const d = new Date(inv.date);
-            return d >= monthStart && d <= monthEnd;
-          })
-          .reduce((s, inv) => s + calcEarned(inv), 0);
-
-        // If all active projects with delivery this month complete — net invoice value
-        const activeProjectIds = new Set(
-          projects
-            .filter((p) => {
-              if (p.status !== 'confirmed' && p.status !== 'in-progress') return false;
-              if (!p.deliverDate) return false;
-              const d = new Date(p.deliverDate);
-              return d >= monthStart && d <= monthEnd;
-            })
-            .map((p) => p.id)
-        );
-        const projThisMonth = projects.filter((p) => activeProjectIds.has(p.id));
-        const potentialThisMonth = projThisMonth.reduce((s, p) => {
+        // Project value: net from linked invoices, fallback to budget
+        const projValue = (p: Project) => {
           const invNet = p.invoiceIds
             .map((id) => invoices.find((i) => i.id === id))
             .filter(Boolean)
             .reduce((sum, inv) => sum + calcNet(inv!), 0);
-          return s + (invNet > 0 ? invNet : (p.budget ?? 0));
-        }, 0);
+          return invNet > 0 ? invNet : (p.budget ?? 0);
+        };
 
-        // Balance still owed (sent + partial invoices)
-        const awaitingPayment = invoices
-          .filter((inv) => inv.status === 'sent' || inv.status === 'partial')
-          .reduce((s, inv) => s + calcBalance(inv), 0);
+        // Filter projects whose deliverDate falls in the selected range
+        const rangeProjects = projects.filter(
+          (p) => p.deliverDate && p.deliverDate >= dateFrom && p.deliverDate <= dateTo
+        );
+
+        const quotedProjects = rangeProjects.filter((p) => p.status === 'draft');
+        const quotedTotal = quotedProjects.reduce((s, p) => s + projValue(p), 0);
+
+        const waitingProjects = rangeProjects.filter(
+          (p) => p.status === 'confirmed' || p.status === 'in-progress' || p.status === 'on-hold'
+        );
+        const waitingTotal = waitingProjects.reduce((s, p) => s + projValue(p), 0);
+
+        const completedProjects = rangeProjects.filter((p) => p.status === 'completed');
+        const completedTotal = completedProjects.reduce((s, p) => s + projValue(p), 0);
+
+        const pipelineTotal = waitingTotal + completedTotal;
+
+        // Detect which quick-select is active
+        const now = new Date();
+        const thisMonthFrom = new Date(now.getFullYear(), now.getMonth(), 1)
+          .toISOString()
+          .slice(0, 10);
+        const thisMonthTo = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+          .toISOString()
+          .slice(0, 10);
+        const lmY = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+        const lmM = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const lastMonthFrom = new Date(lmY, lmM, 1).toISOString().slice(0, 10);
+        const lastMonthTo = new Date(lmY, lmM + 1, 0).toISOString().slice(0, 10);
+        const isThisMonth = dateFrom === thisMonthFrom && dateTo === thisMonthTo;
+        const isLastMonth = dateFrom === lastMonthFrom && dateTo === lastMonthTo;
 
         const widgets = [
           {
-            label: 'Earned This Month',
-            value: fmt(earnedThisMonth),
-            sub: `invoices paid in ${now.toLocaleString('en-US', { month: 'long' })}`,
-            color: 'text-emerald-400',
+            label: 'Quoted',
+            value: fmtAmt(quotedTotal),
+            sub: `${quotedProjects.length} project${quotedProjects.length !== 1 ? 's' : ''}`,
+            color: 'text-white/70',
           },
           {
-            label: 'If All Delivered',
-            value: fmt(potentialThisMonth),
-            sub: `${projThisMonth.length} active project${projThisMonth.length !== 1 ? 's' : ''} due this month`,
-            color: 'text-[#FFC206]',
-          },
-          {
-            label: 'Awaiting Payment',
-            value: fmt(awaitingPayment),
-            sub: `${invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length} open invoices`,
+            label: 'In Progress',
+            value: fmtAmt(waitingTotal),
+            sub: `${waitingProjects.length} project${waitingProjects.length !== 1 ? 's' : ''}`,
             color: 'text-sky-400',
           },
           {
-            label: 'All Time Earned',
-            value: fmt(allTimeEarned),
-            sub: `net after WHT`,
-            color: 'text-white',
+            label: 'Completed',
+            value: fmtAmt(completedTotal),
+            sub: `${completedProjects.length} project${completedProjects.length !== 1 ? 's' : ''}`,
+            color: 'text-emerald-400',
+          },
+          {
+            label: 'Total Pipeline',
+            value: fmtAmt(pipelineTotal),
+            sub: 'in progress + completed',
+            color: 'text-[#FFC206]',
           },
         ];
+
+        const quickBtnCls = (active: boolean) =>
+          `h-8 px-3 rounded-lg text-xs font-semibold transition ${
+            active
+              ? 'bg-[#FFC206]/20 text-[#FFC206] border border-[#FFC206]/30'
+              : 'bg-white/[0.06] text-white/50 border border-white/10 hover:text-white/80 hover:bg-white/10'
+          }`;
+
+        const dateCls =
+          'h-8 rounded-lg border border-white/15 bg-white/[0.07] px-2 text-xs text-white/70 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition';
+
         return (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
-            {widgets.map((w) => (
-              <div
-                key={w.label}
-                className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4"
-              >
-                <p className={`text-xl font-bold ${w.color}`}>
-                  <span className="amt">{w.value}</span>
-                </p>
-                <p className="text-xs text-white/40 mt-0.5">{w.sub}</p>
-                <p className="text-xs text-white/55 mt-1">{w.label}</p>
+          <div className="mb-5">
+            {/* Controls row */}
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              <button className={quickBtnCls(isThisMonth)} onClick={selectThisMonth}>
+                This Month
+              </button>
+              <button className={quickBtnCls(isLastMonth)} onClick={selectLastMonth}>
+                Last Month
+              </button>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className={dateCls}
+                />
+                <span className="text-white/30 text-xs">–</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className={dateCls}
+                />
               </div>
-            ))}
+            </div>
+
+            {/* Widgets */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {widgets.map((w) => (
+                <div
+                  key={w.label}
+                  className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4"
+                >
+                  <p className={`text-xl font-bold ${w.color}`}>
+                    <span className="amt">{w.value}</span>
+                  </p>
+                  <p className="text-xs text-white/40 mt-0.5">{w.sub}</p>
+                  <p className="text-xs text-white/55 mt-1">{w.label}</p>
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}
