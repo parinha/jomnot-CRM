@@ -213,13 +213,13 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [paymentInfo, setPaymentState] = useState<PaymentInfo>(EMPTY_PAYMENT);
   const [amountsVisible, setAmountsVisible] = useState<boolean>(() => {
     if (typeof window === 'undefined') return true;
-    return localStorage.getItem('amountsVisible') !== 'false';
+    return sessionStorage.getItem('amountsVisible') === 'true';
   });
 
   function toggleAmountsVisible() {
     setAmountsVisible((prev) => {
       const next = !prev;
-      localStorage.setItem('amountsVisible', String(next));
+      sessionStorage.setItem('amountsVisible', String(next));
       return next;
     });
   }
