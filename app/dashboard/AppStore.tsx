@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from '
 import { collection, doc, onSnapshot, writeBatch, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/app/_lib/firebase';
 import { auth } from '@/app/_lib/auth';
-import { DEFAULT_SCOPES } from '@/app/_config/constants';
+import { DEFAULT_SCOPES, type TelegramTemplate } from '@/app/_config/constants';
 
 // ── Domain types ──────────────────────────────────────────────────────────────
 
@@ -72,7 +72,10 @@ export interface PaymentInfo {
   telegramTopicId?: string;
   projectTelegramChatId?: string;
   projectTelegramTopicId?: string;
+  telegramTemplate?: TelegramTemplate;
 }
+
+export type { TelegramTemplate };
 
 export type ProjectItemStatus = 'todo' | 'in-progress' | 'done';
 

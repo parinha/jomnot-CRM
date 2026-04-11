@@ -2,6 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useStore, type CompanyProfile, type PaymentInfo } from '../AppStore';
+import {
+  DEFAULT_TELEGRAM_TEMPLATE,
+  type TelegramTemplate,
+  type TelegramSectionConfig,
+} from '@/app/_config/constants';
 
 export default function SettingsView() {
   const {
@@ -440,6 +445,12 @@ export default function SettingsView() {
               </div>
             ))}
           </div>
+
+          {/* Message template */}
+          <TelegramTemplateEditor
+            value={payment.telegramTemplate ?? DEFAULT_TELEGRAM_TEMPLATE}
+            onChange={(tpl) => setPay('telegramTemplate', tpl)}
+          />
         </div>
 
         <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
@@ -464,6 +475,194 @@ export default function SettingsView() {
     </div>
   );
 }
+
+// ── Telegram template editor ──────────────────────────────────────────────────
+
+const SECTION_KEYS: (keyof TelegramTemplate['sections'])[] = [
+  'delivered',
+  'unconfirmed',
+  'awaitFilming',
+  'awaitRoughCut',
+  'awaitDraft',
+  'awaitMaster',
+  'awaitDeliver',
+];
+
+function TelegramTemplateEditor({
+  value,
+  onChange,
+}: {
+  value: TelegramTemplate;
+  onChange: (t: TelegramTemplate) => void;
+}) {
+  const emojiCls =
+    'w-14 h-10 rounded-xl border border-white/20 bg-white/10 px-2 text-sm text-white text-center focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition shrink-0';
+  const textCls =
+    'h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition flex-1 min-w-0';
+
+  function setHeader<K extends 'headerEmoji' | 'headerTitle'>(k: K, v: string) {
+    onChange({ ...value, [k]: v });
+  }
+
+  function setSection(
+    key: keyof TelegramTemplate['sections'],
+    patch: Partial<TelegramSectionConfig>
+  ) {
+    onChange({
+      ...value,
+      sections: { ...value.sections, [key]: { ...value.sections[key], ...patch } },
+    });
+  }
+
+  return (
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <span className="w-2 h-2 rounded-full bg-violet-400 shrink-0" />
+        <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
+          Message Template
+        </p>
+      </div>
+      <p className="text-xs text-white/40 -mt-2">
+        Customize the section names and emojis sent in the project update message.
+      </p>
+
+      {/* Header row */}
+      <div className="flex flex-col gap-1.5">
+        <p className="text-xs text-white/50 font-semibold uppercase tracking-wide">Header</p>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={value.headerEmoji}
+            onChange={(e) => setHeader('headerEmoji', e.target.value)}
+            className={emojiCls}
+            placeholder="📊"
+            maxLength={4}
+          />
+          <input
+            type="text"
+            value={value.headerTitle}
+            onChange={(e) => setHeader('headerTitle', e.target.value)}
+            className={textCls}
+            placeholder="PROJECT UPDATE"
+          />
+        </div>
+      </div>
+
+      {/* Timeline status emojis */}
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/[0.06]">
+        <p className="text-xs text-white/50 font-semibold uppercase tracking-wide">
+          Timeline Status Emojis
+        </p>
+        <p className="text-xs text-white/35">
+          Format:{' '}
+          <span className="text-white/55 font-mono">
+            {value.timeline.noDate} Project Name (🟡 8d left)
+          </span>
+        </p>
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={value.timeline.noDate}
+              onChange={(e) =>
+                onChange({ ...value, timeline: { ...value.timeline, noDate: e.target.value } })
+              }
+              className={emojiCls}
+              maxLength={4}
+            />
+            <span className="text-xs text-white/45">Bullet prefix (all lines)</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 pl-0">
+            {(
+              [
+                { key: 'overdue' as const, hint: 'Overdue / due today' },
+                { key: 'urgent' as const, hint: '≤ 3 days left' },
+                { key: 'soon' as const, hint: '≤ 10 days left' },
+                { key: 'ok' as const, hint: '> 10 days left' },
+              ] as const
+            ).map(({ key, hint }) => (
+              <div key={key} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={value.timeline[key]}
+                  onChange={(e) =>
+                    onChange({ ...value, timeline: { ...value.timeline, [key]: e.target.value } })
+                  }
+                  className={emojiCls}
+                  maxLength={4}
+                />
+                <span className="text-xs text-white/45 truncate">{hint}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Section rows */}
+      <div className="flex flex-col gap-2 pt-2 border-t border-white/[0.06]">
+        <p className="text-xs text-white/50 font-semibold uppercase tracking-wide">Sections</p>
+        {SECTION_KEYS.map((key) => {
+          const cfg = value.sections[key];
+          return (
+            <div key={key} className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSection(key, { enabled: !cfg.enabled })}
+                className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 transition ${
+                  cfg.enabled
+                    ? 'bg-[#FFC206]/15 border-[#FFC206]/40 text-[#FFC206]'
+                    : 'bg-white/5 border-white/15 text-white/25'
+                }`}
+                title={cfg.enabled ? 'Enabled — click to hide' : 'Disabled — click to show'}
+              >
+                {cfg.enabled ? (
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                )}
+              </button>
+              <input
+                type="text"
+                value={cfg.emoji}
+                onChange={(e) => setSection(key, { emoji: e.target.value })}
+                className={`${emojiCls} ${!cfg.enabled ? 'opacity-40' : ''}`}
+                placeholder="🔖"
+                maxLength={4}
+                disabled={!cfg.enabled}
+              />
+              <input
+                type="text"
+                value={cfg.label}
+                onChange={(e) => setSection(key, { label: e.target.value })}
+                className={`${textCls} ${!cfg.enabled ? 'opacity-40' : ''}`}
+                placeholder="Section name"
+                disabled={!cfg.enabled}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Scope list ────────────────────────────────────────────────────────────────
 
 function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: string[]) => void }) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);

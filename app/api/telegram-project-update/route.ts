@@ -1,10 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/app/_lib/firebase-admin';
 import type { Project, PaymentInfo } from '@/app/dashboard/AppStore';
+import {
+  DEFAULT_TELEGRAM_TEMPLATE,
+  type TelegramTemplate,
+  type TelegramSectionConfig,
+  type TelegramTimeline,
+} from '@/app/_config/constants';
+
+// ── Template resolver ─────────────────────────────────────────────────────────
+
+function resolveTemplate(payment: PaymentInfo): TelegramTemplate {
+  const s = payment.telegramTemplate;
+  if (!s) return DEFAULT_TELEGRAM_TEMPLATE;
+  const def = DEFAULT_TELEGRAM_TEMPLATE;
+  const mergeSection = (key: keyof TelegramTemplate['sections']): TelegramSectionConfig => ({
+    ...def.sections[key],
+    ...s.sections?.[key],
+  });
+  return {
+    headerEmoji: s.headerEmoji ?? def.headerEmoji,
+    headerTitle: s.headerTitle ?? def.headerTitle,
+    timeline: { ...def.timeline, ...s.timeline } as TelegramTimeline,
+    sections: {
+      delivered: mergeSection('delivered'),
+      unconfirmed: mergeSection('unconfirmed'),
+      awaitFilming: mergeSection('awaitFilming'),
+      awaitRoughCut: mergeSection('awaitRoughCut'),
+      awaitDraft: mergeSection('awaitDraft'),
+      awaitMaster: mergeSection('awaitMaster'),
+      awaitDeliver: mergeSection('awaitDeliver'),
+    },
+  };
+}
 
 // ── Helpers (mirrors TelegramProjectsButton logic) ────────────────────────────
 
-function getTimelineInfo(deliverDate?: string) {
+function getTimelineInfo(deliverDate: string | undefined, tl: TelegramTimeline) {
   if (!deliverDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -14,10 +46,10 @@ function getTimelineInfo(deliverDate?: string) {
   const isOverdue = daysLeft < 0;
 
   let emoji: string;
-  if (isOverdue || daysLeft === 0) emoji = '🔴';
-  else if (daysLeft <= 3) emoji = '🟠';
-  else if (daysLeft <= 10) emoji = '🟡';
-  else emoji = '🟢';
+  if (isOverdue || daysLeft === 0) emoji = tl.overdue;
+  else if (daysLeft <= 3) emoji = tl.urgent;
+  else if (daysLeft <= 10) emoji = tl.soon;
+  else emoji = tl.ok;
 
   const label = isOverdue
     ? `${Math.abs(daysLeft)}d late`
@@ -28,15 +60,15 @@ function getTimelineInfo(deliverDate?: string) {
   return { daysLeft, isOverdue, label, emoji };
 }
 
-function oneLiner(p: Project): string {
-  const tl = getTimelineInfo(p.deliverDate);
-  return tl ? `${tl.emoji} ${tl.label} — ${p.name}` : `▸ ${p.name}`;
+function oneLiner(p: Project, tl: TelegramTimeline): string {
+  const info = getTimelineInfo(p.deliverDate, tl);
+  return info ? `${tl.noDate} ${p.name} (${info.emoji} ${info.label})` : `${tl.noDate} ${p.name}`;
 }
 
 const DIV = '━━━━━━━━━━━━';
 const DIV_LIGHT = '──────────────';
 
-function buildSummaryMessage(projects: Project[]): string {
+function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dateStr = today.toLocaleDateString('en-US', {
@@ -51,9 +83,10 @@ function buildSummaryMessage(projects: Project[]): string {
     return dt.getFullYear() === today.getFullYear() && dt.getMonth() === today.getMonth();
   };
 
+  const tl = tpl.timeline;
   const sortByUrgency = (a: Project, b: Project) =>
-    (getTimelineInfo(a.deliverDate)?.daysLeft ?? 9999) -
-    (getTimelineInfo(b.deliverDate)?.daysLeft ?? 9999);
+    (getTimelineInfo(a.deliverDate, tl)?.daysLeft ?? 9999) -
+    (getTimelineInfo(b.deliverDate, tl)?.daysLeft ?? 9999);
 
   const active = (p: Project) => p.status === 'confirmed' || p.status === 'in-progress';
 
@@ -82,60 +115,62 @@ function buildSummaryMessage(projects: Project[]): string {
     ...awaitMaster,
     ...awaitDeliver,
   ];
-  const veryLate = allActive.filter((p) => getTimelineInfo(p.deliverDate)?.isOverdue);
+  const veryLate = allActive.filter((p) => getTimelineInfo(p.deliverDate, tl)?.isOverdue);
   const almostLate = allActive.filter((p) => {
-    const tl = getTimelineInfo(p.deliverDate);
-    return tl && !tl.isOverdue && tl.daysLeft <= 2;
+    const info = getTimelineInfo(p.deliverDate, tl);
+    return info && !info.isOverdue && info.daysLeft <= 2;
   });
 
+  const { sections: sec } = tpl;
+
   const hasAny = deliveredThisMonth.length > 0 || waitConfirm.length > 0 || allActive.length > 0;
-  if (!hasAny) return `📊 PROJECT UPDATE — ${dateStr}\n\nNo active projects.`;
+  if (!hasAny) return `${tpl.headerEmoji} ${tpl.headerTitle} — ${dateStr}\n\nNo active projects.`;
 
   const ln: string[] = [];
 
-  ln.push(`📊 PROJECT UPDATE — ${dateStr}`);
+  ln.push(`${tpl.headerEmoji} ${tpl.headerTitle} — ${dateStr}`);
   ln.push('');
 
-  const summary = [
-    { emoji: '✅', label: 'Delivered this month', count: deliveredThisMonth.length },
-    { emoji: '⬜', label: 'Unconfirmed', count: waitConfirm.length },
-    { emoji: '🎬', label: 'Await Filming', count: awaitFilming.length },
-    { emoji: '✂️', label: 'Await Rough Cut', count: awaitRoughCut.length },
-    { emoji: '📝', label: 'Await Draft/VO', count: awaitDraft.length },
-    { emoji: '🎯', label: 'Await Master', count: awaitMaster.length },
-    { emoji: '🏁', label: 'Await Mark as Completed', count: awaitDeliver.length },
-  ].filter((r) => r.count > 0);
-  for (const r of summary) ln.push(`${r.emoji} ${r.count}  ${r.label}`);
+  const summaryRows = [
+    { cfg: sec.delivered, count: deliveredThisMonth.length },
+    { cfg: sec.unconfirmed, count: waitConfirm.length },
+    { cfg: sec.awaitFilming, count: awaitFilming.length },
+    { cfg: sec.awaitRoughCut, count: awaitRoughCut.length },
+    { cfg: sec.awaitDraft, count: awaitDraft.length },
+    { cfg: sec.awaitMaster, count: awaitMaster.length },
+    { cfg: sec.awaitDeliver, count: awaitDeliver.length },
+  ].filter((r) => r.cfg.enabled && r.count > 0);
+  for (const r of summaryRows) ln.push(`${r.cfg.emoji} ${r.count}  ${r.cfg.label}`);
 
   ln.push('');
   ln.push(DIV);
 
-  if (deliveredThisMonth.length > 0) {
+  if (sec.delivered.enabled && deliveredThisMonth.length > 0) {
     ln.push('');
-    ln.push(`✅  Delivered this month (${deliveredThisMonth.length})`);
+    ln.push(`${sec.delivered.emoji}  ${sec.delivered.label} (${deliveredThisMonth.length})`);
     for (const p of deliveredThisMonth) ln.push(`     — ${p.name}`);
   }
 
-  if (waitConfirm.length > 0) {
+  if (sec.unconfirmed.enabled && waitConfirm.length > 0) {
     ln.push('');
-    ln.push(`⬜  Wait Project Confirm (${waitConfirm.length})`);
+    ln.push(`${sec.unconfirmed.emoji}  ${sec.unconfirmed.label} (${waitConfirm.length})`);
     for (const p of waitConfirm) ln.push(`     — ${p.name}`);
   }
 
   const phaseSections = [
-    { emoji: '🎬', label: 'Await Filming', list: awaitFilming },
-    { emoji: '✂️', label: 'Await Rough Cut', list: awaitRoughCut },
-    { emoji: '📝', label: 'Await Draft/VO', list: awaitDraft },
-    { emoji: '🎯', label: 'Await Master', list: awaitMaster },
-    { emoji: '🏁', label: 'Await Mark as Completed', list: awaitDeliver },
-  ].filter((s) => s.list.length > 0);
+    { cfg: sec.awaitFilming, list: awaitFilming },
+    { cfg: sec.awaitRoughCut, list: awaitRoughCut },
+    { cfg: sec.awaitDraft, list: awaitDraft },
+    { cfg: sec.awaitMaster, list: awaitMaster },
+    { cfg: sec.awaitDeliver, list: awaitDeliver },
+  ].filter((s) => s.cfg.enabled && s.list.length > 0);
 
   for (let i = 0; i < phaseSections.length; i++) {
-    const { emoji, label, list } = phaseSections[i];
+    const { cfg, list } = phaseSections[i];
     ln.push('');
-    ln.push(`${emoji}  ${label} (${list.length})`);
-    for (const p of list) ln.push(`     ${oneLiner(p)}`);
-    if (label === 'Await Master' && i < phaseSections.length - 1) {
+    ln.push(`${cfg.emoji}  ${cfg.label} (${list.length})`);
+    for (const p of list) ln.push(`     ${oneLiner(p, tl)}`);
+    if (cfg === sec.awaitMaster && i < phaseSections.length - 1) {
       ln.push('');
       ln.push(DIV_LIGHT);
     }
@@ -144,10 +179,12 @@ function buildSummaryMessage(projects: Project[]): string {
   if (veryLate.length > 0 || almostLate.length > 0) {
     ln.push('');
     if (veryLate.length > 0)
-      ln.push(`🔴  Very late: ${veryLate.length} project${veryLate.length > 1 ? 's' : ''}`);
+      ln.push(
+        `${tl.overdue}  Very late: ${veryLate.length} project${veryLate.length > 1 ? 's' : ''}`
+      );
     if (almostLate.length > 0)
       ln.push(
-        `🟠  Almost late (≤2d): ${almostLate.length} project${almostLate.length > 1 ? 's' : ''}`
+        `${tl.urgent}  Almost late (≤2d): ${almostLate.length} project${almostLate.length > 1 ? 's' : ''}`
       );
   }
 
@@ -187,7 +224,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const text = buildSummaryMessage(projects);
+    const tpl = resolveTemplate(payment ?? ({} as PaymentInfo));
+    const text = buildSummaryMessage(projects, tpl);
     const formData = new FormData();
     formData.append('chat_id', chatId);
     formData.append('text', text);
