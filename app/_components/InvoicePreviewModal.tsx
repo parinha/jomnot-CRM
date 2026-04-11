@@ -138,10 +138,10 @@ export default function InvoicePreviewModal({
                           {item.description}
                         </td>
                         <td className="px-3 py-2.5 text-center text-white/50">{item.qty}</td>
-                        <td className="px-3 py-2.5 text-right text-white/50 hidden sm:table-cell">
+                        <td className="px-3 py-2.5 text-right text-white/50 hidden sm:table-cell amt">
                           {fmt(item.unitPrice)}
                         </td>
-                        <td className="px-3 py-2.5 text-right font-semibold text-white">
+                        <td className="px-3 py-2.5 text-right font-semibold text-white amt">
                           {fmt(item.qty * item.unitPrice)}
                         </td>
                       </tr>
@@ -154,17 +154,19 @@ export default function InvoicePreviewModal({
               <div className="flex flex-col items-end gap-1.5 text-sm">
                 <div className="flex gap-8 pt-1.5 border-t border-white/[0.08]">
                   <span className="font-semibold text-white/60">Grand Total</span>
-                  <span className="font-bold text-white w-28 text-right">{fmt(subtotal)}</span>
+                  <span className="font-bold text-white w-28 text-right amt">{fmt(subtotal)}</span>
                 </div>
                 {whtAmount != null && (
                   <>
                     <div className="flex gap-8 text-orange-400">
                       <span>Less WHT {WHT_RATE * 100}%</span>
-                      <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
+                      <span className="font-medium w-28 text-right amt">({fmt(whtAmount)})</span>
                     </div>
                     <div className="flex gap-8 pt-1.5 border-t border-white/[0.08] mt-0.5">
                       <span className="font-semibold text-white/60">Total (USD)</span>
-                      <span className="font-bold text-white w-28 text-right">{fmt(netTotal)}</span>
+                      <span className="font-bold text-white w-28 text-right amt">
+                        {fmt(netTotal)}
+                      </span>
                     </div>
                   </>
                 )}
@@ -172,11 +174,13 @@ export default function InvoicePreviewModal({
                   <>
                     <div className="flex gap-8 text-green-400">
                       <span>Deposit ({inv.depositPercent}%)</span>
-                      <span className="font-medium w-28 text-right">− {fmt(depositAmount)}</span>
+                      <span className="font-medium w-28 text-right amt">
+                        − {fmt(depositAmount)}
+                      </span>
                     </div>
                     <div className="flex gap-8 pt-1.5 border-t border-white/[0.08] mt-0.5">
                       <span className="font-semibold text-white/60">Balance Due</span>
-                      <span className="font-bold text-white w-28 text-right">
+                      <span className="font-bold text-white w-28 text-right amt">
                         {fmt(balanceDue)}
                       </span>
                     </div>

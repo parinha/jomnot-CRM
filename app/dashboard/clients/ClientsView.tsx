@@ -276,7 +276,11 @@ export default function ClientsView() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-white text-sm">
-                        {stats && stats.count > 0 ? fmt(stats.earned) : '—'}
+                        {stats && stats.count > 0 ? (
+                          <span className="amt">{fmt(stats.earned)}</span>
+                        ) : (
+                          '—'
+                        )}
                       </p>
                       <p className="text-[10px] text-white/40">earned</p>
                     </div>
@@ -341,9 +345,7 @@ export default function ClientsView() {
                   <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
                     Phone
                   </th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden lg:table-cell">
-                    Address
-                  </th>
+
                   <th className="text-center px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
                     Projects
                   </th>
@@ -393,9 +395,7 @@ export default function ClientsView() {
                       <td className="px-4 py-3.5 text-white/60 hidden md:table-cell">
                         {client.phone || '—'}
                       </td>
-                      <td className="px-4 py-3.5 text-white/60 max-w-xs truncate hidden lg:table-cell">
-                        {client.address || '—'}
-                      </td>
+
                       <td className="px-4 py-3.5 text-center hidden md:table-cell">
                         {stats && stats.projectCount > 0 ? (
                           <button
@@ -422,14 +422,14 @@ export default function ClientsView() {
                       </td>
                       <td className="px-4 py-3.5 text-right font-semibold text-white">
                         {stats && stats.count > 0 ? (
-                          fmt(stats.earned)
+                          <span className="amt">{fmt(stats.earned)}</span>
                         ) : (
                           <span className="text-white/25 text-xs">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-right hidden md:table-cell">
                         {stats && stats.remaining > 0 ? (
-                          <span className="font-semibold text-amber-400">
+                          <span className="font-semibold text-amber-400 amt">
                             {fmt(stats.remaining)}
                           </span>
                         ) : (
@@ -689,7 +689,7 @@ export default function ClientsView() {
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   {netValue > 0 ? (
-                                    <span className="font-semibold text-white">
+                                    <span className="font-semibold text-white amt">
                                       {fmt(netValue)}
                                     </span>
                                   ) : (
@@ -727,13 +727,15 @@ export default function ClientsView() {
                               <div className="flex gap-4">
                                 <span>
                                   Earned:{' '}
-                                  <span className="text-emerald-400 font-semibold">
+                                  <span className="text-emerald-400 font-semibold amt">
                                     {fmt(earned)}
                                   </span>
                                 </span>
                                 <span>
                                   Total Net:{' '}
-                                  <span className="text-white font-semibold">{fmt(totalNet)}</span>
+                                  <span className="text-white font-semibold amt">
+                                    {fmt(totalNet)}
+                                  </span>
                                 </span>
                               </div>
                             </div>
@@ -826,7 +828,7 @@ export default function ClientsView() {
                               <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
                                 {inv.date}
                               </td>
-                              <td className="px-4 py-3 text-right font-semibold text-white">
+                              <td className="px-4 py-3 text-right font-semibold text-white amt">
                                 {fmt(sub)}
                               </td>
                               <td className="px-4 py-3">

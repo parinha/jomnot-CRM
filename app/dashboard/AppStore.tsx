@@ -104,6 +104,7 @@ export interface Project extends RecordMeta {
   filmingDate?: string;
   deliverDate?: string;
   budget?: number;
+  note?: string;
 }
 
 // ── Firestore paths ───────────────────────────────────────────────────────────
@@ -154,6 +155,8 @@ interface AppStore {
   setCompanyProfile: (p: CompanyProfile) => void;
   paymentInfo: PaymentInfo;
   setPaymentInfo: (p: PaymentInfo) => void;
+  amountsVisible: boolean;
+  toggleAmountsVisible: () => void;
 }
 
 const StoreCtx = createContext<AppStore | null>(null);
@@ -208,6 +211,18 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [scopeOfWork, setScopeState] = useState<string[]>(DEFAULT_SCOPES);
   const [companyProfile, setCompanyState] = useState<CompanyProfile>(EMPTY_PROFILE);
   const [paymentInfo, setPaymentState] = useState<PaymentInfo>(EMPTY_PAYMENT);
+  const [amountsVisible, setAmountsVisible] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    return localStorage.getItem('amountsVisible') !== 'false';
+  });
+
+  function toggleAmountsVisible() {
+    setAmountsVisible((prev) => {
+      const next = !prev;
+      localStorage.setItem('amountsVisible', String(next));
+      return next;
+    });
+  }
 
   useEffect(() => {
     let loaded = 0;
@@ -304,6 +319,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         setCompanyProfile,
         paymentInfo,
         setPaymentInfo,
+        amountsVisible,
+        toggleAmountsVisible,
       }}
     >
       {children}

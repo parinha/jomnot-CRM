@@ -355,7 +355,7 @@ export default function ReportsView() {
                     <div className="w-full flex flex-col justify-end" style={{ height: '168px' }}>
                       {b.revenue > 0 ? (
                         <div className="w-full flex flex-col items-center justify-end">
-                          <span className="text-xs text-white/50 mb-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                          <span className="text-xs text-white/50 mb-1 opacity-0 group-hover:opacity-100 transition whitespace-nowrap amt">
                             {fmtShort(b.revenue)}
                           </span>
                           <div
@@ -392,7 +392,7 @@ export default function ReportsView() {
                     <span className="text-sm text-white/75 truncate max-w-[60%]">{c.name}</span>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs text-white/35">{c.count} inv</span>
-                      <span className="text-sm font-semibold text-white">{fmt(c.revenue)}</span>
+                      <span className="text-sm font-semibold text-white amt">{fmt(c.revenue)}</span>
                     </div>
                   </div>
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
@@ -429,7 +429,7 @@ export default function ReportsView() {
                         {count} invoice{count !== 1 ? 's' : ''}
                       </span>
                     </div>
-                    <span className="text-sm font-semibold text-white">{fmt(revenue)}</span>
+                    <span className="text-sm font-semibold text-white amt">{fmt(revenue)}</span>
                   </div>
                   <div className="h-2 bg-white/10 rounded-full overflow-hidden">
                     <div
@@ -570,7 +570,7 @@ export default function ReportsView() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-right whitespace-nowrap">
-                            <span className="font-semibold text-white">{fmt(revenue)}</span>
+                            <span className="font-semibold text-white amt">{fmt(revenue)}</span>
                             {linkedInvs.length > 0 && (
                               <span className="text-xs text-white/35 ml-1.5">
                                 {linkedInvs.length} inv
@@ -579,10 +579,10 @@ export default function ReportsView() {
                             {hasWHT && (
                               <div className="flex flex-col items-end gap-0.5 mt-0.5">
                                 <span className="text-xs text-orange-400/80">
-                                  −{fmt(revenue - revenueNet)} WHT
+                                  −<span className="amt">{fmt(revenue - revenueNet)}</span> WHT
                                 </span>
                                 <span className="text-xs font-medium text-white/70">
-                                  {fmt(revenueNet)} net
+                                  <span className="amt">{fmt(revenueNet)}</span> net
                                 </span>
                               </div>
                             )}
@@ -633,8 +633,8 @@ function StatCard({
       className={`bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl p-5 ${accentCls ? `border-l-4 ${accentCls}` : ''}`}
     >
       <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-2xl font-bold text-white leading-tight">{value}</p>
-      {sub && <p className={`text-xs mt-1 ${subColor}`}>{sub}</p>}
+      <p className="text-2xl font-bold text-white leading-tight amt">{value}</p>
+      {sub && <p className={`text-xs mt-1 ${subColor} amt`}>{sub}</p>}
     </div>
   );
 }

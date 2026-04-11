@@ -211,9 +211,18 @@ export default function QuickPayModal({ onClose }: { onClose: () => void }) {
                     </div>
                     <p className="text-xs text-zinc-500 truncate mt-0.5">
                       {client?.name ?? '—'}
-                      {status === 'partial'
-                        ? ` · paid ${fmt(earned)} · balance ${fmt(balance)}`
-                        : ` · ${fmt(sub)}`}
+                      {status === 'partial' ? (
+                        <>
+                          {' '}
+                          · paid <span className="amt">{fmt(earned)}</span> · balance{' '}
+                          <span className="amt">{fmt(balance)}</span>
+                        </>
+                      ) : (
+                        <>
+                          {' '}
+                          · <span className="amt">{fmt(sub)}</span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <button

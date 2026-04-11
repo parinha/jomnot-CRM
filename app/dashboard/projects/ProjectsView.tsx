@@ -53,6 +53,7 @@ function blankForm(): ProjectFormState {
     filmingDate: '',
     deliverDate: '',
     budget: undefined,
+    note: '',
   };
 }
 
@@ -346,6 +347,7 @@ export default function ProjectsView() {
       filmingDate: project.filmingDate ?? '',
       deliverDate: project.deliverDate ?? '',
       budget: project.budget,
+      note: project.note ?? '',
     });
     setNewItemText('');
     setFormError('');
@@ -459,6 +461,7 @@ export default function ProjectsView() {
       filmingDate: form.filmingDate?.trim() || undefined,
       deliverDate: form.deliverDate?.trim() || undefined,
       budget: form.budget && form.budget > 0 ? form.budget : undefined,
+      note: form.note?.trim() || undefined,
     };
     if (editingId) {
       const existing = projects.find((p) => p.id === editingId)!;
@@ -604,7 +607,9 @@ export default function ProjectsView() {
                 key={w.label}
                 className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4"
               >
-                <p className={`text-xl font-bold ${w.color}`}>{w.value}</p>
+                <p className={`text-xl font-bold ${w.color}`}>
+                  <span className="amt">{w.value}</span>
+                </p>
                 <p className="text-xs text-white/40 mt-0.5">{w.sub}</p>
                 <p className="text-xs text-white/55 mt-1">{w.label}</p>
               </div>
@@ -741,7 +746,7 @@ export default function ProjectsView() {
                         {project.budget ? (
                           <span className="text-white/30">
                             {' '}
-                            · ${project.budget.toLocaleString()}
+                            · <span className="amt">${project.budget.toLocaleString()}</span>
                           </span>
                         ) : null}
                       </p>
@@ -953,7 +958,7 @@ export default function ProjectsView() {
                       </td>
                       <td className="px-4 py-3.5 hidden md:table-cell">
                         {project.budget ? (
-                          <span className="text-sm text-white/80">
+                          <span className="text-sm text-white/80 amt">
                             ${project.budget.toLocaleString()}
                           </span>
                         ) : (
@@ -1819,6 +1824,20 @@ export default function ProjectsView() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Note */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Note <span className="normal-case font-normal text-white/30">(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={form.note ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
+                  placeholder="Any internal notes about this project…"
+                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full resize-none"
+                />
               </div>
             </div>
             {formError && <p className="px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>}

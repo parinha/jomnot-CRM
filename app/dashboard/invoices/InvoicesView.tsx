@@ -541,12 +541,14 @@ export default function InvoicesView() {
             label="Paid"
             value={String(paidInvoices.length)}
             sub={`${fmt(paidRevenue)} received`}
+            isAmountSub
           />
           <SummaryCard
             label="Deposit Rcvd"
             value={String(awaitingBalance.length)}
             sub={`${fmt(depositRevenue)} collected`}
             accent="amber"
+            isAmountSub
           />
           <SummaryCard
             label="Active"
@@ -667,15 +669,21 @@ export default function InvoicesView() {
                       <p className="text-xs text-white/40 mt-0.5">{inv.date}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold text-white">{fmt(sub)}</p>
+                      <p className="font-bold text-white amt">{fmt(sub)}</p>
                       {wht != null && (
-                        <p className="text-xs text-orange-400/80 mt-0.5">−{fmt(wht)} WHT</p>
+                        <p className="text-xs text-orange-400/80 mt-0.5">
+                          −<span className="amt">{fmt(wht)}</span> WHT
+                        </p>
                       )}
                       {wht != null && (
-                        <p className="text-xs text-white/50 mt-0.5">{fmt(net)} net</p>
+                        <p className="text-xs text-white/50 mt-0.5">
+                          <span className="amt">{fmt(net)}</span> net
+                        </p>
                       )}
                       {invDeposit != null && (
-                        <p className="text-xs text-white/35 mt-0.5">{fmt(invDeposit)} dep</p>
+                        <p className="text-xs text-white/35 mt-0.5">
+                          <span className="amt">{fmt(invDeposit)}</span> dep
+                        </p>
                       )}
                     </div>
                   </div>
@@ -810,19 +818,22 @@ export default function InvoicesView() {
                         {inv.date}
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <span className="font-semibold text-white">{fmt(sub)}</span>
+                        <span className="font-semibold text-white amt">{fmt(sub)}</span>
                         {wht != null && (
                           <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                            <span className="text-xs text-orange-400/80">−{fmt(wht)} WHT</span>
+                            <span className="text-xs text-orange-400/80">
+                              −<span className="amt">{fmt(wht)}</span> WHT
+                            </span>
                             <span className="text-xs font-medium text-white/70">
-                              {fmt(net)} net
+                              <span className="amt">{fmt(net)}</span> net
                             </span>
                           </div>
                         )}
                         {invBalance != null && (
                           <div className="flex flex-col items-end gap-0.5 mt-0.5">
                             <span className="text-xs text-white/35">
-                              {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
+                              <span className="amt">{fmt(invDeposit!)}</span> dep ·{' '}
+                              <span className="amt">{fmt(invBalance)}</span> bal
                             </span>
                           </div>
                         )}
@@ -1999,11 +2010,13 @@ function SummaryCard({
   value,
   sub,
   accent,
+  isAmountSub,
 }: {
   label: string;
   value: string;
   sub: string;
   accent?: 'amber' | 'red';
+  isAmountSub?: boolean;
 }) {
   const subCls =
     accent === 'red' ? 'text-red-400' : accent === 'amber' ? 'text-amber-400' : 'text-white/40';
@@ -2013,7 +2026,9 @@ function SummaryCard({
     <div className="bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl px-4 py-4">
       <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">{label}</p>
       <p className={`text-2xl font-bold leading-tight ${valCls}`}>{value}</p>
-      <p className={`text-xs mt-0.5 ${subCls}`}>{sub}</p>
+      <p className={`text-xs mt-0.5 ${subCls}`}>
+        {isAmountSub ? <span className="amt">{sub}</span> : sub}
+      </p>
     </div>
   );
 }

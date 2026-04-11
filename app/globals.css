@@ -50,6 +50,14 @@ textarea {
 /* Remove default blue outline on iOS buttons */
 button {
   -webkit-appearance: none;
+  cursor: pointer;
+}
+
+a,
+[role='button'],
+label[for],
+select {
+  cursor: pointer;
 }
 
 /* Touch-friendly active states */
@@ -58,6 +66,17 @@ button {
   a:active {
     opacity: 0.7;
   }
+}
+
+/* Amount blur — toggle via data-amounts-hidden on dashboard wrapper */
+.amt {
+  transition: filter 0.2s ease;
+  display: inline-block;
+}
+[data-amounts-hidden='true'] .amt {
+  filter: blur(8px);
+  user-select: none;
+  pointer-events: none;
 }
 
 /* Main content padding — accounts for mobile bottom nav + safe area on all sides */

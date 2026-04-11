@@ -35,12 +35,16 @@ function StatCard({
   sub,
   accent,
   href,
+  isAmount,
+  isAmountSub,
 }: {
   label: string;
   value: string;
   sub?: string;
   accent?: string;
   href?: string;
+  isAmount?: boolean;
+  isAmountSub?: boolean;
 }) {
   const inner = (
     <div
@@ -51,8 +55,14 @@ function StatCard({
       ].join(' ')}
     >
       <p className="text-[11px] font-semibold text-white/45 uppercase tracking-wider">{label}</p>
-      <p className="text-2xl font-bold text-white leading-tight">{value}</p>
-      {sub && <p className="text-xs text-white/40 mt-0.5">{sub}</p>}
+      <p className="text-2xl font-bold text-white leading-tight">
+        {isAmount ? <span className="amt">{value}</span> : value}
+      </p>
+      {sub && (
+        <p className="text-xs text-white/40 mt-0.5">
+          {isAmountSub ? <span className="amt">{sub}</span> : sub}
+        </p>
+      )}
     </div>
   );
   return href ? <Link href={href}>{inner}</Link> : inner;
@@ -131,7 +141,7 @@ export default function DashboardView() {
               {overdueInvoices.length} late invoice{overdueInvoices.length > 1 ? 's' : ''}
             </span>
             <span className="text-sm text-red-400/70 ml-2">
-              — {fmtUSD(overdueAmount)} outstanding
+              — <span className="amt">{fmtUSD(overdueAmount)}</span> outstanding
             </span>
           </div>
           <svg
@@ -154,6 +164,7 @@ export default function DashboardView() {
           sub={`${thisMonth.length} invoice${thisMonth.length !== 1 ? 's' : ''}`}
           accent="border-l-amber-400"
           href="/dashboard/invoices"
+          isAmount
         />
         <StatCard
           label="Earned this month"
@@ -161,6 +172,7 @@ export default function DashboardView() {
           sub="Cash received"
           accent="border-l-green-400"
           href="/dashboard/invoices"
+          isAmount
         />
         <StatCard
           label="Outstanding"
@@ -168,12 +180,14 @@ export default function DashboardView() {
           sub="Awaiting payment"
           accent="border-l-blue-400"
           href="/dashboard/payments"
+          isAmount
         />
         <StatCard
           label="Total earned"
           value={fmtShort(totalEarned)}
           sub="All time"
           href="/dashboard/reports"
+          isAmount
         />
       </div>
 
@@ -203,6 +217,7 @@ export default function DashboardView() {
           sub={overdueInvoices.length > 0 ? fmtUSD(overdueAmount) : 'All clear'}
           accent={overdueInvoices.length > 0 ? 'border-l-red-400' : undefined}
           href="/dashboard/invoices"
+          isAmountSub={overdueInvoices.length > 0}
         />
       </div>
 
@@ -245,7 +260,7 @@ export default function DashboardView() {
                       {client?.name ?? '—'} · {inv.date}
                     </p>
                   </div>
-                  <span className="text-sm font-bold text-white shrink-0">{fmtUSD(net)}</span>
+                  <span className="text-sm font-bold text-white shrink-0 amt">{fmtUSD(net)}</span>
                 </div>
               );
             })}
@@ -324,7 +339,7 @@ export default function DashboardView() {
                   {sc.label}
                 </span>
                 <p className="text-2xl font-bold text-white">{count}</p>
-                <p className="text-xs text-white/40">{fmtShort(amount)}</p>
+                <p className="text-xs text-white/40 amt">{fmtShort(amount)}</p>
               </div>
             );
           })}

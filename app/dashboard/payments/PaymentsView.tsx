@@ -117,28 +117,33 @@ function InvoiceRow({
         {inv.date}
       </td>
       <td className="px-4 py-3.5 text-right whitespace-nowrap">
-        <span className="font-semibold text-white">{fmt(sub)}</span>
+        <span className="font-semibold text-white amt">{fmt(sub)}</span>
         {wht != null && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
-            <span className="text-xs text-orange-400/80">−{fmt(wht)} WHT</span>
-            <span className="text-xs font-medium text-white/70">{fmt(net)} net</span>
+            <span className="text-xs text-orange-400/80">
+              −<span className="amt">{fmt(wht)}</span> WHT
+            </span>
+            <span className="text-xs font-medium text-white/70">
+              <span className="amt">{fmt(net)}</span> net
+            </span>
           </div>
         )}
         {invBalance != null && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
             <span className="text-xs text-white/35">
-              {fmt(invDeposit!)} dep · {fmt(invBalance)} bal
+              <span className="amt">{fmt(invDeposit!)}</span> dep ·{' '}
+              <span className="amt">{fmt(invBalance)}</span> bal
             </span>
           </div>
         )}
       </td>
       {showReceived && (
-        <td className="px-4 py-3.5 text-right font-bold text-green-400 whitespace-nowrap">
+        <td className="px-4 py-3.5 text-right font-bold text-green-400 whitespace-nowrap amt">
           {fmt(received)}
         </td>
       )}
       {showBalance && (
-        <td className="px-4 py-3.5 text-right font-bold text-amber-400 whitespace-nowrap">
+        <td className="px-4 py-3.5 text-right font-bold text-amber-400 whitespace-nowrap amt">
           {fmt(balance)}
         </td>
       )}
@@ -258,13 +263,21 @@ export default function PaymentsView() {
             sub: `${paid.length} paid · ${partial.length} deposit held`,
             color: 'text-green-400',
             accent: 'border-l-green-400',
+            isAmount: true,
           },
           {
             label: 'Awaiting final',
             value: fmt(awaitingFinalTotal),
-            sub: `${partial.length} invoice${partial.length !== 1 ? 's' : ''} · ${fmt(depositReceivedTotal)} dep held`,
+            sub: null as string | null,
+            subNode: (
+              <>
+                {partial.length} invoice{partial.length !== 1 ? 's' : ''} ·{' '}
+                <span className="amt">{fmt(depositReceivedTotal)}</span> dep held
+              </>
+            ),
             color: 'text-amber-400',
             accent: 'border-l-amber-400',
+            isAmount: true,
           },
           {
             label: 'Outstanding',
@@ -272,6 +285,7 @@ export default function PaymentsView() {
             sub: `${unpaid.filter((i) => i.status === 'sent').length} sent · ${unpaid.filter((i) => i.status === 'overdue').length} late`,
             color: unpaid.some((i) => i.status === 'overdue') ? 'text-red-400' : 'text-white',
             accent: unpaid.some((i) => i.status === 'overdue') ? 'border-l-red-400' : '',
+            isAmount: true,
           },
           {
             label: 'Draft',
@@ -279,8 +293,9 @@ export default function PaymentsView() {
             sub: 'not yet sent',
             color: 'text-white/45',
             accent: '',
+            isAmount: false,
           },
-        ].map(({ label, value, sub, color, accent }) => (
+        ].map(({ label, value, sub, subNode, color, accent, isAmount }) => (
           <div
             key={label}
             className={`bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl p-5 ${accent ? `border-l-4 ${accent}` : ''}`}
@@ -288,8 +303,10 @@ export default function PaymentsView() {
             <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">
               {label}
             </p>
-            <p className={`text-2xl font-bold leading-tight ${color}`}>{value}</p>
-            <p className="text-xs text-white/35 mt-1">{sub}</p>
+            <p className={`text-2xl font-bold leading-tight ${color}`}>
+              {isAmount ? <span className="amt">{value}</span> : value}
+            </p>
+            <p className="text-xs text-white/35 mt-1">{subNode ?? sub}</p>
           </div>
         ))}
       </div>
