@@ -19,16 +19,14 @@ const MS_SIZE = 14;
 
 // ── Status colors ──────────────────────────────────────────────────────────────
 const STATUS_BAR: Record<ProjectStatus, { bg: string; text: string }> = {
-  draft: { bg: 'bg-zinc-600', text: 'text-zinc-100' },
-  confirmed: { bg: 'bg-blue-600', text: 'text-blue-50' },
-  'in-progress': { bg: 'bg-amber-500', text: 'text-amber-950' },
+  unconfirmed: { bg: 'bg-zinc-600', text: 'text-zinc-100' },
+  confirmed: { bg: 'bg-sky-500', text: 'text-sky-950' },
   'on-hold': { bg: 'bg-zinc-700', text: 'text-zinc-300' },
   completed: { bg: 'bg-emerald-600', text: 'text-emerald-50' },
 };
 const STATUS_DOT: Record<ProjectStatus, string> = {
-  draft: 'bg-zinc-400',
-  confirmed: 'bg-blue-400',
-  'in-progress': 'bg-amber-400',
+  unconfirmed: 'bg-zinc-400',
+  confirmed: 'bg-sky-400',
   'on-hold': 'bg-zinc-500',
   completed: 'bg-emerald-400',
 };
@@ -416,7 +414,7 @@ function ProjectBar({
   dayW: number;
   onSelect: (e: GanttEvent) => void;
 }) {
-  const cfg = STATUS_BAR[event.status] ?? STATUS_BAR.draft;
+  const cfg = STATUS_BAR[event.status] ?? STATUS_BAR.unconfirmed;
 
   if (!event.isRange) {
     const x = diffDays(renderStart, event.start) * dayW + dayW / 2;

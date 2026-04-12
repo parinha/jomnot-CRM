@@ -32,7 +32,6 @@ function phasesDone(phases?: ProjectPhases): number {
   return PHASES.filter((p) => phases[p.key]).length;
 }
 import { uid } from '@/app/_lib/id';
-import { PAGE_SIZE } from '@/app/_config/constants';
 import { calcNet } from '@/app/_services/invoiceService';
 import SearchInput from '@/app/_components/SearchInput';
 import Pagination from '@/app/_components/Pagination';
@@ -49,7 +48,7 @@ function blankForm(): ProjectFormState {
     invoiceIds: [],
     items: [],
     phases: { ...DEFAULT_PHASES },
-    status: 'draft',
+    status: 'unconfirmed',
     filmingDate: '',
     deliverDate: '',
     budget: undefined,
@@ -129,16 +128,35 @@ const inputCls =
 const darkInputCls =
   'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
+/** Returns today as a local "YYYY-MM-DD" string (no UTC offset shift). */
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Normalises any date value to a local "YYYY-MM-DD" string.
+ * - Pure date strings ("2026-04-30") are returned as-is.
+ * - ISO timestamps ("2026-03-31T17:00:00.000Z") are parsed and converted to
+ *   local calendar date, fixing the UTC-offset shift from old completedAt values.
+ */
+function toLocalDateStr(s: string | undefined): string {
+  if (!s) return '';
+  if (s.length === 10) return s; // already a date-only string
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s.slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
 const FALLBACK_STATUS_CFG = { label: 'Unknown', cls: 'bg-zinc-700 text-zinc-300' };
 function getStatusCfg(status: string) {
   return PROJECT_STATUS_CONFIG[status as ProjectStatus] ?? FALLBACK_STATUS_CFG;
 }
 
-// Simplified status options shown in the form (hides legacy 'confirmed' — maps to in-progress)
 const FORM_STATUS_OPTIONS: { value: ProjectStatus; label: string; cls: string }[] = [
-  { value: 'draft', label: 'Quoted', cls: 'bg-zinc-700 text-zinc-300' },
-  { value: 'in-progress', label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
+  { value: 'unconfirmed', label: 'Unconfirmed', cls: 'bg-zinc-700 text-zinc-300' },
+  { value: 'confirmed', label: 'Confirmed', cls: 'bg-sky-500/20 text-sky-300' },
   { value: 'on-hold', label: 'On Hold', cls: 'bg-amber-500/20 text-amber-300' },
   { value: 'completed', label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
 ];
@@ -160,29 +178,37 @@ export default function ProjectsView() {
   const [page, setPage] = useState(1);
   const [sortCol, setSortCol] = useState('timeline');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
-  const [activeTab, setActiveTab] = useState<'active' | 'on-hold' | 'quoted' | 'done'>('active');
+  const [completedTab, setCompletedTab] = useState<'this-month' | 'last-month'>('this-month');
+  const [upcomingPage, setUpcomingPage] = useState(1);
+  const [holdUnconfPage, setHoldUnconfPage] = useState(1);
 
   // ── Date range filter (for widgets) ──────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
   });
   const [dateTo, setDateTo] = useState<string>(() => {
     const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`;
   });
 
   function selectThisMonth() {
     const d = new Date();
-    setDateFrom(new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10));
-    setDateTo(new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10));
+    const pad = (n: number) => String(n).padStart(2, '0');
+    setDateFrom(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`);
+    setDateTo(
+      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`
+    );
   }
   function selectLastMonth() {
     const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
     const y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
     const m = d.getMonth() === 0 ? 11 : d.getMonth() - 1;
-    setDateFrom(new Date(y, m, 1).toISOString().slice(0, 10));
-    setDateTo(new Date(y, m + 1, 0).toISOString().slice(0, 10));
+    setDateFrom(`${y}-${pad(m + 1)}-01`);
+    setDateTo(`${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`);
   }
 
   function handleSort(col: string) {
@@ -286,12 +312,29 @@ export default function ProjectsView() {
     }
   }
 
-  const filtered = projects.filter((p) => {
-    if (activeTab === 'quoted' && p.status !== 'draft') return false;
-    if (activeTab === 'on-hold' && p.status !== 'on-hold') return false;
-    if (activeTab === 'done' && p.status !== 'completed') return false;
-    if (activeTab === 'active' && p.status !== 'confirmed' && p.status !== 'in-progress')
-      return false;
+  // ── Date boundaries ────────────────────────────────────────────────────────
+  // Use local date formatting (not toISOString) to avoid UTC offset shifting dates
+  const _pad = (n: number) => String(n).padStart(2, '0');
+  const _localDate = (d: Date) =>
+    `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
+  const _now = new Date();
+  const cmStart = _localDate(new Date(_now.getFullYear(), _now.getMonth(), 1));
+  const cmEnd = _localDate(new Date(_now.getFullYear(), _now.getMonth() + 1, 0));
+  const pmY = _now.getMonth() === 0 ? _now.getFullYear() - 1 : _now.getFullYear();
+  const pmM = _now.getMonth() === 0 ? 11 : _now.getMonth() - 1;
+  const pmStart = _localDate(new Date(pmY, pmM, 1));
+  const pmEnd = _localDate(new Date(pmY, pmM + 1, 0));
+  const nmY = _now.getMonth() === 11 ? _now.getFullYear() + 1 : _now.getFullYear();
+  const nmM = _now.getMonth() === 11 ? 0 : _now.getMonth() + 1;
+  const nmStart = _localDate(new Date(nmY, nmM, 1));
+  const nmEnd = _localDate(new Date(nmY, nmM + 1, 0));
+  const nextMonthLabel = new Date(nmY, nmM, 1).toLocaleString('en-US', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  // ── Global search match ────────────────────────────────────────────────────
+  function matchesSearch(p: Project): boolean {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     const client = clients.find((c) => c.id === p.clientId);
@@ -303,17 +346,16 @@ export default function ProjectsView() {
       (client?.name ?? '').toLowerCase().includes(q) ||
       invNums.toLowerCase().includes(q)
     );
-  });
+  }
 
-  const STATUS_ORDER: Record<string, number> = {
-    draft: 0,
-    confirmed: 1,
-    'in-progress': 2,
-    'on-hold': 3,
-    completed: 4,
-  };
+  // ── Section data ───────────────────────────────────────────────────────────
+  // Active: confirmed, deliverDate <= end of current month (includes overdue prev-month)
+  const activeBase = projects.filter(
+    (p) =>
+      p.status === 'confirmed' && (!p.deliverDate || p.deliverDate <= cmEnd) && matchesSearch(p)
+  );
 
-  const sorted = [...filtered].sort((a, b) => {
+  const activeSorted = [...activeBase].sort((a, b) => {
     let cmp = 0;
     if (sortCol === 'name') {
       cmp = a.name.localeCompare(b.name);
@@ -332,15 +374,81 @@ export default function ProjectsView() {
       else if (!da) cmp = 1;
       else if (!db) cmp = -1;
       else cmp = da.localeCompare(db);
-    } else if (sortCol === 'status') {
-      cmp = (STATUS_ORDER[a.status] ?? 9) - (STATUS_ORDER[b.status] ?? 9);
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
 
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const paged = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const ACTIVE_PAGE_SIZE = 15;
+  const activeTotalPages = Math.max(1, Math.ceil(activeSorted.length / ACTIVE_PAGE_SIZE));
+  const safeActivePage = Math.min(page, activeTotalPages);
+  const activePaged = activeSorted.slice(
+    (safeActivePage - 1) * ACTIVE_PAGE_SIZE,
+    safeActivePage * ACTIVE_PAGE_SIZE
+  );
+
+  // On Hold
+  const onHoldList = projects.filter((p) => p.status === 'on-hold' && matchesSearch(p));
+
+  // Unconfirmed
+  const unconfirmedList = projects
+    .filter((p) => p.status === 'unconfirmed' && matchesSearch(p))
+    .sort((a, b) => (a.deliverDate ?? '').localeCompare(b.deliverDate ?? ''));
+
+  // Upcoming: deliverDate in next month, any non-completed status
+  const upcomingList = projects
+    .filter(
+      (p) =>
+        p.status !== 'completed' &&
+        p.deliverDate &&
+        p.deliverDate >= nmStart &&
+        p.deliverDate <= nmEnd &&
+        matchesSearch(p)
+    )
+    .sort((a, b) => (a.deliverDate ?? '').localeCompare(b.deliverDate ?? ''));
+
+  // Side panel pagination (3 rows, fixed height)
+  const SIDE_PAGE_SIZE = 3;
+  const upcomingTotalPages = Math.max(1, Math.ceil(upcomingList.length / SIDE_PAGE_SIZE));
+  const safeUpcomingPage = Math.min(upcomingPage, upcomingTotalPages);
+  const upcomingPaged = upcomingList.slice(
+    (safeUpcomingPage - 1) * SIDE_PAGE_SIZE,
+    safeUpcomingPage * SIDE_PAGE_SIZE
+  );
+  const holdUnconfCombined = [...unconfirmedList, ...onHoldList].sort((a, b) =>
+    (a.deliverDate ?? '').localeCompare(b.deliverDate ?? '')
+  );
+  const holdUnconfTotalPages = Math.max(1, Math.ceil(holdUnconfCombined.length / SIDE_PAGE_SIZE));
+  const safeHoldUnconfPage = Math.min(holdUnconfPage, holdUnconfTotalPages);
+  const holdUnconfPaged = holdUnconfCombined.slice(
+    (safeHoldUnconfPage - 1) * SIDE_PAGE_SIZE,
+    safeHoldUnconfPage * SIDE_PAGE_SIZE
+  );
+  // Row height constant (px): py-3 rows = 12px*2 padding + ~20px content
+  const SIDE_ROW_H = 44;
+
+  // Section budget totals
+  const fmtBudget = (list: typeof projects) => {
+    const total = list.reduce((s, p) => s + (p.budget ?? 0), 0);
+    return total > 0 ? `$${total.toLocaleString()}` : null;
+  };
+  const upcomingBudget = fmtBudget(upcomingList);
+  const holdUnconfBudget = fmtBudget(holdUnconfCombined);
+  const activeBudget = fmtBudget(activeBase);
+
+  // Completed: filtered by completedTab month
+  const completedList = projects
+    .filter((p) => {
+      if (p.status !== 'completed') return false;
+      if (!matchesSearch(p)) return false;
+      const dateStr = toLocalDateStr(p.completedAt ?? p.deliverDate);
+      if (completedTab === 'this-month') return dateStr >= cmStart && dateStr <= cmEnd;
+      return dateStr >= pmStart && dateStr <= pmEnd;
+    })
+    .sort((a, b) => {
+      const da = (b.completedAt ?? b.deliverDate ?? '').slice(0, 10);
+      const db = (a.completedAt ?? a.deliverDate ?? '').slice(0, 10);
+      return da.localeCompare(db);
+    });
 
   function resetClientCombo() {
     setClientSearch('');
@@ -491,7 +599,7 @@ export default function ProjectsView() {
       // Set completedAt when newly marked completed; clear it when status changes away
       let completedAt = existing.completedAt;
       if (cleanedForm.status === 'completed' && existing.status !== 'completed') {
-        completedAt = new Date().toISOString();
+        completedAt = localToday();
       } else if (cleanedForm.status !== 'completed') {
         completedAt = undefined;
       }
@@ -499,7 +607,7 @@ export default function ProjectsView() {
       setProjects(projects.map((p) => (p.id === editingId ? updated : p)));
       return updated;
     } else {
-      const created: Project = { id: uid(), createdAt: new Date().toISOString(), ...cleanedForm };
+      const created: Project = { id: uid(), createdAt: localToday(), ...cleanedForm };
       setProjects([...projects, created]);
       return created;
     }
@@ -566,7 +674,7 @@ export default function ProjectsView() {
         const filmingDate =
           phaseKey === 'filming'
             ? isChecking
-              ? (p.filmingDate ?? new Date().toISOString().slice(0, 10)) // keep existing date if already set
+              ? (p.filmingDate ?? localToday().slice(0, 10)) // keep existing date if already set
               : undefined
             : p.filmingDate;
 
@@ -622,11 +730,11 @@ export default function ProjectsView() {
           (p) => p.deliverDate && p.deliverDate >= dateFrom && p.deliverDate <= dateTo
         );
 
-        const quotedProjects = rangeProjects.filter((p) => p.status === 'draft');
+        const quotedProjects = rangeProjects.filter((p) => p.status === 'unconfirmed');
         const quotedTotal = quotedProjects.reduce((s, p) => s + projValue(p), 0);
 
         const waitingProjects = rangeProjects.filter(
-          (p) => p.status === 'confirmed' || p.status === 'in-progress' || p.status === 'on-hold'
+          (p) => p.status === 'confirmed' || p.status === 'on-hold'
         );
         const waitingTotal = waitingProjects.reduce((s, p) => s + projValue(p), 0);
 
@@ -637,22 +745,19 @@ export default function ProjectsView() {
 
         // Detect which quick-select is active
         const now = new Date();
-        const thisMonthFrom = new Date(now.getFullYear(), now.getMonth(), 1)
-          .toISOString()
-          .slice(0, 10);
-        const thisMonthTo = new Date(now.getFullYear(), now.getMonth() + 1, 0)
-          .toISOString()
-          .slice(0, 10);
+        const _p = (n: number) => String(n).padStart(2, '0');
+        const thisMonthFrom = `${now.getFullYear()}-${_p(now.getMonth() + 1)}-01`;
+        const thisMonthTo = `${now.getFullYear()}-${_p(now.getMonth() + 1)}-${_p(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
         const lmY = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
         const lmM = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const lastMonthFrom = new Date(lmY, lmM, 1).toISOString().slice(0, 10);
-        const lastMonthTo = new Date(lmY, lmM + 1, 0).toISOString().slice(0, 10);
+        const lastMonthFrom = `${lmY}-${_p(lmM + 1)}-01`;
+        const lastMonthTo = `${lmY}-${_p(lmM + 1)}-${_p(new Date(lmY, lmM + 1, 0).getDate())}`;
         const isThisMonth = dateFrom === thisMonthFrom && dateTo === thisMonthTo;
         const isLastMonth = dateFrom === lastMonthFrom && dateTo === lastMonthTo;
 
         const widgets = [
           {
-            label: 'Quoted',
+            label: 'Unconfirmed',
             value: fmtAmt(quotedTotal),
             sub: `${quotedProjects.length} project${quotedProjects.length !== 1 ? 's' : ''}`,
             color: 'text-white/70',
@@ -733,89 +838,269 @@ export default function ProjectsView() {
         );
       })()}
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
-        {[
-          {
-            key: 'active' as const,
-            label: 'Active',
-            count: projects.filter((p) => p.status === 'confirmed' || p.status === 'in-progress')
-              .length,
-          },
-          {
-            key: 'on-hold' as const,
-            label: 'On Hold',
-            count: projects.filter((p) => p.status === 'on-hold').length,
-          },
-          {
-            key: 'quoted' as const,
-            label: 'Quoted',
-            count: projects.filter((p) => p.status === 'draft').length,
-          },
-          {
-            key: 'done' as const,
-            label: 'Done',
-            count: projects.filter((p) => p.status === 'completed').length,
-          },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => {
-              setActiveTab(tab.key);
-              setPage(1);
-            }}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${activeTab === tab.key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
-          >
-            {tab.label}
-            <span
-              className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
-            >
-              {tab.count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* Search */}
-      <div className="mb-4">
+      {/* ── Global Search ─────────────────────────────────────────────────────── */}
+      <div className="mb-6">
         <SearchInput
           value={search}
           onChange={(v) => {
             setSearch(v);
             setPage(1);
           }}
-          placeholder="Search by name, client, invoice…"
+          placeholder="Search all projects by name, client, invoice…"
         />
       </div>
 
-      {/* Empty states */}
-      {projects.length === 0 ? (
-        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-20 text-white/35">
-          <svg
-            className="w-12 h-12 mb-3 text-white/20"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-            />
-          </svg>
-          <p className="text-sm">No projects yet. Create your first one.</p>
+      {/* ── UPCOMING + ON HOLD / UNCONFIRMED (2-column) ─────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+        {/* LEFT: Upcoming */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Upcoming</h2>
+            <span className="text-xs text-white/30 font-medium">{nextMonthLabel}</span>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
+              {upcomingList.length}
+            </span>
+            {upcomingBudget && (
+              <span className="text-xs text-white/30 font-medium">({upcomingBudget})</span>
+            )}
+            <div className="flex-1 h-px bg-white/[0.07]" />
+          </div>
+
+          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
+            {/* Fixed-height body: 5 rows × 44px */}
+            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+              {upcomingList.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-white/30">
+                    {search.trim()
+                      ? 'No upcoming projects match your search.'
+                      : `No upcoming projects for ${nextMonthLabel}.`}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {upcomingPaged.map((project) => {
+                    const client = clients.find((c) => c.id === project.clientId);
+                    const sc = getStatusCfg(project.status);
+                    const tl = getTimelineBar(project.deliverDate);
+                    return (
+                      <div
+                        key={project.id}
+                        style={{ height: SIDE_ROW_H }}
+                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                      >
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                        >
+                          {sc.label}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
+                          >
+                            {project.name}
+                          </button>
+                          {client && (
+                            <p className="text-xs text-white/40 truncate">{client.name}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {project.deliverDate && (
+                            <span className="text-xs text-white/45 hidden sm:block">
+                              {project.deliverDate}
+                            </span>
+                          )}
+                          {tl && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
+                            >
+                              {tl.badgeLabel}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => openEdit(project)}
+                          className="shrink-0 p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
+                          title="Edit"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {Array.from({ length: SIDE_PAGE_SIZE - upcomingPaged.length }).map((_, i) => (
+                    <div
+                      key={`gu-${i}`}
+                      style={{ height: SIDE_ROW_H }}
+                      className="border-b border-white/[0.03]"
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {upcomingList.length > SIDE_PAGE_SIZE && (
+            <div className="mt-2">
+              <Pagination
+                page={safeUpcomingPage}
+                totalPages={upcomingTotalPages}
+                totalItems={upcomingList.length}
+                pageSize={SIDE_PAGE_SIZE}
+                onPageChange={setUpcomingPage}
+              />
+            </div>
+          )}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
-          <p className="text-sm">
-            {activeTab === 'quoted'
-              ? 'No quoted projects.'
-              : activeTab === 'on-hold'
-                ? 'No projects on hold.'
-                : activeTab === 'done'
-                  ? 'No completed projects.'
-                  : 'No active projects match your filters.'}
+
+        {/* RIGHT: On Hold / Unconfirmed */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">
+              On Hold / Unconfirmed
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
+              {holdUnconfCombined.length}
+            </span>
+            {holdUnconfBudget && (
+              <span className="text-xs text-white/30 font-medium">({holdUnconfBudget})</span>
+            )}
+            <div className="flex-1 h-px bg-white/[0.07]" />
+          </div>
+
+          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
+            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+              {holdUnconfCombined.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-white/30">
+                    {search.trim()
+                      ? 'No projects match your search.'
+                      : 'No on-hold or unconfirmed projects.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {holdUnconfPaged.map((project) => {
+                    const client = clients.find((c) => c.id === project.clientId);
+                    const sc = getStatusCfg(project.status);
+                    const tl = getTimelineBar(project.deliverDate);
+                    return (
+                      <div
+                        key={project.id}
+                        style={{ height: SIDE_ROW_H }}
+                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                      >
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                        >
+                          {sc.label}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
+                          >
+                            {project.name}
+                          </button>
+                          {client && (
+                            <p className="text-xs text-white/40 truncate">{client.name}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {project.deliverDate && (
+                            <span className="text-xs text-white/45 hidden sm:block">
+                              {project.deliverDate}
+                            </span>
+                          )}
+                          {tl && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
+                            >
+                              {tl.badgeLabel}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => openEdit(project)}
+                          className="shrink-0 p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
+                          title="Edit"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {Array.from({ length: SIDE_PAGE_SIZE - holdUnconfPaged.length }).map((_, i) => (
+                    <div
+                      key={`ghc-${i}`}
+                      style={{ height: SIDE_ROW_H }}
+                      className="border-b border-white/[0.03]"
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {holdUnconfCombined.length > SIDE_PAGE_SIZE && (
+            <div className="mt-2">
+              <Pagination
+                page={safeHoldUnconfPage}
+                totalPages={holdUnconfTotalPages}
+                totalItems={holdUnconfCombined.length}
+                pageSize={SIDE_PAGE_SIZE}
+                onPageChange={setHoldUnconfPage}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── ACTIVE PROJECTS THIS MONTH ───────────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">
+          Active Projects This Month
+        </h2>
+        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
+          {activeBase.length}
+        </span>
+        {activeBudget && (
+          <span className="text-xs text-white/30 font-medium">({activeBudget})</span>
+        )}
+        <div className="flex-1 h-px bg-white/[0.07]" />
+      </div>
+
+      {activeBase.length === 0 ? (
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex flex-col items-center justify-center py-10 mb-8">
+          <p className="text-sm text-white/30">
+            {search.trim()
+              ? 'No active projects match your search.'
+              : 'No active projects this month.'}
           </p>
           {search.trim() && (
             <button
@@ -828,9 +1113,9 @@ export default function ProjectsView() {
         </div>
       ) : (
         <>
-          {/* Mobile card list */}
-          <div className="sm:hidden flex flex-col gap-3">
-            {paged.map((project) => {
+          {/* Mobile cards */}
+          <div className="sm:hidden flex flex-col gap-3 mb-4">
+            {activePaged.map((project) => {
               const client = clients.find((c) => c.id === project.clientId);
               const mobileDone = phasesDone(project.phases);
               const sc = getStatusCfg(project.status);
@@ -921,7 +1206,7 @@ export default function ProjectsView() {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden sm:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+          <div className="hidden sm:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04]">
@@ -934,65 +1219,24 @@ export default function ProjectsView() {
                   >
                     Project
                   </SortTh>
-                  <SortTh
-                    col="client"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5 hidden sm:table-cell"
-                  >
-                    Client
-                  </SortTh>
-                  <SortTh
-                    col="invoices"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5 hidden md:table-cell"
-                  >
-                    Invoice(s)
-                  </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden sm:table-cell">
-                    Phases
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">
+                    Phases / Timeline
                   </th>
-                  <SortTh
-                    col="budget"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5 hidden md:table-cell"
-                  >
-                    Budget
-                  </SortTh>
-                  <SortTh
-                    col="timeline"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5 hidden lg:table-cell"
-                  >
-                    Timeline
-                  </SortTh>
-                  <SortTh
-                    col="status"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5"
-                  >
-                    Status
-                  </SortTh>
                   <th className="px-4 py-3.5" />
                 </tr>
               </thead>
               <tbody>
-                {paged.map((project, i) => {
-                  const client = clients.find((c) => c.id === project.clientId);
-                  const linkedInvoices = project.invoiceIds
-                    .map((id) => invoices.find((inv) => inv.id === id))
-                    .filter(Boolean);
+                {activePaged.map((project, i) => {
                   const done = phasesDone(project.phases);
-                  const sc = getStatusCfg(project.status);
+                  const tl = getTimelineBar(project.deliverDate);
+                  const phaseCls =
+                    done === 0
+                      ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 hover:text-zinc-300'
+                      : done < 3
+                        ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-sky-200'
+                        : done < 5
+                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200'
+                          : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 hover:text-emerald-200';
                   return (
                     <tr
                       key={project.id}
@@ -1000,134 +1244,72 @@ export default function ProjectsView() {
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2 group">
-                          <button
-                            onClick={() => setDetailId(project.id)}
-                            className="font-semibold text-white hover:text-[#FFC206] transition text-left"
-                          >
-                            {project.name}
-                          </button>
-                          <button
-                            onClick={() => openDuplicate(project)}
-                            title="Duplicate project"
-                            className="opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-[#FFC206]"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <rect x="9" y="9" width="13" height="13" rx="2" />
-                              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3.5 hidden sm:table-cell">
-                        {client ? (
-                          <button
-                            onClick={() => setViewClientId(client.id)}
-                            className="text-white/60 hover:text-[#FFC206] transition text-left"
-                          >
-                            {client.name}
-                          </button>
-                        ) : (
-                          <span className="text-white/25">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 hidden md:table-cell">
-                        {linkedInvoices.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {linkedInvoices.map(
-                              (inv) =>
-                                inv && (
-                                  <button
-                                    key={inv.id}
-                                    onClick={() => setViewInvoiceId(inv.id)}
-                                    className="px-2 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white/60 hover:bg-[#FFC206]/20 hover:text-[#FFC206] transition"
-                                  >
-                                    {inv.number}
-                                  </button>
-                                )
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 hidden sm:table-cell">
-                        {(() => {
-                          const cls =
-                            done === 0
-                              ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 hover:text-zinc-300'
-                              : done < 3
-                                ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-sky-200'
-                                : done < 5
-                                  ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200'
-                                  : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 hover:text-emerald-200';
-                          return (
-                            <button
-                              onClick={() => setDetailId(project.id)}
-                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${cls}`}
-                            >
-                              <svg
-                                className="w-3 h-3 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setDetailId(project.id)}
+                                className="font-semibold text-white hover:text-[#FFC206] transition text-left"
                               >
-                                <path
+                                {project.name}
+                              </button>
+                              <button
+                                onClick={() => openDuplicate(project)}
+                                title="Duplicate project"
+                                className="opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-[#FFC206]"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="14"
+                                  height="14"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
                                   strokeLinecap="round"
                                   strokeLinejoin="round"
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                                />
-                              </svg>
-                              {done}/5
-                            </button>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-3.5 hidden md:table-cell">
-                        {project.budget ? (
-                          <span className="text-sm text-white/80 amt">
-                            ${project.budget.toLocaleString()}
-                          </span>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 hidden lg:table-cell">
-                        {(() => {
-                          if (project.status === 'completed') {
-                            return (
-                              <span className="px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap bg-emerald-500/20 text-emerald-300">
-                                Delivered
+                                >
+                                  <rect x="9" y="9" width="13" height="13" rx="2" />
+                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                                </svg>
+                              </button>
+                            </div>
+                            {project.budget && (
+                              <span className="text-xs text-white/40 amt">
+                                ${project.budget.toLocaleString()}
                               </span>
-                            );
-                          }
-                          const tl = getTimelineBar(project.deliverDate);
-                          if (!tl) return <span className="text-white/25 text-xs">—</span>;
-                          return (
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
+                          >
+                            <svg
+                              className="w-3 h-3 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                              />
+                            </svg>
+                            {done}/5
+                          </button>
+                          {tl && (
                             <span
                               className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tl.badgeCls}`}
                             >
                               {tl.badgeLabel}
                             </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                        >
-                          {sc.label}
-                        </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
@@ -1204,16 +1386,193 @@ export default function ProjectsView() {
               </tbody>
             </table>
           </div>
+          <div className="mb-8">
+            <Pagination
+              page={safeActivePage}
+              totalPages={activeTotalPages}
+              totalItems={activeSorted.length}
+              pageSize={ACTIVE_PAGE_SIZE}
+              onPageChange={setPage}
+            />
+          </div>
         </>
       )}
 
-      <Pagination
-        page={safePage}
-        totalPages={totalPages}
-        totalItems={sorted.length}
-        pageSize={PAGE_SIZE}
-        onPageChange={setPage}
-      />
+      {/* ── COMPLETED ─────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-4">
+        <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Completed</h2>
+        <div className="flex-1 h-px bg-white/[0.07]" />
+      </div>
+
+      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
+        {(
+          [
+            {
+              key: 'this-month' as const,
+              label: 'This Month',
+              list: projects.filter((p) => {
+                const d = toLocalDateStr(p.completedAt ?? p.deliverDate);
+                return p.status === 'completed' && d >= cmStart && d <= cmEnd;
+              }),
+            },
+            {
+              key: 'last-month' as const,
+              label: 'Last Month',
+              list: projects.filter((p) => {
+                const d = toLocalDateStr(p.completedAt ?? p.deliverDate);
+                return p.status === 'completed' && d >= pmStart && d <= pmEnd;
+              }),
+            },
+          ] as const
+        ).map((tab) => {
+          const budget = fmtBudget(tab.list as typeof projects);
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setCompletedTab(tab.key)}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${completedTab === tab.key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
+            >
+              {tab.label}
+              <span
+                className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${completedTab === tab.key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
+              >
+                {tab.list.length}
+              </span>
+              {budget && (
+                <span
+                  className={`ml-1 text-xs font-medium ${completedTab === tab.key ? 'text-[#FFC206]/70' : 'text-white/30'}`}
+                >
+                  ({budget})
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {completedList.length === 0 ? (
+        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex items-center justify-center py-10 mb-4">
+          <p className="text-sm text-white/30">
+            {search.trim()
+              ? 'No completed projects match your search.'
+              : `No completed projects ${completedTab === 'this-month' ? 'this month' : 'last month'}.`}
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/[0.08] bg-white/[0.04]">
+                <th className="text-left px-4 py-3 font-medium text-white/45">Project</th>
+                <th className="text-left px-4 py-3 font-medium text-white/45 hidden sm:table-cell">
+                  Client
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-white/45 hidden md:table-cell">
+                  Completed
+                </th>
+                <th className="text-left px-4 py-3 font-medium text-white/45 hidden md:table-cell">
+                  Budget
+                </th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {completedList.map((project, i) => {
+                const client = clients.find((c) => c.id === project.clientId);
+                const completedDate = project.completedAt
+                  ? toLocalDateStr(project.completedAt)
+                  : project.deliverDate;
+                return (
+                  <tr
+                    key={project.id}
+                    className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setDetailId(project.id)}
+                          className="font-semibold text-white hover:text-[#FFC206] transition text-left"
+                        >
+                          {project.name}
+                        </button>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
+                          Done
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 hidden sm:table-cell">
+                      {client ? (
+                        <button
+                          onClick={() => setViewClientId(client.id)}
+                          className="text-white/60 hover:text-[#FFC206] transition"
+                        >
+                          {client.name}
+                        </button>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      <span className="text-white/60">{completedDate ?? '—'}</span>
+                    </td>
+                    <td className="px-4 py-3 hidden md:table-cell">
+                      {project.budget ? (
+                        <span className="text-white/70 amt">
+                          ${project.budget.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-white/25">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openEdit(project)}
+                          className="p-2 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
+                          title="Edit"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setDeleteId(project.id)}
+                          className="p-2 rounded-xl border border-red-500/25 text-red-400 hover:bg-red-500/15 transition"
+                          title="Delete"
+                        >
+                          <svg
+                            className="w-3.5 h-3.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Detail modal */}
       {detailProject && (
@@ -1439,7 +1798,7 @@ export default function ProjectsView() {
                         setProjects(
                           projects.map((p) =>
                             p.id === detailProject.id
-                              ? { ...p, status: 'completed', completedAt: new Date().toISOString() }
+                              ? { ...p, status: 'completed', completedAt: localToday() }
                               : p
                           )
                         );
@@ -1712,10 +2071,7 @@ export default function ProjectsView() {
                 </label>
                 <div className="flex gap-2 flex-wrap">
                   {FORM_STATUS_OPTIONS.map((opt) => {
-                    // treat confirmed as equivalent to in-progress in the form
-                    const isActive =
-                      form.status === opt.value ||
-                      (opt.value === 'in-progress' && form.status === 'confirmed');
+                    const isActive = form.status === opt.value;
                     return (
                       <button
                         key={opt.value}

@@ -16,7 +16,7 @@ import {
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
 function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function thisWeekRange(): [string, string] {
@@ -53,7 +53,7 @@ function invBucketKey(inv: Invoice, mode: BucketMode): string {
     const day = d.getDay();
     const mon = new Date(d);
     mon.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
-    return mon.toISOString().slice(0, 10);
+    return toDateStr(mon);
   }
   return inv.date.slice(0, 10);
 }
@@ -81,7 +81,7 @@ function generateBuckets(
     cur.setHours(0, 0, 0, 0);
     while (cur <= e) {
       buckets.push({
-        key: cur.toISOString().slice(0, 10),
+        key: toDateStr(cur),
         label: cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       });
       cur.setDate(cur.getDate() + 7);
@@ -90,7 +90,7 @@ function generateBuckets(
     const cur = new Date(s);
     while (cur <= e) {
       buckets.push({
-        key: cur.toISOString().slice(0, 10),
+        key: toDateStr(cur),
         label: cur.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       });
       cur.setDate(cur.getDate() + 1);
@@ -231,12 +231,12 @@ export default function ReportsView() {
     [filteredProjects, clients, invoices]
   );
 
-  const projectStatusCounts = (
-    ['draft', 'confirmed', 'in-progress', 'on-hold', 'completed'] as const
-  ).map((s) => ({
-    status: s,
-    count: filteredProjects.filter((p) => p.status === s).length,
-  }));
+  const projectStatusCounts = (['unconfirmed', 'confirmed', 'on-hold', 'completed'] as const).map(
+    (s) => ({
+      status: s,
+      count: filteredProjects.filter((p) => p.status === s).length,
+    })
+  );
 
   const glassCard = 'bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl';
 

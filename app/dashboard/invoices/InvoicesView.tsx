@@ -27,6 +27,11 @@ import ConfirmDeleteModal from '@/app/_components/ConfirmDeleteModal';
 
 const fmt = fmtUSD;
 
+function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function nextInvoiceNumber(invoices: Invoice[]): string {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
@@ -177,7 +182,7 @@ export default function InvoicesView() {
 
   const blankForm = (): FormState => ({
     number: nextInvoiceNumber(invoices),
-    date: new Date().toISOString().slice(0, 10),
+    date: localToday(),
     paymentTerms: 'Due on receipt',
     status: 'draft',
     clientId: '',
@@ -1265,7 +1270,7 @@ export default function InvoicesView() {
                       const available = projects.filter(
                         (p) =>
                           p.clientId === form.clientId &&
-                          p.status !== 'draft' &&
+                          p.status !== 'unconfirmed' &&
                           !selectedProjectIds.includes(p.id)
                       );
                       const filtered = q

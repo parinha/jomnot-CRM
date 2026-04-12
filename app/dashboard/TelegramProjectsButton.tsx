@@ -72,14 +72,14 @@ function buildSummaryMessage(projects: Project[]): string {
     (getTimelineInfo(a.deliverDate)?.daysLeft ?? 9999) -
     (getTimelineInfo(b.deliverDate)?.daysLeft ?? 9999);
 
-  const active = (p: Project) => p.status === 'confirmed' || p.status === 'in-progress';
+  const active = (p: Project) => p.status === 'confirmed';
 
   // Buckets
   const deliveredThisMonth = projects
     .filter((p) => p.status === 'completed' && isThisMonth(p.completedAt))
     .sort(sortByUrgency);
 
-  const waitConfirm = projects.filter((p) => p.status === 'draft');
+  const waitConfirm = projects.filter((p) => p.status === 'unconfirmed');
 
   const awaitFilming = projects.filter((p) => active(p) && !p.phases?.filming).sort(sortByUrgency);
 

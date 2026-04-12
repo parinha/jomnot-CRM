@@ -8,14 +8,18 @@ import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+function localDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 function startOfMonth(): string {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  return localDate(new Date(d.getFullYear(), d.getMonth(), 1));
 }
 
 function endOfMonth(): string {
   const d = new Date();
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().slice(0, 10);
+  return localDate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
 }
 
 function monthLabel(): string {
@@ -95,9 +99,7 @@ export default function DashboardView() {
 
   const totalEarned = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
 
-  const activeProjects = projects.filter(
-    (p) => p.status === 'confirmed' || p.status === 'in-progress'
-  );
+  const activeProjects = projects.filter((p) => p.status === 'confirmed');
   const completedProjects = projects.filter((p) => p.status === 'completed');
 
   const recentInvoices = [...invoices].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 6);

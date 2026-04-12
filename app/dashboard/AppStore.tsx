@@ -85,7 +85,7 @@ export interface ProjectItem {
   status: ProjectItemStatus;
 }
 
-export type ProjectStatus = 'draft' | 'confirmed' | 'in-progress' | 'on-hold' | 'completed';
+export type ProjectStatus = 'unconfirmed' | 'confirmed' | 'on-hold' | 'completed';
 
 export interface ProjectPhases {
   filming: boolean;
@@ -248,7 +248,30 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     });
 
     const unsubProjects = onSnapshot(collection(db, COL.projects), (snap) => {
-      setProjectsState(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project));
+      const loaded = snap.docs.map((d) => {
+        const data = { id: d.id, ...d.data() } as Project;
+        // migrate legacy statuses
+        const s = data.status as string;
+        if (s === 'draft') data.status = 'unconfirmed';
+        else if (s === 'in-progress') data.status = 'confirmed';
+        return data;
+      });
+      setProjectsState(loaded);
+      // persist migrations back to Firestore for stale docs
+      const stale = snap.docs.filter((d) => {
+        const s = d.data().status;
+        return s === 'draft' || s === 'in-progress';
+      });
+      if (stale.length > 0) {
+        const batch = writeBatch(db);
+        stale.forEach((d) => {
+          const s = d.data().status;
+          batch.update(doc(db, COL.projects, d.id), {
+            status: s === 'draft' ? 'unconfirmed' : 'confirmed',
+          });
+        });
+        batch.commit().catch(console.error);
+      }
       tick();
     });
 

@@ -50,9 +50,8 @@ export const STATUS_CONFIG: Record<
 
 // ── Project status ─────────────────────────────────────────────────────────────
 export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; cls: string }> = {
-  draft: { label: 'Quoted', cls: 'bg-zinc-700 text-zinc-300' },
-  confirmed: { label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
-  'in-progress': { label: 'Active', cls: 'bg-sky-500/20 text-sky-300' },
+  unconfirmed: { label: 'Unconfirmed', cls: 'bg-zinc-700 text-zinc-300' },
+  confirmed: { label: 'Confirmed', cls: 'bg-sky-500/20 text-sky-300' },
   'on-hold': { label: 'On Hold', cls: 'bg-amber-500/20 text-amber-300' },
   completed: { label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
 };
