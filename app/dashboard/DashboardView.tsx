@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useStore } from './AppStore';
 import { calcSubtotal, calcEarned, calcBalance, calcNet } from '@/app/_services/invoiceService';
-import { fmtUSD, fmtShort } from '@/app/_lib/formatters';
+import { fmtUSD, fmtShort, fmtDate } from '@/app/_lib/formatters';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -259,7 +259,7 @@ export default function DashboardView() {
                       </span>
                     </div>
                     <p className="text-xs text-white/40 truncate mt-0.5">
-                      {client?.name ?? '—'} · {inv.date}
+                      {client?.name ?? '—'} · {fmtDate(inv.date)}
                     </p>
                   </div>
                   <span className="text-sm font-bold text-white shrink-0 amt">{fmtUSD(net)}</span>

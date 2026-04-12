@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useStore, type Client } from '../AppStore';
 import { calcEarned, calcNet, calcSubtotal, calcBalance } from '@/app/_services/invoiceService';
-import { fmtUSD } from '@/app/_lib/formatters';
+import { fmtUSD, fmtDate } from '@/app/_lib/formatters';
 import { uid } from '@/app/_lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
@@ -685,7 +685,11 @@ export default function ClientsView() {
                                   )}
                                 </td>
                                 <td className="px-4 py-3 text-white/60 text-xs hidden md:table-cell">
-                                  {p.deliverDate ?? <span className="text-white/25">—</span>}
+                                  {p.deliverDate ? (
+                                    fmtDate(p.deliverDate)
+                                  ) : (
+                                    <span className="text-white/25">—</span>
+                                  )}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                   {netValue > 0 ? (
@@ -826,7 +830,7 @@ export default function ClientsView() {
                                 </button>
                               </td>
                               <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
-                                {inv.date}
+                                {fmtDate(inv.date)}
                               </td>
                               <td className="px-4 py-3 text-right font-semibold text-white amt">
                                 {fmt(sub)}

@@ -11,6 +11,7 @@ import {
   type Client,
 } from '../AppStore';
 import { PROJECT_STATUS_CONFIG } from '@/app/_config/statusConfig';
+import { fmtDate } from '@/app/_lib/formatters';
 
 // ── Phases config ─────────────────────────────────────────────────────────────
 const PHASES: { key: keyof ProjectPhases; label: string }[] = [
@@ -169,6 +170,7 @@ export default function ProjectsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(blankForm());
+  const [confirmMonth, setConfirmMonth] = useState('');
   const [newItemText, setNewItemText] = useState('');
   const [formError, setFormError] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -181,6 +183,7 @@ export default function ProjectsView() {
   const [completedTab, setCompletedTab] = useState<'this-month' | 'last-month'>('this-month');
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [holdUnconfPage, setHoldUnconfPage] = useState(1);
+  const [completedPage, setCompletedPage] = useState(1);
 
   // ── Date range filter (for widgets) ──────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>(() => {
@@ -449,6 +452,13 @@ export default function ProjectsView() {
       const db = (a.completedAt ?? a.deliverDate ?? '').slice(0, 10);
       return da.localeCompare(db);
     });
+  const completedTotalPages = Math.max(1, Math.ceil(completedList.length / SIDE_PAGE_SIZE));
+  const safeCompletedPage = Math.min(completedPage, completedTotalPages);
+  const completedPaged = completedList.slice(
+    (safeCompletedPage - 1) * SIDE_PAGE_SIZE,
+    safeCompletedPage * SIDE_PAGE_SIZE
+  );
+  const completedBudget = fmtBudget(completedList);
 
   function resetClientCombo() {
     setClientSearch('');
@@ -461,6 +471,7 @@ export default function ProjectsView() {
   function openAdd() {
     setEditingId(null);
     setForm(blankForm());
+    setConfirmMonth('');
     setNewItemText('');
     setFormError('');
     resetClientCombo();
@@ -480,6 +491,7 @@ export default function ProjectsView() {
       budget: project.budget,
       note: project.note ?? '',
     });
+    setConfirmMonth(project.deliverDate ? project.deliverDate.slice(0, 7) : '');
     setNewItemText('');
     setFormError('');
     resetClientCombo();
@@ -489,9 +501,18 @@ export default function ProjectsView() {
     setModalOpen(false);
     setEditingId(null);
     setForm(blankForm());
+    setConfirmMonth('');
     setNewItemText('');
     setFormError('');
     resetClientCombo();
+  }
+
+  function applyConfirmMonth(val: string) {
+    setConfirmMonth(val);
+    if (!val) return;
+    const [y, m] = val.split('-').map(Number);
+    const last = `${y}-${String(m).padStart(2, '0')}-${new Date(y, m, 0).getDate().toString().padStart(2, '0')}`;
+    setForm((p) => ({ ...p, deliverDate: p.deliverDate || last }));
   }
 
   function saveNewClient() {
@@ -615,13 +636,6 @@ export default function ProjectsView() {
 
   function handleSave() {
     if (saveProject()) closeModal();
-  }
-
-  async function handleSaveAndSend() {
-    const project = saveProject();
-    if (!project) return;
-    closeModal();
-    await sendProjectToTelegram(project);
   }
 
   function handleDelete(id: string) {
@@ -851,7 +865,7 @@ export default function ProjectsView() {
       </div>
 
       {/* ── UPCOMING + ON HOLD / UNCONFIRMED (2-column) ─────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
         {/* LEFT: Upcoming */}
         <div className="flex flex-col">
           <div className="flex items-center gap-3 mb-3">
@@ -908,7 +922,7 @@ export default function ProjectsView() {
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
                             <span className="text-xs text-white/45 hidden sm:block">
-                              {project.deliverDate}
+                              {fmtDate(project.deliverDate)}
                             </span>
                           )}
                           {tl && (
@@ -1022,7 +1036,7 @@ export default function ProjectsView() {
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
                             <span className="text-xs text-white/45 hidden sm:block">
-                              {project.deliverDate}
+                              {fmtDate(project.deliverDate)}
                             </span>
                           )}
                           {tl && (
@@ -1075,6 +1089,126 @@ export default function ProjectsView() {
                 totalItems={holdUnconfCombined.length}
                 pageSize={SIDE_PAGE_SIZE}
                 onPageChange={setHoldUnconfPage}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: Completed */}
+        <div className="flex flex-col">
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Completed</h2>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
+              {completedList.length}
+            </span>
+            {completedBudget && (
+              <span className="text-xs text-white/30 font-medium">({completedBudget})</span>
+            )}
+            <div className="flex-1 h-px bg-white/[0.07]" />
+          </div>
+
+          {/* Tab toggle: This Month / Last Month */}
+          <div className="flex gap-1 mb-2 border-b border-white/[0.08]">
+            {(['this-month', 'last-month'] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => {
+                  setCompletedTab(key);
+                  setCompletedPage(1);
+                }}
+                className={`px-3 py-1.5 text-xs font-semibold border-b-2 transition -mb-px ${completedTab === key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
+              >
+                {key === 'this-month' ? 'This Month' : 'Last Month'}
+              </button>
+            ))}
+          </div>
+
+          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
+            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+              {completedList.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-sm text-white/30">
+                    {search.trim()
+                      ? 'No completed projects match your search.'
+                      : `No completed projects ${completedTab === 'this-month' ? 'this month' : 'last month'}.`}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {completedPaged.map((project) => {
+                    const client = clients.find((c) => c.id === project.clientId);
+                    const completedDate = project.completedAt
+                      ? toLocalDateStr(project.completedAt)
+                      : project.deliverDate;
+                    return (
+                      <div
+                        key={project.id}
+                        style={{ height: SIDE_ROW_H }}
+                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                      >
+                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
+                          Done
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => setDetailId(project.id)}
+                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
+                          >
+                            {project.name}
+                          </button>
+                          {client && (
+                            <p className="text-xs text-white/40 truncate">{client.name}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {completedDate && (
+                            <span className="text-xs text-white/45 hidden sm:block">
+                              {fmtDate(completedDate)}
+                            </span>
+                          )}
+                          <button
+                            onClick={() => openEdit(project)}
+                            className="p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
+                            title="Edit"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {Array.from({ length: SIDE_PAGE_SIZE - completedPaged.length }).map((_, i) => (
+                    <div
+                      key={`ghd-${i}`}
+                      style={{ height: SIDE_ROW_H }}
+                      className="border-b border-white/[0.03]"
+                    />
+                  ))}
+                </>
+              )}
+            </div>
+          </div>
+
+          {completedList.length > SIDE_PAGE_SIZE && (
+            <div className="mt-2">
+              <Pagination
+                page={safeCompletedPage}
+                totalPages={completedTotalPages}
+                totalItems={completedList.length}
+                pageSize={SIDE_PAGE_SIZE}
+                onPageChange={setCompletedPage}
               />
             </div>
           )}
@@ -1282,31 +1416,38 @@ export default function ProjectsView() {
                         </div>
                       </td>
                       <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setDetailId(project.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
-                          >
-                            <svg
-                              className="w-3 h-3 shrink-0"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2.5}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setDetailId(project.id)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
                             >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                              />
-                            </svg>
-                            {done}/5
-                          </button>
-                          {tl && (
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tl.badgeCls}`}
-                            >
-                              {tl.badgeLabel}
+                              <svg
+                                className="w-3 h-3 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                                />
+                              </svg>
+                              {done}/5
+                            </button>
+                            {tl && (
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tl.badgeCls}`}
+                              >
+                                {tl.badgeLabel}
+                              </span>
+                            )}
+                          </div>
+                          {project.deliverDate && (
+                            <span className="text-xs text-white/35 pl-0.5">
+                              {fmtDate(project.deliverDate)}
                             </span>
                           )}
                         </div>
@@ -1398,182 +1539,6 @@ export default function ProjectsView() {
         </>
       )}
 
-      {/* ── COMPLETED ─────────────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Completed</h2>
-        <div className="flex-1 h-px bg-white/[0.07]" />
-      </div>
-
-      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
-        {(
-          [
-            {
-              key: 'this-month' as const,
-              label: 'This Month',
-              list: projects.filter((p) => {
-                const d = toLocalDateStr(p.completedAt ?? p.deliverDate);
-                return p.status === 'completed' && d >= cmStart && d <= cmEnd;
-              }),
-            },
-            {
-              key: 'last-month' as const,
-              label: 'Last Month',
-              list: projects.filter((p) => {
-                const d = toLocalDateStr(p.completedAt ?? p.deliverDate);
-                return p.status === 'completed' && d >= pmStart && d <= pmEnd;
-              }),
-            },
-          ] as const
-        ).map((tab) => {
-          const budget = fmtBudget(tab.list as typeof projects);
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setCompletedTab(tab.key)}
-              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px ${completedTab === tab.key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
-            >
-              {tab.label}
-              <span
-                className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${completedTab === tab.key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
-              >
-                {tab.list.length}
-              </span>
-              {budget && (
-                <span
-                  className={`ml-1 text-xs font-medium ${completedTab === tab.key ? 'text-[#FFC206]/70' : 'text-white/30'}`}
-                >
-                  ({budget})
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {completedList.length === 0 ? (
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex items-center justify-center py-10 mb-4">
-          <p className="text-sm text-white/30">
-            {search.trim()
-              ? 'No completed projects match your search.'
-              : `No completed projects ${completedTab === 'this-month' ? 'this month' : 'last month'}.`}
-          </p>
-        </div>
-      ) : (
-        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                <th className="text-left px-4 py-3 font-medium text-white/45">Project</th>
-                <th className="text-left px-4 py-3 font-medium text-white/45 hidden sm:table-cell">
-                  Client
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-white/45 hidden md:table-cell">
-                  Completed
-                </th>
-                <th className="text-left px-4 py-3 font-medium text-white/45 hidden md:table-cell">
-                  Budget
-                </th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {completedList.map((project, i) => {
-                const client = clients.find((c) => c.id === project.clientId);
-                const completedDate = project.completedAt
-                  ? toLocalDateStr(project.completedAt)
-                  : project.deliverDate;
-                return (
-                  <tr
-                    key={project.id}
-                    className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setDetailId(project.id)}
-                          className="font-semibold text-white hover:text-[#FFC206] transition text-left"
-                        >
-                          {project.name}
-                        </button>
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
-                          Done
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      {client ? (
-                        <button
-                          onClick={() => setViewClientId(client.id)}
-                          className="text-white/60 hover:text-[#FFC206] transition"
-                        >
-                          {client.name}
-                        </button>
-                      ) : (
-                        <span className="text-white/25">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-white/60">{completedDate ?? '—'}</span>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      {project.budget ? (
-                        <span className="text-white/70 amt">
-                          ${project.budget.toLocaleString()}
-                        </span>
-                      ) : (
-                        <span className="text-white/25">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEdit(project)}
-                          className="p-2 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => setDeleteId(project.id)}
-                          className="p-2 rounded-xl border border-red-500/25 text-red-400 hover:bg-red-500/15 transition"
-                          title="Delete"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {/* Detail modal */}
       {detailProject && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1646,7 +1611,7 @@ export default function ProjectsView() {
                             Filming
                           </p>
                           <p className="text-sm font-semibold text-white">
-                            {detailProject.filmingDate}
+                            {fmtDate(detailProject.filmingDate)}
                           </p>
                         </div>
                       )}
@@ -1656,7 +1621,7 @@ export default function ProjectsView() {
                             Deliver
                           </p>
                           <p className="text-sm font-semibold text-white">
-                            {detailProject.deliverDate}
+                            {fmtDate(detailProject.deliverDate)}
                           </p>
                         </div>
                       )}
@@ -1676,7 +1641,7 @@ export default function ProjectsView() {
                     {tl && (
                       <div>
                         <div className="flex justify-between text-[10px] text-white/35 mb-1.5">
-                          <span>{detailProject.filmingDate}</span>
+                          <span>{fmtDate(detailProject.filmingDate)}</span>
                           <span
                             className="font-bold"
                             style={{
@@ -1691,7 +1656,7 @@ export default function ProjectsView() {
                           >
                             {tl.badgeLabel}
                           </span>
-                          <span>{detailProject.deliverDate}</span>
+                          <span>{fmtDate(detailProject.deliverDate)}</span>
                         </div>
                         <div className="h-2.5 w-full rounded-full bg-white/10 overflow-hidden">
                           <div
@@ -2110,10 +2075,52 @@ export default function ProjectsView() {
                 </div>
               </div>
 
+              {/* Confirm Month */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Confirm Month
+                </label>
+                {(() => {
+                  const now = new Date();
+                  const thisMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                  const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+                  const nextM = ((now.getMonth() + 1) % 12) + 1;
+                  const nextMonthVal = `${nextY}-${String(nextM).padStart(2, '0')}`;
+                  const activeCls =
+                    'flex-1 px-3 py-2 rounded-xl border border-amber-500/60 bg-amber-500/20 text-sm text-amber-400 font-medium transition';
+                  const inactiveCls =
+                    'flex-1 px-3 py-2 rounded-xl border border-white/[0.1] bg-white/[0.05] text-sm text-white/70 hover:bg-white/[0.1] hover:text-white transition';
+                  return (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => applyConfirmMonth(thisMonthVal)}
+                        className={confirmMonth === thisMonthVal ? activeCls : inactiveCls}
+                      >
+                        This Month
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyConfirmMonth(nextMonthVal)}
+                        className={confirmMonth === nextMonthVal ? activeCls : inactiveCls}
+                      >
+                        Next Month
+                      </button>
+                      <input
+                        type="month"
+                        value={confirmMonth}
+                        className={`${darkInputCls} [color-scheme:dark] flex-1`}
+                        onChange={(e) => applyConfirmMonth(e.target.value)}
+                      />
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Dates */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Schedule
+                  Timeline
                 </label>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
@@ -2159,7 +2166,7 @@ export default function ProjectsView() {
                           className="rounded border-white/30 text-amber-500 focus:ring-amber-500 w-4 h-4 bg-white/10"
                         />
                         <span className="text-sm text-white/80 font-medium">{inv.number}</span>
-                        <span className="text-xs text-white/40">{inv.date}</span>
+                        <span className="text-xs text-white/40">{fmtDate(inv.date)}</span>
                       </label>
                     ))}
                   </div>
@@ -2357,37 +2364,6 @@ export default function ProjectsView() {
                   {editingId ? 'Save changes' : 'Create project'}
                 </button>
               </div>
-              <button
-                onClick={handleSaveAndSend}
-                disabled={sendingTelegram !== null}
-                className="w-full h-11 rounded-xl border border-sky-500/30 bg-sky-500/10 text-sky-400 text-sm font-semibold hover:bg-sky-500/20 transition disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {sendingTelegram !== null ? (
-                  <>
-                    <svg
-                      className="w-4 h-4 animate-spin"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
-                      />
-                    </svg>
-                    Sending…
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                    </svg>
-                    {editingId ? 'Save & Send to Telegram' : 'Create & Send to Telegram'}
-                  </>
-                )}
-              </button>
             </div>
           </div>
         </div>
@@ -2523,7 +2499,7 @@ export default function ProjectsView() {
                             className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 hover:bg-white/[0.08] hover:border-white/20 transition text-left"
                           >
                             <span className="text-sm text-white/80">{inv.number}</span>
-                            <span className="text-xs text-white/40">{inv.date}</span>
+                            <span className="text-xs text-white/40">{fmtDate(inv.date)}</span>
                           </button>
                         ))}
                       </div>

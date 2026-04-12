@@ -14,7 +14,7 @@ import {
   type ProjectItemStatus,
 } from '../AppStore';
 import { calcSubtotal, WHT_RATE } from '@/app/_services/invoiceService';
-import { fmtUSD } from '@/app/_lib/formatters';
+import { fmtUSD, fmtDate } from '@/app/_lib/formatters';
 import { uid } from '@/app/_lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/app/_config/constants';
 import { STATUS_CONFIG } from '@/app/_config/statusConfig';
@@ -705,7 +705,7 @@ export default function InvoicesView() {
                         </span>
                       </div>
                       <p className="text-sm text-white/60 truncate">{client?.name ?? '—'}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{inv.date}</p>
+                      <p className="text-xs text-white/40 mt-0.5">{fmtDate(inv.date)}</p>
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-white amt">{fmt(sub)}</p>
@@ -859,7 +859,7 @@ export default function InvoicesView() {
                         {client?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
-                        {inv.date}
+                        {fmtDate(inv.date)}
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <span className="font-semibold text-white amt">{fmt(sub)}</span>
