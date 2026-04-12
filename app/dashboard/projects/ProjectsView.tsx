@@ -50,6 +50,7 @@ function blankForm(): ProjectFormState {
     items: [],
     phases: { ...DEFAULT_PHASES },
     status: 'unconfirmed',
+    confirmedMonth: undefined,
     filmingDate: '',
     deliverDate: '',
     budget: undefined,
@@ -184,6 +185,7 @@ export default function ProjectsView() {
   const [upcomingPage, setUpcomingPage] = useState(1);
   const [holdUnconfPage, setHoldUnconfPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
+  const [unsetPage, setUnsetPage] = useState(1);
 
   // ── Date range filter (for widgets) ──────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState<string>(() => {
@@ -352,10 +354,12 @@ export default function ProjectsView() {
   }
 
   // ── Section data ───────────────────────────────────────────────────────────
-  // Active: confirmed, deliverDate <= end of current month (includes overdue prev-month)
+  const cmYM = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}`; // e.g. "2026-04"
+  const nmYM = `${nmY}-${_pad(nmM + 1)}`;
+
+  // Active: confirmed, confirmedMonth = this month
   const activeBase = projects.filter(
-    (p) =>
-      p.status === 'confirmed' && (!p.deliverDate || p.deliverDate <= cmEnd) && matchesSearch(p)
+    (p) => p.status === 'confirmed' && p.confirmedMonth === cmYM && matchesSearch(p)
   );
 
   const activeSorted = [...activeBase].sort((a, b) => {
@@ -397,16 +401,9 @@ export default function ProjectsView() {
     .filter((p) => p.status === 'unconfirmed' && matchesSearch(p))
     .sort((a, b) => (a.deliverDate ?? '').localeCompare(b.deliverDate ?? ''));
 
-  // Upcoming: deliverDate in next month, any non-completed status
+  // Upcoming: confirmedMonth = next month, any non-completed status
   const upcomingList = projects
-    .filter(
-      (p) =>
-        p.status !== 'completed' &&
-        p.deliverDate &&
-        p.deliverDate >= nmStart &&
-        p.deliverDate <= nmEnd &&
-        matchesSearch(p)
-    )
+    .filter((p) => p.status !== 'completed' && p.confirmedMonth === nmYM && matchesSearch(p))
     .sort((a, b) => (a.deliverDate ?? '').localeCompare(b.deliverDate ?? ''));
 
   // Side panel pagination (3 rows, fixed height)
@@ -438,20 +435,17 @@ export default function ProjectsView() {
   const holdUnconfBudget = fmtBudget(holdUnconfCombined);
   const activeBudget = fmtBudget(activeBase);
 
-  // Completed: filtered by completedTab month
+  const pmYM = `${pmY}-${_pad(pmM + 1)}`;
+
+  // Completed: filtered by confirmedMonth
   const completedList = projects
     .filter((p) => {
       if (p.status !== 'completed') return false;
       if (!matchesSearch(p)) return false;
-      const dateStr = toLocalDateStr(p.completedAt ?? p.deliverDate);
-      if (completedTab === 'this-month') return dateStr >= cmStart && dateStr <= cmEnd;
-      return dateStr >= pmStart && dateStr <= pmEnd;
+      if (completedTab === 'this-month') return p.confirmedMonth === cmYM;
+      return p.confirmedMonth === pmYM;
     })
-    .sort((a, b) => {
-      const da = (b.completedAt ?? b.deliverDate ?? '').slice(0, 10);
-      const db = (a.completedAt ?? a.deliverDate ?? '').slice(0, 10);
-      return da.localeCompare(db);
-    });
+    .sort((a, b) => (b.deliverDate ?? '').localeCompare(a.deliverDate ?? ''));
   const completedTotalPages = Math.max(1, Math.ceil(completedList.length / SIDE_PAGE_SIZE));
   const safeCompletedPage = Math.min(completedPage, completedTotalPages);
   const completedPaged = completedList.slice(
@@ -459,6 +453,17 @@ export default function ProjectsView() {
     safeCompletedPage * SIDE_PAGE_SIZE
   );
   const completedBudget = fmtBudget(completedList);
+
+  // Unset confirm month: any non-completed project without confirmedMonth
+  const unsetConfirmedList = projects
+    .filter((p) => p.status !== 'completed' && !p.confirmedMonth && matchesSearch(p))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const unsetTotalPages = Math.max(1, Math.ceil(unsetConfirmedList.length / SIDE_PAGE_SIZE));
+  const safeUnsetPage = Math.min(unsetPage, unsetTotalPages);
+  const unsetPaged = unsetConfirmedList.slice(
+    (safeUnsetPage - 1) * SIDE_PAGE_SIZE,
+    safeUnsetPage * SIDE_PAGE_SIZE
+  );
 
   function resetClientCombo() {
     setClientSearch('');
@@ -486,12 +491,13 @@ export default function ProjectsView() {
       items: project.items.map((it) => ({ ...it })),
       phases: { ...DEFAULT_PHASES, ...project.phases },
       status: project.status,
+      confirmedMonth: project.confirmedMonth ?? '',
       filmingDate: project.filmingDate ?? '',
       deliverDate: project.deliverDate ?? '',
       budget: project.budget,
       note: project.note ?? '',
     });
-    setConfirmMonth(project.deliverDate ? project.deliverDate.slice(0, 7) : '');
+    setConfirmMonth(project.confirmedMonth ?? '');
     setNewItemText('');
     setFormError('');
     resetClientCombo();
@@ -509,10 +515,7 @@ export default function ProjectsView() {
 
   function applyConfirmMonth(val: string) {
     setConfirmMonth(val);
-    if (!val) return;
-    const [y, m] = val.split('-').map(Number);
-    const last = `${y}-${String(m).padStart(2, '0')}-${new Date(y, m, 0).getDate().toString().padStart(2, '0')}`;
-    setForm((p) => ({ ...p, deliverDate: p.deliverDate || last }));
+    setForm((p) => ({ ...p, confirmedMonth: val || undefined }));
   }
 
   function saveNewClient() {
@@ -610,6 +613,7 @@ export default function ProjectsView() {
     }
     const cleanedForm = {
       ...form,
+      confirmedMonth: form.confirmedMonth?.trim() || undefined,
       filmingDate: form.filmingDate?.trim() || undefined,
       deliverDate: form.deliverDate?.trim() || undefined,
       budget: form.budget && form.budget > 0 ? form.budget : undefined,
@@ -1214,6 +1218,92 @@ export default function ProjectsView() {
           )}
         </div>
       </div>
+
+      {/* ── UNSET CONFIRM MONTH ─────────────────────────────────────────────── */}
+      {unsetConfirmedList.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <h2 className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">
+              Unset Confirm Month
+            </h2>
+            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-400">
+              {unsetConfirmedList.length}
+            </span>
+            <div className="flex-1 h-px bg-white/[0.07]" />
+          </div>
+
+          <div className="bg-white/[0.05] backdrop-blur-xl border border-orange-500/20 rounded-2xl overflow-hidden">
+            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+              <>
+                {unsetPaged.map((project) => {
+                  const client = clients.find((c) => c.id === project.clientId);
+                  const sc = getStatusCfg(project.status);
+                  return (
+                    <div
+                      key={project.id}
+                      style={{ height: SIDE_ROW_H }}
+                      className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                    >
+                      <span
+                        className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                      >
+                        {sc.label}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <button
+                          onClick={() => setDetailId(project.id)}
+                          className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
+                        >
+                          {project.name}
+                        </button>
+                        {client && <p className="text-xs text-white/40 truncate">{client.name}</p>}
+                      </div>
+                      <button
+                        onClick={() => openEdit(project)}
+                        className="shrink-0 p-1.5 rounded-lg border border-orange-500/30 text-orange-400/60 hover:bg-orange-500/10 hover:text-orange-400 transition"
+                        title="Set confirm month"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+                {Array.from({ length: SIDE_PAGE_SIZE - unsetPaged.length }).map((_, i) => (
+                  <div
+                    key={`gu-${i}`}
+                    style={{ height: SIDE_ROW_H }}
+                    className="border-b border-white/[0.03]"
+                  />
+                ))}
+              </>
+            </div>
+          </div>
+
+          {unsetConfirmedList.length > SIDE_PAGE_SIZE && (
+            <div className="mt-2">
+              <Pagination
+                page={safeUnsetPage}
+                totalPages={unsetTotalPages}
+                totalItems={unsetConfirmedList.length}
+                pageSize={SIDE_PAGE_SIZE}
+                onPageChange={setUnsetPage}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── ACTIVE PROJECTS THIS MONTH ───────────────────────────────────────── */}
       <div className="flex items-center gap-3 mb-4">

@@ -104,6 +104,7 @@ export interface Project extends RecordMeta {
   phases?: ProjectPhases;
   status: ProjectStatus;
   createdAt: string;
+  confirmedMonth?: string; // YYYY-MM — which month this project is booked for
   filmingDate?: string;
   deliverDate?: string;
   completedAt?: string;
