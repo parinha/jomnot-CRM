@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Kantumruy_Pro, Geist_Mono } from 'next/font/google';
 import './globals.css';
+import ServiceWorkerRegistrar from './_components/ServiceWorkerRegistrar';
 
 const kantumruyPro = Kantumruy_Pro({
   variable: '--font-kantumruy-pro',
@@ -24,6 +25,22 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Studio',
   description: 'Studio management app',
+  applicationName: 'Studio',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Studio',
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  icons: {
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -33,7 +50,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${kantumruyPro.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <ServiceWorkerRegistrar />
+        {children}
+      </body>
     </html>
   );
 }
