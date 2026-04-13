@@ -1891,7 +1891,7 @@ export default function ProjectsView() {
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
           <div className="w-full max-w-xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.08] shrink-0">
               <h2 className="text-lg font-bold text-white">
                 {editingId ? 'Edit project' : 'New project'}
               </h2>
@@ -1910,7 +1910,7 @@ export default function ProjectsView() {
                 </svg>
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-5">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
               {/* Client */}
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
@@ -2005,7 +2005,7 @@ export default function ProjectsView() {
                     <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
                       Create new client
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-white/50">Company Name *</label>
                         <input
@@ -2260,7 +2260,7 @@ export default function ProjectsView() {
                 <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                   Timeline
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
                     <label className="text-xs text-white/45">
                       Filming Date <span className="text-white/25">(optional)</span>
@@ -2490,8 +2490,10 @@ export default function ProjectsView() {
                 />
               </div>
             </div>
-            {formError && <p className="px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>}
-            <div className="flex flex-col gap-2 px-6 py-4 border-t border-white/[0.08] shrink-0">
+            {formError && (
+              <p className="px-4 sm:px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>
+            )}
+            <div className="flex flex-col gap-2 px-4 sm:px-6 py-4 border-t border-white/[0.08] shrink-0">
               <div className="flex gap-3">
                 <button
                   onClick={closeModal}
