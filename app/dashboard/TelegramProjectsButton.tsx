@@ -125,7 +125,7 @@ function buildSummaryMessage(projects: Project[]): string {
   ln.push(`📊 PROJECT UPDATE — ${dateStr}`);
   ln.push('');
   const summary = [
-    { emoji: '✅', label: 'Delivered this month', count: deliveredThisMonth.length },
+    { emoji: '✅', label: 'Done this month', count: deliveredThisMonth.length },
     { emoji: '⬜', label: 'Unconfirmed', count: waitConfirm.length },
     { emoji: '🎬', label: 'Await Filming', count: awaitFilming.length },
     { emoji: '✂️', label: 'Await Rough Cut', count: awaitRoughCut.length },
@@ -141,7 +141,7 @@ function buildSummaryMessage(projects: Project[]): string {
   // ── Delivered this month ─────────────────────────────────
   if (deliveredThisMonth.length > 0) {
     ln.push('');
-    ln.push(`✅  Delivered this month (${deliveredThisMonth.length})`);
+    ln.push(`✅  Done this month (${deliveredThisMonth.length})`);
     for (const p of deliveredThisMonth) ln.push(`     — ${p.name}`);
   }
 

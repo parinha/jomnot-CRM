@@ -19,7 +19,7 @@ const PHASES: { key: keyof ProjectPhases; label: string }[] = [
   { key: 'roughCut', label: 'Rough Cut' },
   { key: 'draft', label: 'Draft/VO' },
   { key: 'master', label: 'Master' },
-  { key: 'delivered', label: 'Delivered' },
+  { key: 'delivered', label: 'Done' },
 ];
 const DEFAULT_PHASES: ProjectPhases = {
   filming: false,
@@ -1807,7 +1807,7 @@ export default function ProjectsView() {
                       )}
                       {detailProject.status === 'completed' ? (
                         <span className="ml-auto px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300">
-                          Delivered
+                          Done
                         </span>
                       ) : tl ? (
                         <span

@@ -56,7 +56,7 @@ export const DEFAULT_TELEGRAM_TEMPLATE: TelegramTemplate = {
     noDate: '▸',
   },
   sections: {
-    delivered: { emoji: '✅', label: 'Delivered this month', enabled: true },
+    delivered: { emoji: '✅', label: 'Done this month', enabled: true },
     unconfirmed: { emoji: '⬜', label: 'Wait Project Confirm', enabled: true },
     awaitFilming: { emoji: '🎬', label: 'Await Filming', enabled: true },
     awaitRoughCut: { emoji: '✂️', label: 'Await Rough Cut', enabled: true },
