@@ -12,11 +12,27 @@ import { calcInvoiceTotal } from '@/app/_services/invoiceService';
 import QuickPayModal from '@/app/_components/QuickPayModal';
 import TelegramProjectsButton from './TelegramProjectsButton';
 
+type SidebarSize = 'full' | 'compact' | 'hidden';
+const SIDEBAR_SIZES: SidebarSize[] = ['full', 'compact', 'hidden'];
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const close = () => setOpen(false);
   const { signOut } = useAuth();
   const [quickPay, setQuickPay] = useState(false);
+  const [sidebarSize, setSidebarSize] = useState<SidebarSize>(() => {
+    if (typeof window === 'undefined') return 'full';
+    const saved = localStorage.getItem('sidebarSize') as SidebarSize | null;
+    return saved && SIDEBAR_SIZES.includes(saved) ? saved : 'full';
+  });
+
+  function cycleSidebar() {
+    const next = SIDEBAR_SIZES[(SIDEBAR_SIZES.indexOf(sidebarSize) + 1) % SIDEBAR_SIZES.length];
+    setSidebarSize(next);
+    localStorage.setItem('sidebarSize', next);
+  }
+
+  const compact = sidebarSize === 'compact';
 
   const { clients, invoices, amountsVisible, toggleAmountsVisible } = useStore();
   const router = useRouter();
@@ -126,8 +142,13 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         className={[
           'fixed inset-y-0 left-0 z-50 w-72 flex flex-col',
           'bg-black/65 backdrop-blur-2xl border-r border-white/[0.08]',
-          'transition-transform duration-300 ease-out will-change-transform',
-          'md:sticky md:top-0 md:h-screen md:w-56 md:shrink-0 md:translate-x-0',
+          'transition-all duration-300 ease-out will-change-transform',
+          'md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0',
+          sidebarSize === 'full'
+            ? 'md:w-56'
+            : sidebarSize === 'compact'
+              ? 'md:w-14'
+              : 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0',
           open ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         ].join(' ')}
         style={{
@@ -152,15 +173,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </svg>
         </button>
 
-        <SidebarHeader />
+        {/* Sidebar header — logo + name (compact: icon only) */}
+        {compact ? <CompactSidebarHeader /> : <SidebarHeader />}
 
-        <nav className="flex-1 px-3 py-3 flex flex-col gap-0.5 overflow-y-auto">
+        <nav
+          className={`flex-1 py-3 flex flex-col gap-0.5 overflow-y-auto ${compact ? 'px-1.5' : 'px-3'}`}
+        >
           <NavItem
             href="/dashboard/timeline"
             label="Timeline"
             d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
           <NavItem
             href="/dashboard/kanban"
@@ -168,6 +193,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
           <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
@@ -176,6 +202,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
           <NavItem
             href="/dashboard/clients"
@@ -183,6 +210,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
           <div className="my-2 border-t border-white/[0.06]" />
           <NavItem
@@ -191,6 +219,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
           <NavItem
             href="/dashboard/payments"
@@ -198,23 +227,30 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
         </nav>
 
-        <div className="px-3 py-3 border-t border-white/[0.06] shrink-0 flex flex-col gap-0.5">
+        <div
+          className={`py-3 border-t border-white/[0.06] shrink-0 flex flex-col gap-0.5 ${compact ? 'px-1.5' : 'px-3'}`}
+        >
           <NavItem
             href="/dashboard/settings"
             label="Settings"
             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z"
             pathname={pathname}
             onClick={close}
+            compact={compact}
           />
+
+          {/* Sign out */}
           <button
             onClick={async () => {
               await signOut();
               router.replace('/login');
             }}
-            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-white/50 hover:bg-white/[0.06] hover:text-white/80 active:bg-white/10 transition w-full text-left"
+            title="Sign out"
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-white/50 hover:bg-white/[0.06] hover:text-white/80 active:bg-white/10 transition w-full ${compact ? 'justify-center' : 'text-left'}`}
           >
             <svg
               className="w-4 h-4 shrink-0"
@@ -229,7 +265,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
               />
             </svg>
-            Sign out
+            {!compact && 'Sign out'}
           </button>
         </div>
       </aside>
@@ -248,6 +284,59 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
             }}
           >
+            {/* Sidebar size toggle — desktop only */}
+            <button
+              onClick={cycleSidebar}
+              title={
+                sidebarSize === 'full'
+                  ? 'Compact sidebar'
+                  : sidebarSize === 'compact'
+                    ? 'Hide sidebar'
+                    : 'Show sidebar'
+              }
+              className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.08] active:bg-white/[0.12] transition shrink-0"
+            >
+              {sidebarSize === 'full' ? (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M11 19l-7-7 7-7M21 19l-7-7 7-7"
+                  />
+                </svg>
+              ) : sidebarSize === 'compact' ? (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              ) : (
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                  />
+                </svg>
+              )}
+            </button>
+
             {/* Search */}
             <div ref={searchRef} className="relative flex-1 max-w-md">
               <svg
@@ -539,20 +628,24 @@ function NavItem({
   d,
   pathname,
   onClick,
+  compact,
 }: {
   href: string;
   label: string;
   d: string;
   pathname: string | null;
   onClick?: () => void;
+  compact?: boolean;
 }) {
   const active = pathname === href;
   return (
     <Link
       href={href}
       onClick={onClick}
+      title={compact ? label : undefined}
       className={[
-        'flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150',
+        'flex items-center rounded-xl text-sm font-medium transition-all duration-150',
+        compact ? 'justify-center w-full h-10' : 'gap-3 px-3 py-3',
         active
           ? 'bg-[#FFC206]/15 text-[#FFC206] border border-[#FFC206]/20'
           : 'text-white/55 hover:bg-white/[0.06] hover:text-white/90 active:bg-white/10',
@@ -567,7 +660,7 @@ function NavItem({
       >
         <path strokeLinecap="round" strokeLinejoin="round" d={d} />
       </svg>
-      {label}
+      {!compact && label}
     </Link>
   );
 }
@@ -627,5 +720,24 @@ function BottomNavItem({
         {label}
       </span>
     </Link>
+  );
+}
+
+// ── Compact sidebar header (icon only) ───────────────────────────────────────
+
+function CompactSidebarHeader() {
+  const { companyProfile: profile } = useStore();
+  const initial = (profile.name || 'S').charAt(0).toUpperCase();
+  return (
+    <div className="h-16 flex items-center justify-center border-b border-white/[0.08] shrink-0">
+      {profile.logo ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={profile.logo} alt="Logo" className="h-8 w-8 object-contain rounded-lg" />
+      ) : (
+        <div className="h-8 w-8 rounded-lg bg-[#FFC206] flex items-center justify-center text-zinc-900 text-xs font-bold shrink-0 shadow-amber-500/30">
+          {initial}
+        </div>
+      )}
+    </div>
   );
 }
