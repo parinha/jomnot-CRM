@@ -49,8 +49,8 @@ function blankForm(): ProjectFormState {
     invoiceIds: [],
     items: [],
     phases: { ...DEFAULT_PHASES },
-    status: 'unconfirmed',
-    confirmedMonth: undefined,
+    status: 'confirmed',
+    confirmedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
     filmingDate: '',
     deliverDate: '',
     budget: undefined,
@@ -151,6 +151,20 @@ function toLocalDateStr(s: string | undefined): string {
 }
 
 const EMPTY_CLIENT_FORM = { name: '', contactPerson: '', phone: '', address: '', email: '' };
+
+function formatKhmerLocal(raw: string): string {
+  const digits = raw.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5)}`;
+  return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 9)}`;
+}
+function phoneToLocal(full: string): string {
+  return full.replace(/^\+855\s*/, '');
+}
+function phoneToFull(local: string): string {
+  return local.trim() ? `+855 ${local}` : '';
+}
 const FALLBACK_STATUS_CFG = { label: 'Unknown', cls: 'bg-zinc-700 text-zinc-300' };
 function getStatusCfg(status: string) {
   return PROJECT_STATUS_CONFIG[status as ProjectStatus] ?? FALLBACK_STATUS_CFG;
@@ -172,6 +186,7 @@ export default function ProjectsView() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(blankForm());
   const [confirmMonth, setConfirmMonth] = useState('');
+  const [billingOpen, setBillingOpen] = useState(false);
   const [newItemText, setNewItemText] = useState('');
   const [formError, setFormError] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -186,35 +201,6 @@ export default function ProjectsView() {
   const [holdUnconfPage, setHoldUnconfPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
   const [unsetPage, setUnsetPage] = useState(1);
-
-  // ── Date range filter (for widgets) ──────────────────────────────────────────
-  const [dateFrom, setDateFrom] = useState<string>(() => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
-  });
-  const [dateTo, setDateTo] = useState<string>(() => {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`;
-  });
-
-  function selectThisMonth() {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    setDateFrom(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`);
-    setDateTo(
-      `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())}`
-    );
-  }
-  function selectLastMonth() {
-    const d = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const y = d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear();
-    const m = d.getMonth() === 0 ? 11 : d.getMonth() - 1;
-    setDateFrom(`${y}-${pad(m + 1)}-01`);
-    setDateTo(`${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`);
-  }
 
   function handleSort(col: string) {
     if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -357,10 +343,12 @@ export default function ProjectsView() {
   const cmYM = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}`; // e.g. "2026-04"
   const nmYM = `${nmY}-${_pad(nmM + 1)}`;
 
-  // Active: confirmed, confirmedMonth = this month
+  // Active: all confirmed projects (this month + older)
   const activeBase = projects.filter(
-    (p) => p.status === 'confirmed' && p.confirmedMonth === cmYM && matchesSearch(p)
+    (p) => p.status === 'confirmed' && p.confirmedMonth !== nmYM && matchesSearch(p)
   );
+  const activeThisMonth = activeBase.filter((p) => p.confirmedMonth === cmYM);
+  const activeOld = activeBase.filter((p) => p.confirmedMonth !== cmYM);
 
   const activeSorted = [...activeBase].sort((a, b) => {
     let cmp = 0;
@@ -434,6 +422,8 @@ export default function ProjectsView() {
   const upcomingBudget = fmtBudget(upcomingList);
   const holdUnconfBudget = fmtBudget(holdUnconfCombined);
   const activeBudget = fmtBudget(activeBase);
+  const activeThisMonthBudget = fmtBudget(activeThisMonth);
+  const activeOldBudget = fmtBudget(activeOld);
 
   const pmYM = `${pmY}-${_pad(pmM + 1)}`;
 
@@ -445,7 +435,7 @@ export default function ProjectsView() {
       if (completedTab === 'this-month') return p.confirmedMonth === cmYM;
       return p.confirmedMonth === pmYM;
     })
-    .sort((a, b) => (b.deliverDate ?? '').localeCompare(a.deliverDate ?? ''));
+    .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
   const completedTotalPages = Math.max(1, Math.ceil(completedList.length / SIDE_PAGE_SIZE));
   const safeCompletedPage = Math.min(completedPage, completedTotalPages);
   const completedPaged = completedList.slice(
@@ -454,9 +444,9 @@ export default function ProjectsView() {
   );
   const completedBudget = fmtBudget(completedList);
 
-  // Unset confirm month: any non-completed project without confirmedMonth
+  // Unset confirm month: any project (any status) without confirmedMonth
   const unsetConfirmedList = projects
-    .filter((p) => p.status !== 'completed' && !p.confirmedMonth && matchesSearch(p))
+    .filter((p) => !p.confirmedMonth && matchesSearch(p))
     .sort((a, b) => a.name.localeCompare(b.name));
   const unsetTotalPages = Math.max(1, Math.ceil(unsetConfirmedList.length / SIDE_PAGE_SIZE));
   const safeUnsetPage = Math.min(unsetPage, unsetTotalPages);
@@ -475,8 +465,9 @@ export default function ProjectsView() {
 
   function openAdd() {
     setEditingId(null);
-    setForm(blankForm());
-    setConfirmMonth('');
+    const blank = blankForm();
+    setForm(blank);
+    setConfirmMonth(blank.confirmedMonth ?? '');
     setNewItemText('');
     setFormError('');
     resetClientCombo();
@@ -508,6 +499,7 @@ export default function ProjectsView() {
     setEditingId(null);
     setForm(blankForm());
     setConfirmMonth('');
+    setBillingOpen(false);
     setNewItemText('');
     setFormError('');
     resetClientCombo();
@@ -601,10 +593,6 @@ export default function ProjectsView() {
     }
     if (!form.clientId) {
       setFormError('Please select a client.');
-      return null;
-    }
-    if (!form.deliverDate?.trim()) {
-      setFormError('Deliver date is required.');
       return null;
     }
     if (form.status === 'completed' && phasesDone(form.phases) < 5) {
@@ -729,12 +717,10 @@ export default function ProjectsView() {
         </button>
       </div>
 
-      {/* Date range filter + widgets */}
+      {/* ── Widgets ───────────────────────────────────────────────────────────── */}
       {(() => {
         const fmtAmt = (n: number) =>
           n === 0 ? '—' : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-
-        // Project value: net from linked invoices, fallback to budget
         const projValue = (p: Project) => {
           const invNet = p.invoiceIds
             .map((id) => invoices.find((i) => i.id === id))
@@ -743,115 +729,168 @@ export default function ProjectsView() {
           return invNet > 0 ? invNet : (p.budget ?? 0);
         };
 
-        // Filter projects whose deliverDate falls in the selected range
-        const rangeProjects = projects.filter(
-          (p) => p.deliverDate && p.deliverDate >= dateFrom && p.deliverDate <= dateTo
+        // Month helpers
+        const cmStart = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-01`;
+        const cmEnd = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate())}`;
+
+        // ── Next month
+        const nmProjects = projects.filter((p) => p.confirmedMonth === nmYM);
+        const nmEst = nmProjects.reduce((s, p) => s + projValue(p), 0);
+
+        // ── Last month
+        const pmProjects = projects.filter((p) => p.confirmedMonth === pmYM);
+        const pmEst = pmProjects.reduce((s, p) => s + projValue(p), 0);
+        const pmCompleted = pmProjects.filter((p) => p.status === 'completed');
+        const pmActual = pmCompleted.reduce((s, p) => s + projValue(p), 0);
+        const pmUnearned = pmProjects.filter((p) => p.status !== 'completed');
+        const pmUnearnedTotal = pmUnearned.reduce((s, p) => s + projValue(p), 0);
+
+        // ── This month (confirmed + completed only)
+        const cmProjects = projects.filter(
+          (p) => p.confirmedMonth === cmYM && (p.status === 'confirmed' || p.status === 'completed')
         );
+        const cmEst = cmProjects.reduce((s, p) => s + projValue(p), 0);
 
-        const quotedProjects = rangeProjects.filter((p) => p.status === 'unconfirmed');
-        const quotedTotal = quotedProjects.reduce((s, p) => s + projValue(p), 0);
-
-        const waitingProjects = rangeProjects.filter(
-          (p) => p.status === 'confirmed' || p.status === 'on-hold'
+        // ── Old projects (confirmed, billing month is not this or next month)
+        const oldActiveProjects = projects.filter(
+          (p) => p.status === 'confirmed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
         );
-        const waitingTotal = waitingProjects.reduce((s, p) => s + projValue(p), 0);
+        const oldActiveEst = oldActiveProjects.reduce((s, p) => s + projValue(p), 0);
+        const cmTotalEst = cmEst + oldActiveEst;
+        const cmCompleted = cmProjects.filter((p) => p.status === 'completed');
+        const cmActual = cmCompleted.reduce((s, p) => s + projValue(p), 0);
 
-        const completedProjects = rangeProjects.filter((p) => p.status === 'completed');
-        const completedTotal = completedProjects.reduce((s, p) => s + projValue(p), 0);
+        // ── This month pending (unconfirmed + on-hold)
+        const cmPending = projects.filter(
+          (p) => p.confirmedMonth === cmYM && (p.status === 'unconfirmed' || p.status === 'on-hold')
+        );
+        const cmPendingTotal = cmPending.reduce((s, p) => s + projValue(p), 0);
+        // prev-month projects that got completed this month
+        const prevCompletedThisMonth = projects.filter((p) => {
+          if (p.confirmedMonth !== pmYM || p.status !== 'completed' || !p.completedAt) return false;
+          const d = toLocalDateStr(p.completedAt);
+          return d >= cmStart && d <= cmEnd;
+        });
+        const prevBonus = prevCompletedThisMonth.reduce((s, p) => s + projValue(p), 0);
+        const cmTotalActual = cmActual + prevBonus;
 
-        const pipelineTotal = waitingTotal + completedTotal;
+        // ── In progress (confirmed, not completed, any month)
+        const inProgressProjects = projects.filter(
+          (p) => p.status === 'confirmed' && p.confirmedMonth !== nmYM
+        );
+        const inProgressTotal = inProgressProjects.reduce((s, p) => s + projValue(p), 0);
 
-        // Detect which quick-select is active
-        const now = new Date();
-        const _p = (n: number) => String(n).padStart(2, '0');
-        const thisMonthFrom = `${now.getFullYear()}-${_p(now.getMonth() + 1)}-01`;
-        const thisMonthTo = `${now.getFullYear()}-${_p(now.getMonth() + 1)}-${_p(new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate())}`;
-        const lmY = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
-        const lmM = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
-        const lastMonthFrom = `${lmY}-${_p(lmM + 1)}-01`;
-        const lastMonthTo = `${lmY}-${_p(lmM + 1)}-${_p(new Date(lmY, lmM + 1, 0).getDate())}`;
-        const isThisMonth = dateFrom === thisMonthFrom && dateTo === thisMonthTo;
-        const isLastMonth = dateFrom === lastMonthFrom && dateTo === lastMonthTo;
-
-        const widgets = [
-          {
-            label: 'Unconfirmed',
-            value: fmtAmt(quotedTotal),
-            sub: `${quotedProjects.length} project${quotedProjects.length !== 1 ? 's' : ''}`,
-            color: 'text-white/70',
-          },
-          {
-            label: 'In Progress',
-            value: fmtAmt(waitingTotal),
-            sub: `${waitingProjects.length} project${waitingProjects.length !== 1 ? 's' : ''}`,
-            color: 'text-sky-400',
-          },
-          {
-            label: 'Completed',
-            value: fmtAmt(completedTotal),
-            sub: `${completedProjects.length} project${completedProjects.length !== 1 ? 's' : ''}`,
-            color: 'text-emerald-400',
-          },
-          {
-            label: 'Total Pipeline',
-            value: fmtAmt(pipelineTotal),
-            sub: 'in progress + completed',
-            color: 'text-[#FFC206]',
-          },
-        ];
-
-        const quickBtnCls = (active: boolean) =>
-          `h-8 px-3 rounded-lg text-xs font-semibold transition ${
-            active
-              ? 'bg-[#FFC206]/20 text-[#FFC206] border border-[#FFC206]/30'
-              : 'bg-white/[0.06] text-white/50 border border-white/10 hover:text-white/80 hover:bg-white/10'
-          }`;
-
-        const dateCls =
-          'h-8 rounded-lg border border-white/15 bg-white/[0.07] px-2 text-xs text-white/70 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition';
+        // ── Completed all-time
+        const allCompleted = projects.filter((p) => p.status === 'completed');
+        const allCompletedTotal = allCompleted.reduce((s, p) => s + projValue(p), 0);
 
         return (
-          <div className="mb-5">
-            {/* Controls row */}
-            <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <button className={quickBtnCls(isThisMonth)} onClick={selectThisMonth}>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
+            {/* Next Month */}
+            <div className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4">
+              <p className="text-xs text-white/40 uppercase tracking-wide font-semibold mb-1">
+                Upcoming Next Month
+              </p>
+              <p className="text-xl font-bold text-white/80 amt">{fmtAmt(nmEst)}</p>
+              <p className="text-xs text-white/40 mt-1">
+                {nmProjects.length} project{nmProjects.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+
+            {/* This Month */}
+            <div className="rounded-2xl border border-[#FFC206]/20 bg-[#FFC206]/[0.05] backdrop-blur-xl p-4">
+              <p className="text-xs text-[#FFC206]/60 uppercase tracking-wide font-semibold mb-1">
                 This Month
-              </button>
-              <button className={quickBtnCls(isLastMonth)} onClick={selectLastMonth}>
-                Last Month
-              </button>
-              <div className="flex items-center gap-1.5 ml-auto">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className={dateCls}
-                />
-                <span className="text-white/30 text-xs">–</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className={dateCls}
-                />
+              </p>
+              <p className="text-xl font-bold text-[#FFC206] amt">{fmtAmt(cmTotalEst)}</p>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <p className="text-xs text-white/40">
+                  {cmProjects.length} project{cmProjects.length !== 1 ? 's' : ''}{' '}
+                  <span className="amt">{fmtAmt(cmEst)}</span>
+                  {oldActiveProjects.length > 0 && (
+                    <>
+                      {' '}
+                      ·{' '}
+                      <span className="text-red-400/60">
+                        {oldActiveProjects.length} older{' '}
+                        <span className="amt">{fmtAmt(oldActiveEst)}</span>
+                      </span>
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-white/30">
+                  earned <span className="amt">{fmtAmt(cmTotalActual)}</span>
+                  {prevBonus > 0 && (
+                    <>
+                      {' '}
+                      · +<span className="amt">{fmtAmt(prevBonus)}</span> prev month
+                    </>
+                  )}
+                </p>
               </div>
             </div>
 
-            {/* Widgets */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {widgets.map((w) => (
-                <div
-                  key={w.label}
-                  className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4"
-                >
-                  <p className={`text-xl font-bold ${w.color}`}>
-                    <span className="amt">{w.value}</span>
+            {/* Last Month */}
+            <div className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4">
+              <p className="text-xs text-white/40 uppercase tracking-wide font-semibold mb-1">
+                Last Month
+              </p>
+              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(pmActual)}</p>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <p className="text-xs text-white/40">
+                  {pmProjects.length} project{pmProjects.length !== 1 ? 's' : ''} · est.{' '}
+                  <span className="amt">{fmtAmt(pmEst)}</span>
+                </p>
+                {pmCompleted.length > 0 && (
+                  <p className="text-xs text-emerald-400/50">
+                    {pmCompleted.length} earned <span className="amt">{fmtAmt(pmActual)}</span>
                   </p>
-                  <p className="text-xs text-white/40 mt-0.5">{w.sub}</p>
-                  <p className="text-xs text-white/55 mt-1">{w.label}</p>
-                </div>
-              ))}
+                )}
+                {pmUnearned.length > 0 && (
+                  <p className="text-xs text-red-400/50">
+                    {pmUnearned.length} late / unearned{' '}
+                    <span className="amt">{fmtAmt(pmUnearnedTotal)}</span>
+                  </p>
+                )}
+              </div>
             </div>
+
+            {/* In Progress */}
+            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] backdrop-blur-xl p-4">
+              <p className="text-xs text-sky-400/60 uppercase tracking-wide font-semibold mb-1">
+                In Progress
+              </p>
+              <p className="text-xl font-bold text-sky-400 amt">{fmtAmt(inProgressTotal)}</p>
+              <p className="text-xs text-white/40 mt-1">
+                {inProgressProjects.length} project{inProgressProjects.length !== 1 ? 's' : ''}{' '}
+                active
+              </p>
+            </div>
+
+            {/* Completed */}
+            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] backdrop-blur-xl p-4">
+              <p className="text-xs text-emerald-400/60 uppercase tracking-wide font-semibold mb-1">
+                Completed
+              </p>
+              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(allCompletedTotal)}</p>
+              <p className="text-xs text-white/40 mt-1">
+                {allCompleted.length} project{allCompleted.length !== 1 ? 's' : ''} total
+              </p>
+            </div>
+
+            {/* This Month Pending */}
+            {cmPending.length > 0 && (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] backdrop-blur-xl p-4">
+                <p className="text-xs text-amber-400/60 uppercase tracking-wide font-semibold mb-1">
+                  This Month Pending
+                </p>
+                <p className="text-xl font-bold text-amber-400 amt">{fmtAmt(cmPendingTotal)}</p>
+                <p className="text-xs text-white/40 mt-1">
+                  {cmPending.length} project{cmPending.length !== 1 ? 's' : ''} · on hold /
+                  unconfirmed
+                </p>
+              </div>
+            )}
           </div>
         );
       })()}
@@ -1224,7 +1263,7 @@ export default function ProjectsView() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-3">
             <h2 className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">
-              Unset Confirm Month
+              No Billing Month
             </h2>
             <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-400">
               {unsetConfirmedList.length}
@@ -1305,16 +1344,33 @@ export default function ProjectsView() {
         </div>
       )}
 
-      {/* ── ACTIVE PROJECTS THIS MONTH ───────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-4">
+      {/* ── ACTIVE PROJECTS ──────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">
-          Active Projects This Month
+          Active Projects
         </h2>
-        <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
-          {activeBase.length}
-        </span>
-        {activeBudget && (
-          <span className="text-xs text-white/30 font-medium">({activeBudget})</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-white/50 font-medium">This Month</span>
+          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
+            {activeThisMonth.length}
+          </span>
+          {activeThisMonthBudget && (
+            <span className="text-xs text-white/30 font-medium">({activeThisMonthBudget})</span>
+          )}
+        </div>
+        {activeOld.length > 0 && (
+          <>
+            <span className="text-white/20 text-xs">|</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-red-400/60 font-medium">Old</span>
+              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400/70">
+                {activeOld.length}
+              </span>
+              {activeOldBudget && (
+                <span className="text-xs text-red-400/40 font-medium">({activeOldBudget})</span>
+              )}
+            </div>
+          </>
         )}
         <div className="flex-1 h-px bg-white/[0.07]" />
       </div>
@@ -1322,9 +1378,7 @@ export default function ProjectsView() {
       {activeBase.length === 0 ? (
         <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex flex-col items-center justify-center py-10 mb-8">
           <p className="text-sm text-white/30">
-            {search.trim()
-              ? 'No active projects match your search.'
-              : 'No active projects this month.'}
+            {search.trim() ? 'No active projects match your search.' : 'No active projects.'}
           </p>
           {search.trim() && (
             <button
@@ -1443,9 +1497,9 @@ export default function ProjectsView() {
                   >
                     Project
                   </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">
-                    Phases / Timeline
-                  </th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Deliverables</th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Phases</th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Timeline</th>
                   <th className="px-4 py-3.5" />
                 </tr>
               </thead>
@@ -1464,7 +1518,13 @@ export default function ProjectsView() {
                   return (
                     <tr
                       key={project.id}
-                      className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
+                      className={`border-b border-white/[0.05] last:border-0 transition ${
+                        project.confirmedMonth !== cmYM
+                          ? 'bg-red-500/[0.06] hover:bg-red-500/[0.1]'
+                          : i % 2 === 1
+                            ? 'bg-white/[0.02] hover:bg-white/[0.04]'
+                            : 'hover:bg-white/[0.04]'
+                      }`}
                     >
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-2 group">
@@ -1505,42 +1565,72 @@ export default function ProjectsView() {
                           </div>
                         </div>
                       </td>
+                      {/* Deliverables */}
+                      <td className="px-4 py-3.5 max-w-[180px]">
+                        {project.items.length === 0 ? (
+                          <span className="text-xs text-white/25">—</span>
+                        ) : (
+                          <div className="flex flex-col gap-0.5">
+                            {project.items.slice(0, 3).map((item) => (
+                              <span key={item.id} className="text-xs text-white/55 truncate">
+                                {item.description}
+                              </span>
+                            ))}
+                            {project.items.length > 3 && (
+                              <span className="text-xs text-white/30">
+                                +{project.items.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Phases */}
                       <td className="px-4 py-3.5">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setDetailId(project.id)}
-                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
-                            >
-                              <svg
-                                className="w-3 h-3 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                                />
-                              </svg>
-                              {done}/5
-                            </button>
+                        <button
+                          onClick={() => setDetailId(project.id)}
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
+                        >
+                          <svg
+                            className="w-3 h-3 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                            />
+                          </svg>
+                          {done}/5
+                        </button>
+                      </td>
+
+                      {/* Timeline */}
+                      <td className="px-4 py-3.5">
+                        {project.deliverDate ? (
+                          <div className="flex flex-col gap-0.5">
                             {tl && (
                               <span
-                                className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap ${tl.badgeCls}`}
+                                className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap w-fit ${tl.badgeCls}`}
                               >
                                 {tl.badgeLabel}
                               </span>
                             )}
-                          </div>
-                          {project.deliverDate && (
-                            <span className="text-xs text-white/35 pl-0.5">
+                            <span className="text-xs text-white/40">
                               {fmtDate(project.deliverDate)}
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => openEdit(project)}
+                            className="text-xs text-white/35 hover:text-[#FFC206] border border-white/10 hover:border-[#FFC206]/30 px-2.5 py-1 rounded-lg transition whitespace-nowrap"
+                          >
+                            Set Timeline
+                          </button>
+                        )}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex items-center justify-end gap-1.5">
@@ -2041,12 +2131,21 @@ export default function ProjectsView() {
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-white/50">Phone</label>
-                        <input
-                          value={clientForm.phone}
-                          onChange={(e) => setClientForm((p) => ({ ...p, phone: e.target.value }))}
-                          placeholder="+855 12 345 678"
-                          className={darkInputCls}
-                        />
+                        <div className="flex h-11 rounded-xl border border-white/20 bg-white/10 focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition overflow-hidden">
+                          <span className="flex items-center px-3 text-sm font-medium text-white/50 bg-white/5 border-r border-white/20 shrink-0 select-none">
+                            +855
+                          </span>
+                          <input
+                            type="tel"
+                            value={phoneToLocal(clientForm.phone)}
+                            onChange={(e) => {
+                              const formatted = formatKhmerLocal(e.target.value);
+                              setClientForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
+                            }}
+                            placeholder="12 123 1234"
+                            className="flex-1 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none bg-transparent"
+                          />
+                        </div>
                       </div>
                       <div className="col-span-2 flex flex-col gap-1">
                         <label className="text-xs text-white/50">Address</label>
@@ -2119,93 +2218,135 @@ export default function ProjectsView() {
                   </div>
                 )}
               </div>
-              {/* Status */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Status
-                </label>
-                <div className="flex gap-2 flex-wrap">
-                  {FORM_STATUS_OPTIONS.map((opt) => {
-                    const isActive = form.status === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        onClick={() => setForm((p) => ({ ...p, status: opt.value }))}
-                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${isActive ? `${opt.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
-                      >
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+              {/* Status — edit only */}
+              {editingId && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                    Status
+                  </label>
+                  <div className="flex gap-2 flex-wrap">
+                    {FORM_STATUS_OPTIONS.map((opt) => {
+                      const isActive = form.status === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          onClick={() => setForm((p) => ({ ...p, status: opt.value }))}
+                          className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${isActive ? `${opt.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              {/* Budget */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Budget
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
-                    $
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1}
-                    value={form.budget ?? ''}
-                    onChange={(e) =>
-                      setForm((p) => ({
-                        ...p,
-                        budget: e.target.value === '' ? undefined : Number(e.target.value),
-                      }))
-                    }
-                    placeholder="0"
-                    className={`${darkInputCls} pl-7`}
-                  />
-                </div>
-              </div>
-
-              {/* Confirm Month */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Confirm Month
-                </label>
-                {(() => {
-                  const now = new Date();
-                  const thisMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                  const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-                  const nextM = ((now.getMonth() + 1) % 12) + 1;
-                  const nextMonthVal = `${nextY}-${String(nextM).padStart(2, '0')}`;
-                  const activeCls =
-                    'flex-1 px-3 py-2 rounded-xl border border-amber-500/60 bg-amber-500/20 text-sm text-amber-400 font-medium transition';
-                  const inactiveCls =
-                    'flex-1 px-3 py-2 rounded-xl border border-white/[0.1] bg-white/[0.05] text-sm text-white/70 hover:bg-white/[0.1] hover:text-white transition';
-                  return (
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => applyConfirmMonth(thisMonthVal)}
-                        className={confirmMonth === thisMonthVal ? activeCls : inactiveCls}
-                      >
-                        This Month
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => applyConfirmMonth(nextMonthVal)}
-                        className={confirmMonth === nextMonthVal ? activeCls : inactiveCls}
-                      >
-                        Next Month
-                      </button>
-                      <input
-                        type="month"
-                        value={confirmMonth}
-                        className={`${darkInputCls} [color-scheme:dark] flex-1`}
-                        onChange={(e) => applyConfirmMonth(e.target.value)}
-                      />
+              )}
+              {/* Budget + Billing Month row */}
+              {(() => {
+                const now = new Date();
+                const thisMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+                const nextM = ((now.getMonth() + 1) % 12) + 1;
+                const nextMonthVal = `${nextY}-${String(nextM).padStart(2, '0')}`;
+                const displayMonth = confirmMonth
+                  ? new Date(confirmMonth + '-01').toLocaleDateString('en-US', {
+                      month: 'short',
+                      year: 'numeric',
+                    })
+                  : 'Not set';
+                return (
+                  <div className="flex gap-3">
+                    {/* Budget */}
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                        Budget
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          step={1}
+                          value={form.budget ?? ''}
+                          onChange={(e) =>
+                            setForm((p) => ({
+                              ...p,
+                              budget: e.target.value === '' ? undefined : Number(e.target.value),
+                            }))
+                          }
+                          placeholder="0"
+                          className={`${darkInputCls} pl-7`}
+                        />
+                      </div>
                     </div>
-                  );
-                })()}
-              </div>
+
+                    {/* Billing Month */}
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                        Billing Month
+                      </label>
+                      <div className="flex flex-col">
+                        <button
+                          type="button"
+                          onClick={() => setBillingOpen((o) => !o)}
+                          className="h-11 w-full flex items-center justify-between px-4 rounded-xl border border-white/20 bg-white/10 text-sm transition hover:bg-white/[0.15]"
+                        >
+                          <span
+                            className={confirmMonth ? 'text-white font-medium' : 'text-white/40'}
+                          >
+                            {displayMonth}
+                          </span>
+                          <svg
+                            className={`w-4 h-4 text-white/40 transition-transform ${billingOpen ? 'rotate-180' : ''}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {billingOpen && (
+                          <div className="mt-1.5 flex flex-col gap-1.5 p-3 rounded-xl border border-white/[0.1] bg-white/[0.05]">
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  applyConfirmMonth(thisMonthVal);
+                                  setBillingOpen(false);
+                                }}
+                                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === thisMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
+                              >
+                                This Month
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  applyConfirmMonth(nextMonthVal);
+                                  setBillingOpen(false);
+                                }}
+                                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === nextMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
+                              >
+                                Next Month
+                              </button>
+                            </div>
+                            <input
+                              type="month"
+                              value={confirmMonth}
+                              className={`${darkInputCls} [color-scheme:dark] text-xs h-9`}
+                              onChange={(e) => {
+                                applyConfirmMonth(e.target.value);
+                                setBillingOpen(false);
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Dates */}
               <div className="flex flex-col gap-1.5">
@@ -2225,7 +2366,9 @@ export default function ProjectsView() {
                     />
                   </div>
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs text-white/45">Deliver Date *</label>
+                    <label className="text-xs text-white/45">
+                      Deliver Date <span className="text-white/25">(optional)</span>
+                    </label>
                     <input
                       type="date"
                       value={form.deliverDate ?? ''}
@@ -2262,59 +2405,61 @@ export default function ProjectsView() {
                   </div>
                 </div>
               )}
-              {/* Phases */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Phases
-                </label>
+              {/* Phases — edit only */}
+              {editingId && (
                 <div className="flex flex-col gap-2">
-                  {PHASES.map((phase) => {
-                    const checked = form.phases?.[phase.key] ?? false;
-                    return (
-                      <button
-                        key={phase.key}
-                        type="button"
-                        onClick={() =>
-                          setForm((p) => ({
-                            ...p,
-                            phases: { ...DEFAULT_PHASES, ...p.phases, [phase.key]: !checked },
-                          }))
-                        }
-                        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition text-left ${
-                          checked
-                            ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
-                            : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
-                        }`}
-                      >
-                        <span
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                    Phases
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    {PHASES.map((phase) => {
+                      const checked = form.phases?.[phase.key] ?? false;
+                      return (
+                        <button
+                          key={phase.key}
+                          type="button"
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              phases: { ...DEFAULT_PHASES, ...p.phases, [phase.key]: !checked },
+                            }))
+                          }
+                          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition text-left ${
+                            checked
+                              ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
+                              : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
+                          }`}
                         >
-                          {checked && (
-                            <svg
-                              className="w-3 h-3 text-zinc-900"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={3}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M5 13l4 4L19 7"
-                              />
-                            </svg>
-                          )}
-                        </span>
-                        <span
-                          className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/75'}`}
-                        >
-                          {phase.label}
-                        </span>
-                      </button>
-                    );
-                  })}
+                          <span
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+                          >
+                            {checked && (
+                              <svg
+                                className="w-3 h-3 text-zinc-900"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </span>
+                          <span
+                            className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/75'}`}
+                          >
+                            {phase.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
               {/* Deliverables */}
               <div className="relative">
                 {!form.clientId && (
