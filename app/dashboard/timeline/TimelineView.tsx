@@ -19,17 +19,31 @@ const MS_SIZE = 14;
 
 // ── Status colors ──────────────────────────────────────────────────────────────
 const STATUS_BAR: Record<ProjectStatus, { bg: string; text: string }> = {
-  unconfirmed: { bg: 'bg-zinc-600', text: 'text-zinc-100' },
+  unconfirmed: { bg: 'bg-violet-600', text: 'text-violet-100' },
   confirmed: { bg: 'bg-sky-500', text: 'text-sky-950' },
-  'on-hold': { bg: 'bg-zinc-700', text: 'text-zinc-300' },
+  'on-hold': { bg: 'bg-zinc-600', text: 'text-zinc-200' },
   completed: { bg: 'bg-emerald-600', text: 'text-emerald-50' },
 };
+const LATE_BAR = { bg: 'bg-red-600', text: 'text-red-50' };
+
 const STATUS_DOT: Record<ProjectStatus, string> = {
-  unconfirmed: 'bg-zinc-400',
+  unconfirmed: 'bg-violet-400',
   confirmed: 'bg-sky-400',
   'on-hold': 'bg-zinc-500',
   completed: 'bg-emerald-400',
 };
+const LATE_DOT = 'bg-red-500';
+
+function getBarCfg(event: GanttEvent, today: Date): { bg: string; text: string } {
+  if (event.status === 'completed') return STATUS_BAR.completed;
+  if (event.end < today && event.status !== 'completed') return LATE_BAR;
+  return STATUS_BAR[event.status] ?? STATUS_BAR.unconfirmed;
+}
+function getDotCls(event: GanttEvent, today: Date): string {
+  if (event.status === 'completed') return STATUS_DOT.completed;
+  if (event.end < today) return LATE_DOT;
+  return STATUS_DOT[event.status] ?? STATUS_DOT.unconfirmed;
+}
 
 // ── Cambodian public holidays ──────────────────────────────────────────────────
 // Fixed-date holidays (repeat every year)
@@ -58,9 +72,9 @@ const LUNAR_HOLIDAYS: Record<string, string> = {
   '2025-04-14': 'Khmer New Year',
   '2025-04-15': 'Khmer New Year',
   '2025-04-16': 'Khmer New Year',
-  '2026-04-13': 'Khmer New Year',
   '2026-04-14': 'Khmer New Year',
   '2026-04-15': 'Khmer New Year',
+  '2026-04-16': 'Khmer New Year',
   '2027-04-14': 'Khmer New Year',
   '2027-04-15': 'Khmer New Year',
   '2027-04-16': 'Khmer New Year',
@@ -180,6 +194,8 @@ function TimeAxis({
   mode: ViewMode;
   showHolidays: boolean;
 }) {
+  const [tooltip, setTooltip] = useState<{ name: string; x: number; day: number } | null>(null);
+
   // Row 1 — month groups
   const monthGroups: { label: string; startDay: number; spanDays: number }[] = [];
   let cur = new Date(renderStart);
@@ -282,14 +298,13 @@ function TimeAxis({
           : subMarkers.map((m, i) => (
               <div
                 key={i}
-                title={m.isHoliday ? m.holidayName : undefined}
                 style={{
                   position: 'absolute',
                   left: m.day * dayW,
                   width: mode === 'day' ? dayW : 7 * dayW,
                   height: HDR2_H,
                 }}
-                className={`flex flex-col items-start justify-center px-1 ${m.isHoliday ? 'cursor-help' : ''}`}
+                className="flex flex-col items-start justify-center px-1"
               >
                 <span
                   className={`text-[10px] whitespace-nowrap font-medium leading-tight ${m.isHoliday ? 'text-red-400' : 'text-white/35'}`}
@@ -297,10 +312,36 @@ function TimeAxis({
                   {m.label}
                 </span>
                 {m.isHoliday && (
-                  <span className="block w-1.5 h-1.5 rounded-full bg-red-500 mt-0.5" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setTooltip(
+                        tooltip?.day === m.day
+                          ? null
+                          : { name: m.holidayName, x: m.day * dayW, day: m.day }
+                      );
+                    }}
+                    className="block w-1.5 h-1.5 rounded-full bg-red-500 mt-0.5 hover:bg-red-400 transition"
+                  />
                 )}
               </div>
             ))}
+
+        {/* Holiday tooltip */}
+        {tooltip && (
+          <div
+            style={{
+              position: 'absolute',
+              left: tooltip.x + dayW / 2,
+              top: HDR2_H + 4,
+              transform: 'translateX(-50%)',
+              zIndex: 50,
+            }}
+            className="bg-zinc-900 border border-red-500/40 text-red-300 text-[11px] font-medium px-2.5 py-1.5 rounded-lg shadow-xl whitespace-nowrap pointer-events-none"
+          >
+            🎉 {tooltip.name}
+          </div>
+        )}
 
         {/* Today marker in header */}
         {todayIdx >= 0 && todayIdx < totalDays && (
@@ -407,14 +448,16 @@ function ProjectBar({
   event,
   renderStart,
   dayW,
+  today,
   onSelect,
 }: {
   event: GanttEvent;
   renderStart: Date;
   dayW: number;
+  today: Date;
   onSelect: (e: GanttEvent) => void;
 }) {
-  const cfg = STATUS_BAR[event.status] ?? STATUS_BAR.unconfirmed;
+  const cfg = getBarCfg(event, today);
 
   if (!event.isRange) {
     const x = diffDays(renderStart, event.start) * dayW + dayW / 2;
@@ -588,7 +631,7 @@ export default function TimelineView() {
   const today = useMemo(() => midnight(new Date()), []);
 
   const [mode, setMode] = useState<ViewMode>('week');
-  const [showCompleted, setShowCompleted] = useState(false); // ← default off
+  const [showCompleted, setShowCompleted] = useState(true); // ← default on
   const [showHolidays, setShowHolidays] = useState(true); // ← default on
   const [rangeOpen, setRangeOpen] = useState(false);
   const [customStart, setCustomStart] = useState('');
@@ -849,7 +892,7 @@ export default function TimelineView() {
                   className="sticky left-0 z-10 shrink-0 flex items-center gap-2.5 px-4 border-r border-white/[0.06] bg-[#0a0a0a]"
                   style={{ width: LEFT_W }}
                 >
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[event.status]}`} />
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${getDotCls(event, today)}`} />
                   <span className="text-sm text-white/75 truncate font-medium">{event.name}</span>
                 </div>
 
@@ -867,6 +910,7 @@ export default function TimelineView() {
                     event={event}
                     renderStart={renderStart}
                     dayW={dayW}
+                    today={today}
                     onSelect={setSelected}
                   />
                 </div>
@@ -880,14 +924,26 @@ export default function TimelineView() {
 
       {/* ── Legend ──────────────────────────────────────────────────────────── */}
       <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-t border-white/[0.06]">
-        {(Object.entries(PROJECT_STATUS_CONFIG) as [ProjectStatus, { label: string }][]).map(
-          ([key, cfg]) => (
-            <div key={key} className="flex items-center gap-1.5">
-              <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT[key]}`} />
-              <span className="text-[11px] text-white/35">{cfg.label}</span>
-            </div>
-          )
-        )}
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${LATE_DOT}`} />
+          <span className="text-[11px] text-red-400">Late</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT.confirmed}`} />
+          <span className="text-[11px] text-white/35">In Progress</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT.completed}`} />
+          <span className="text-[11px] text-white/35">Completed</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT.unconfirmed}`} />
+          <span className="text-[11px] text-white/35">Upcoming / Unconfirmed</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className={`w-2.5 h-2.5 rounded-full ${STATUS_DOT['on-hold']}`} />
+          <span className="text-[11px] text-white/35">On Hold</span>
+        </div>
         <div className="flex items-center gap-1.5">
           <span className="w-3 h-3 rounded-sm rotate-45 bg-white/30 inline-block" />
           <span className="text-[11px] text-white/35">Single date</span>
