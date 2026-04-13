@@ -412,7 +412,7 @@ export default function ProjectsView() {
     safeHoldUnconfPage * SIDE_PAGE_SIZE
   );
   // Row height constant (px): py-3 rows = 12px*2 padding + ~20px content
-  const SIDE_ROW_H = 44;
+  const SIDE_ROW_H = 52;
 
   // Section budget totals
   const fmtBudget = (list: typeof projects) => {
@@ -946,21 +946,18 @@ export default function ProjectsView() {
                         style={{ height: SIDE_ROW_H }}
                         className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
                       >
-                        <span
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                        >
-                          {sc.label}
-                        </span>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                          <span
+                            className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
+                          >
+                            {sc.label}
+                          </span>
                           <button
                             onClick={() => setDetailId(project.id)}
                             className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                           >
                             {project.name}
                           </button>
-                          {client && (
-                            <p className="text-xs text-white/40 truncate">{client.name}</p>
-                          )}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
@@ -1060,21 +1057,18 @@ export default function ProjectsView() {
                         style={{ height: SIDE_ROW_H }}
                         className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
                       >
-                        <span
-                          className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                        >
-                          {sc.label}
-                        </span>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                          <span
+                            className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
+                          >
+                            {sc.label}
+                          </span>
                           <button
                             onClick={() => setDetailId(project.id)}
                             className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                           >
                             {project.name}
                           </button>
-                          {client && (
-                            <p className="text-xs text-white/40 truncate">{client.name}</p>
-                          )}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
@@ -1433,13 +1427,13 @@ export default function ProjectsView() {
                             : 'hover:bg-white/[0.04]'
                       }`}
                     >
-                      <td className="px-4 py-3.5">
+                      <td className="px-4 py-3.5 min-w-[200px]">
                         <div className="flex items-center gap-2 group">
                           <div>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => setDetailId(project.id)}
-                                className="font-semibold text-white hover:text-[#FFC206] transition text-left"
+                                className="font-semibold text-base text-white hover:text-[#FFC206] transition text-left"
                               >
                                 {project.name}
                               </button>
@@ -1473,13 +1467,13 @@ export default function ProjectsView() {
                         </div>
                       </td>
                       {/* Deliverables */}
-                      <td className="px-4 py-3.5 max-w-[180px]">
+                      <td className="px-4 py-3.5 min-w-[180px] max-w-[260px]">
                         {project.items.length === 0 ? (
                           <span className="text-xs text-white/25">—</span>
                         ) : (
                           <div className="flex flex-col gap-0.5">
                             {project.items.slice(0, 3).map((item) => (
-                              <span key={item.id} className="text-xs text-white/55 truncate">
+                              <span key={item.id} className="text-sm text-white/55 truncate">
                                 {item.description}
                               </span>
                             ))}
@@ -2161,7 +2155,7 @@ export default function ProjectsView() {
                     })
                   : 'Not set';
                 return (
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-3">
                     {/* Budget */}
                     <div className="flex flex-col gap-1.5 flex-1">
                       <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
