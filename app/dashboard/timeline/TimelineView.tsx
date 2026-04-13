@@ -36,7 +36,7 @@ const LATE_DOT = 'bg-red-500';
 
 function getBarCfg(event: GanttEvent, today: Date): { bg: string; text: string } {
   if (event.status === 'completed') return STATUS_BAR.completed;
-  if (event.end < today && event.status !== 'completed') return LATE_BAR;
+  if (event.end < today) return LATE_BAR;
   return STATUS_BAR[event.status] ?? STATUS_BAR.unconfirmed;
 }
 function getDotCls(event: GanttEvent, today: Date): string {
