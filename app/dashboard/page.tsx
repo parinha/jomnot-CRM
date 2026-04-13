@@ -1,5 +1,5 @@
-import DashboardView from './DashboardView';
+import { redirect } from 'next/navigation';
 
 export default function DashboardPage() {
-  return <DashboardView />;
+  redirect('/dashboard/timeline');
 }

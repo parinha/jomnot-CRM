@@ -1,5 +1,5 @@
-import ReportsView from './ReportsView'
+import { redirect } from 'next/navigation';
 
 export default function ReportsPage() {
-  return <ReportsView />
+  redirect('/dashboard/projects');
 }
