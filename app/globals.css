@@ -106,12 +106,12 @@ select {
   pointer-events: none;
 }
 
-/* Main content padding — accounts for mobile bottom nav + safe area on all sides */
+/* Main content padding — accounts for safe area on all sides */
 .main-content-pad {
   padding-top: 1rem;
   padding-left: max(1rem, env(safe-area-inset-left, 0px));
   padding-right: max(1rem, env(safe-area-inset-right, 0px));
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
 }
 
 @media (min-width: 768px) {

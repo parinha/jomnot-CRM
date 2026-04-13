@@ -16,15 +16,19 @@ type SidebarSize = 'full' | 'compact' | 'hidden';
 const SIDEBAR_SIZES: SidebarSize[] = ['full', 'compact', 'hidden'];
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  const close = () => setOpen(false);
   const { signOut } = useAuth();
   const [quickPay, setQuickPay] = useState(false);
   const [sidebarSize, setSidebarSize] = useState<SidebarSize>(() => {
-    if (typeof window === 'undefined') return 'full';
+    if (typeof window === 'undefined') return 'hidden';
     const saved = localStorage.getItem('sidebarSize') as SidebarSize | null;
-    return saved && SIDEBAR_SIZES.includes(saved) ? saved : 'full';
+    return saved && SIDEBAR_SIZES.includes(saved) ? saved : 'hidden';
   });
+
+  const sidebarOpen = sidebarSize !== 'hidden';
+  function closeSidebar() {
+    setSidebarSize('hidden');
+    localStorage.setItem('sidebarSize', 'hidden');
+  }
 
   function cycleSidebar() {
     const next = SIDEBAR_SIZES[(SIDEBAR_SIZES.indexOf(sidebarSize) + 1) % SIDEBAR_SIZES.length];
@@ -123,11 +127,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       className="h-dvh flex bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900"
       data-amounts-hidden={!amountsVisible}
     >
-      {/* Mobile overlay */}
-      {open && (
+      {/* Sidebar backdrop — mobile only */}
+      {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
-          onClick={close}
+          onClick={closeSidebar}
         />
       )}
 
@@ -140,16 +144,19 @@ export default function DashboardShell({ children }: { children: React.ReactNode
       {/* ── Sidebar ───────────────────────────────────────────── */}
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-50 w-72 flex flex-col',
+          'fixed inset-y-0 left-0 z-50 flex flex-col',
           'bg-black/65 backdrop-blur-2xl border-r border-white/[0.08]',
           'transition-all duration-300 ease-out will-change-transform',
-          'md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0',
+          // Mobile: overlay, translate based on open state, width follows mode
+          sidebarSize === 'compact' ? 'w-14' : 'w-72',
+          sidebarOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
+          // Desktop: sticky inline, no shadow override, width varies
+          'md:sticky md:top-0 md:h-screen md:shrink-0 md:translate-x-0 md:shadow-none',
           sidebarSize === 'full'
             ? 'md:w-56'
             : sidebarSize === 'compact'
               ? 'md:w-14'
               : 'md:w-0 md:min-w-0 md:overflow-hidden md:border-r-0',
-          open ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
         ].join(' ')}
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -157,22 +164,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           paddingLeft: 'env(safe-area-inset-left, 0px)',
         }}
       >
-        <button
-          onClick={close}
-          className="md:hidden absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-xl text-white/40 hover:text-white hover:bg-white/10 active:bg-white/15 transition"
-          aria-label="Close menu"
-        >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
         {/* Sidebar header — logo + name (compact: icon only) */}
         {compact ? <CompactSidebarHeader /> : <SidebarHeader />}
 
@@ -294,7 +285,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                     ? 'Hide sidebar'
                     : 'Show sidebar'
               }
-              className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.08] active:bg-white/[0.12] transition shrink-0"
+              className="flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.08] active:bg-white/[0.12] transition shrink-0"
             >
               {sidebarSize === 'full' ? (
                 <svg
@@ -558,63 +549,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         </main>
       </div>
 
-      {/* ── Bottom Navigation — mobile only ──────────────────── */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-30 md:hidden"
-        style={{
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingLeft: 'env(safe-area-inset-left, 0px)',
-          paddingRight: 'env(safe-area-inset-right, 0px)',
-        }}
-      >
-        {/* Gradient fade above nav for depth */}
-        <div className="absolute inset-x-0 bottom-full h-8 bg-gradient-to-t from-black/50 to-transparent pointer-events-none" />
-        <div className="bg-black/75 backdrop-blur-2xl border-t border-white/[0.08]">
-          <div className="flex items-stretch h-[60px] px-1">
-            <BottomNavItem
-              href="/dashboard/timeline"
-              label="Timeline"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              pathname={pathname}
-            />
-            <BottomNavItem
-              href="/dashboard/projects"
-              label="Projects"
-              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-              pathname={pathname}
-            />
-            <BottomNavItem
-              href="/dashboard/clients"
-              label="Clients"
-              d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-              pathname={pathname}
-            />
-            <BottomNavItem
-              href="/dashboard/invoices"
-              label="Invoices"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              pathname={pathname}
-            />
-            {/* More / sidebar trigger */}
-            <button
-              onClick={() => setOpen(true)}
-              className="flex-1 flex flex-col items-center justify-center gap-1 h-full transition-all duration-150 active:scale-90"
-            >
-              <svg
-                className="w-5 h-5 text-white/45"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <span className="text-[10px] font-semibold text-white/45">More</span>
-            </button>
-          </div>
-        </div>
-      </nav>
-
       {quickPay && <QuickPayModal onClose={() => setQuickPay(false)} />}
     </div>
   );
@@ -661,64 +595,6 @@ function NavItem({
         <path strokeLinecap="round" strokeLinejoin="round" d={d} />
       </svg>
       {!compact && label}
-    </Link>
-  );
-}
-
-// ── Bottom nav item ──────────────────────────────────────────────────────────
-
-function BottomNavItem({
-  href,
-  label,
-  d,
-  pathname,
-}: {
-  href: string;
-  label: string;
-  d: string;
-  pathname: string | null;
-}) {
-  const active = pathname === href;
-  return (
-    <Link
-      href={href}
-      className="flex-1 flex flex-col items-center justify-center gap-1 h-full relative transition-all duration-150 active:scale-90"
-    >
-      {/* Active indicator dot */}
-      <span
-        className={[
-          'absolute top-1.5 w-1 h-1 rounded-full transition-all duration-200',
-          active ? 'bg-[#FFC206] opacity-100' : 'opacity-0',
-        ].join(' ')}
-      />
-      {/* Icon with pill background when active */}
-      <div
-        className={[
-          'flex items-center justify-center w-10 h-7 rounded-lg transition-all duration-200',
-          active ? 'bg-[#FFC206]/15' : '',
-        ].join(' ')}
-      >
-        <svg
-          className={[
-            'w-5 h-5 transition-colors duration-200',
-            active ? 'text-[#FFC206]' : 'text-white/45',
-          ].join(' ')}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={active ? 2.5 : 2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-        </svg>
-      </div>
-      <span
-        className={[
-          'text-[10px] font-semibold transition-colors duration-200',
-          active ? 'text-[#FFC206]' : 'text-white/45',
-        ].join(' ')}
-      >
-        {label}
-      </span>
     </Link>
   );
 }

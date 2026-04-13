@@ -170,7 +170,7 @@ export default function KanbanView() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0 pb-20 md:pb-0">
+    <div className="flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="px-4 py-4 border-b border-white/[0.06] shrink-0 flex items-center gap-3">
         <h1 className="text-base font-bold text-white">Kanban</h1>

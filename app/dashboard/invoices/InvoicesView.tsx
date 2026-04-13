@@ -677,123 +677,7 @@ export default function InvoicesView() {
         </div>
       ) : (
         <>
-          {/* Mobile card list */}
-          <div className="sm:hidden flex flex-col gap-3">
-            {pagedInvoices.map((inv) => {
-              const client = clients.find((c) => c.id === inv.clientId);
-              const sub = calcSubtotal(inv);
-              const wht = inv.withWHT ? sub * WHT_RATE : null;
-              const net = wht != null ? sub - wht : sub;
-              const invDeposit =
-                inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
-              const status = (inv.status ?? 'draft') as InvoiceStatus;
-              const sc = STATUS_CONFIG[status];
-              const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
-              return (
-                <div
-                  key={inv.id}
-                  className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-4"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-white">{inv.number}</span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
-                        >
-                          {sc.label}
-                        </span>
-                      </div>
-                      <p className="text-sm text-white/60 truncate">{client?.name ?? '—'}</p>
-                      <p className="text-xs text-white/40 mt-0.5">{fmtDate(inv.date)}</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-bold text-white amt">{fmt(sub)}</p>
-                      {wht != null && (
-                        <p className="text-xs text-orange-400/80 mt-0.5">
-                          −<span className="amt">{fmt(wht)}</span> WHT
-                        </p>
-                      )}
-                      {wht != null && (
-                        <p className="text-xs text-white/50 mt-0.5">
-                          <span className="amt">{fmt(net)}</span> net
-                        </p>
-                      )}
-                      {invDeposit != null && (
-                        <p className="text-xs text-white/35 mt-0.5">
-                          <span className="amt">{fmt(invDeposit)}</span> dep
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {linkedProjects.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-3">
-                      {linkedProjects.map((lp) => (
-                        <button
-                          key={lp.id}
-                          onClick={() => setViewProjectId(lp.id)}
-                          className="text-left px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-400/20 text-xs text-blue-300"
-                        >
-                          {lp.name}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    {status === 'draft' && (
-                      <button
-                        onClick={() => {
-                          setInvoices(
-                            invoices.map((i) => (i.id === inv.id ? { ...i, status: 'sent' } : i))
-                          );
-                          window.open(`/invoices/${inv.id}`, '_blank');
-                        }}
-                        className="flex-1 h-9 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition"
-                      >
-                        Mark Sent
-                      </button>
-                    )}
-                    <a
-                      href={`/invoices/${inv.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="h-9 px-3 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition inline-flex items-center"
-                      title="PDF"
-                    >
-                      <svg
-                        className="w-3.5 h-3.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                        />
-                      </svg>
-                    </a>
-                    <button
-                      onClick={() => openEdit(inv)}
-                      className="h-9 px-3 rounded-xl border border-white/20 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => setDeleteId(inv.id)}
-                      className="h-9 px-3 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition"
-                    >
-                      Del
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden sm:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
@@ -963,7 +847,7 @@ export default function InvoicesView() {
                           {/* Mobile project button */}
                           <button
                             onClick={() => openLinkProject(inv)}
-                            className={`md:hidden p-2.5 rounded-xl border transition ${linkedProjects.length > 0 ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                            className={`p-2.5 rounded-xl border transition ${linkedProjects.length > 0 ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
                             title={
                               linkedProjects.length > 0
                                 ? linkedProjects.map((p) => p.name).join(', ')
