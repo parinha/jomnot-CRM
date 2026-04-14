@@ -28,7 +28,8 @@ export default function DashboardShell({ clients, invoices, companyProfile, chil
   const [sidebarSize, setSidebarSize] = useState<SidebarSize>(() => {
     if (typeof window === 'undefined') return 'hidden';
     const saved = localStorage.getItem('sidebarSize') as SidebarSize | null;
-    return saved && SIDEBAR_SIZES.includes(saved) ? saved : 'hidden';
+    if (saved && SIDEBAR_SIZES.includes(saved)) return saved;
+    return window.innerWidth >= 768 ? 'compact' : 'hidden';
   });
 
   const sidebarOpen = sidebarSize !== 'hidden';
@@ -299,16 +300,10 @@ export default function DashboardShell({ clients, invoices, companyProfile, chil
             {/* Sidebar size toggle */}
             <button
               onClick={cycleSidebar}
-              title={
-                sidebarSize === 'full'
-                  ? 'Compact sidebar'
-                  : sidebarSize === 'compact'
-                    ? 'Hide sidebar'
-                    : 'Show sidebar'
-              }
+              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
               className="flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.08] active:bg-white/[0.12] transition shrink-0"
             >
-              {sidebarSize === 'full' ? (
+              {sidebarOpen ? (
                 <svg
                   className="w-4 h-4"
                   fill="none"
@@ -321,16 +316,6 @@ export default function DashboardShell({ clients, invoices, companyProfile, chil
                     strokeLinejoin="round"
                     d="M11 19l-7-7 7-7M21 19l-7-7 7-7"
                   />
-                </svg>
-              ) : sidebarSize === 'compact' ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               ) : (
                 <svg
