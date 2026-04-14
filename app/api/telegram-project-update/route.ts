@@ -62,7 +62,7 @@ function getTimelineInfo(deliverDate: string | undefined, tl: TelegramTimeline) 
 
 function oneLiner(p: Project, tl: TelegramTimeline): string {
   const info = getTimelineInfo(p.deliverDate, tl);
-  return info ? `${tl.noDate} ${p.name} (${info.emoji} ${info.label})` : `${tl.noDate} ${p.name}`;
+  return info ? `${tl.noDate} ${p.name} (${info.label})` : `${tl.noDate} ${p.name}`;
 }
 
 const DIV = '━━━━━━━━━━━━';
@@ -148,13 +148,13 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
   if (sec.delivered.enabled && deliveredThisMonth.length > 0) {
     ln.push('');
     ln.push(`${sec.delivered.emoji}  ${sec.delivered.label} (${deliveredThisMonth.length})`);
-    for (const p of deliveredThisMonth) ln.push(`     — ${p.name}`);
+    for (const p of deliveredThisMonth) ln.push(`     ▸ ${p.name}`);
   }
 
   if (sec.unconfirmed.enabled && waitConfirm.length > 0) {
     ln.push('');
     ln.push(`${sec.unconfirmed.emoji}  ${sec.unconfirmed.label} (${waitConfirm.length})`);
-    for (const p of waitConfirm) ln.push(`     — ${p.name}`);
+    for (const p of waitConfirm) ln.push(`     ▸ ${p.name}`);
   }
 
   const phaseSections = [
@@ -178,14 +178,11 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
 
   if (veryLate.length > 0 || almostLate.length > 0) {
     ln.push('');
+    ln.push(DIV);
     if (veryLate.length > 0)
-      ln.push(
-        `${tl.overdue}  Very late: ${veryLate.length} project${veryLate.length > 1 ? 's' : ''}`
-      );
+      ln.push(`Late: ${veryLate.length} project${veryLate.length > 1 ? 's' : ''}`);
     if (almostLate.length > 0)
-      ln.push(
-        `${tl.urgent}  Almost late (≤2d): ${almostLate.length} project${almostLate.length > 1 ? 's' : ''}`
-      );
+      ln.push(`Due Soon (≤2d): ${almostLate.length} project${almostLate.length > 1 ? 's' : ''}`);
   }
 
   return ln.join('\n');
