@@ -1,5 +1,9 @@
-import TimelineView from './TimelineView';
+export const dynamic = 'force-dynamic';
 
-export default function TimelinePage() {
-  return <TimelineView />;
+import TimelineView from '@/src/features/projects/components/TimelineView';
+import { getProjects } from '@/src/features/projects/api/getProjects';
+
+export default async function TimelinePage() {
+  const projects = await getProjects();
+  return <TimelineView projects={projects} />;
 }

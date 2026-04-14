@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Kantumruy_Pro, Geist_Mono } from 'next/font/google';
 import './globals.css';
-import ServiceWorkerRegistrar from './_components/ServiceWorkerRegistrar';
+import ServiceWorkerRegistrar from '@/src/components/ServiceWorkerRegistrar';
 
 const kantumruyPro = Kantumruy_Pro({
   variable: '--font-kantumruy-pro',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { AuthProvider, useAuth } from '@/app/_context/AuthContext';
+import { AuthProvider, useAuth } from '@/src/features/auth/components/AuthProvider';
 
 function LoginForm() {
   const router = useRouter();

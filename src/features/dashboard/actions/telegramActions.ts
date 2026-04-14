@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+'use server';
+
 import { adminDb } from '@/src/lib/firebase-admin';
 import type { Project, PaymentInfo } from '@/src/types';
 import {
@@ -7,8 +8,6 @@ import {
   type TelegramSectionConfig,
   type TelegramTimeline,
 } from '@/src/config/constants';
-
-// ── Template resolver ─────────────────────────────────────────────────────────
 
 function resolveTemplate(payment: PaymentInfo): TelegramTemplate {
   const s = payment.telegramTemplate;
@@ -34,9 +33,7 @@ function resolveTemplate(payment: PaymentInfo): TelegramTemplate {
   };
 }
 
-// ── Helpers (mirrors TelegramProjectsButton logic) ────────────────────────────
-
-function getTimelineInfo(deliverDate: string | undefined, tl: TelegramTimeline) {
+function getTimelineInfo(deliverDate: string | undefined) {
   if (!deliverDate) return null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -44,31 +41,15 @@ function getTimelineInfo(deliverDate: string | undefined, tl: TelegramTimeline) 
   deliver.setHours(0, 0, 0, 0);
   const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
   const isOverdue = daysLeft < 0;
-
-  let emoji: string;
-  if (isOverdue || daysLeft === 0) emoji = tl.overdue;
-  else if (daysLeft <= 3) emoji = tl.urgent;
-  else if (daysLeft <= 10) emoji = tl.soon;
-  else emoji = tl.ok;
-
   const label = isOverdue
     ? `${Math.abs(daysLeft)}d late`
     : daysLeft === 0
       ? 'due today'
       : `${daysLeft}d left`;
-
-  return { daysLeft, isOverdue, label, emoji };
+  return { daysLeft, isOverdue, label };
 }
 
-function oneLiner(p: Project, tl: TelegramTimeline): string {
-  const info = getTimelineInfo(p.deliverDate, tl);
-  return info ? `${tl.noDate} ${p.name} (${info.emoji} ${info.label})` : `${tl.noDate} ${p.name}`;
-}
-
-const DIV = '━━━━━━━━━━━━';
-const DIV_LIGHT = '──────────────';
-
-function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string {
+function buildMessage(projects: Project[], tpl: TelegramTemplate): string {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dateStr = today.toLocaleDateString('en-US', {
@@ -76,6 +57,7 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
     month: 'short',
     year: 'numeric',
   });
+  const tl = tpl.timeline;
 
   const isThisMonth = (d?: string) => {
     if (!d) return false;
@@ -83,10 +65,23 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
     return dt.getFullYear() === today.getFullYear() && dt.getMonth() === today.getMonth();
   };
 
-  const tl = tpl.timeline;
+  function emoji(p: Project) {
+    const info = getTimelineInfo(p.deliverDate);
+    if (!info) return tl.noDate;
+    if (info.isOverdue || info.daysLeft === 0) return tl.overdue;
+    if (info.daysLeft <= 3) return tl.urgent;
+    if (info.daysLeft <= 10) return tl.soon;
+    return tl.ok;
+  }
+
+  function oneLiner(p: Project): string {
+    const info = getTimelineInfo(p.deliverDate);
+    return info ? `${tl.noDate} ${p.name} (${emoji(p)} ${info.label})` : `${tl.noDate} ${p.name}`;
+  }
+
   const sortByUrgency = (a: Project, b: Project) =>
-    (getTimelineInfo(a.deliverDate, tl)?.daysLeft ?? 9999) -
-    (getTimelineInfo(b.deliverDate, tl)?.daysLeft ?? 9999);
+    (getTimelineInfo(a.deliverDate)?.daysLeft ?? 9999) -
+    (getTimelineInfo(b.deliverDate)?.daysLeft ?? 9999);
 
   const active = (p: Project) => p.status === 'confirmed';
 
@@ -115,19 +110,17 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
     ...awaitMaster,
     ...awaitDeliver,
   ];
-  const veryLate = allActive.filter((p) => getTimelineInfo(p.deliverDate, tl)?.isOverdue);
+  const veryLate = allActive.filter((p) => getTimelineInfo(p.deliverDate)?.isOverdue);
   const almostLate = allActive.filter((p) => {
-    const info = getTimelineInfo(p.deliverDate, tl);
-    return info && !info.isOverdue && info.daysLeft <= 2;
+    const i = getTimelineInfo(p.deliverDate);
+    return i && !i.isOverdue && i.daysLeft <= 2;
   });
 
   const { sections: sec } = tpl;
-
   const hasAny = deliveredThisMonth.length > 0 || waitConfirm.length > 0 || allActive.length > 0;
   if (!hasAny) return `${tpl.headerEmoji} ${tpl.headerTitle} — ${dateStr}\n\nNo active projects.`;
 
   const ln: string[] = [];
-
   ln.push(`${tpl.headerEmoji} ${tpl.headerTitle} — ${dateStr}`);
   ln.push('');
 
@@ -143,36 +136,26 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
   for (const r of summaryRows) ln.push(`${r.cfg.emoji} ${r.count}  ${r.cfg.label}`);
 
   ln.push('');
-  ln.push(DIV);
-
-  if (sec.delivered.enabled && deliveredThisMonth.length > 0) {
-    ln.push('');
-    ln.push(`${sec.delivered.emoji}  ${sec.delivered.label} (${deliveredThisMonth.length})`);
-    for (const p of deliveredThisMonth) ln.push(`     — ${p.name}`);
-  }
-
-  if (sec.unconfirmed.enabled && waitConfirm.length > 0) {
-    ln.push('');
-    ln.push(`${sec.unconfirmed.emoji}  ${sec.unconfirmed.label} (${waitConfirm.length})`);
-    for (const p of waitConfirm) ln.push(`     — ${p.name}`);
-  }
+  ln.push('━━━━━━━━━━━━');
 
   const phaseSections = [
-    { cfg: sec.awaitFilming, list: awaitFilming },
-    { cfg: sec.awaitRoughCut, list: awaitRoughCut },
-    { cfg: sec.awaitDraft, list: awaitDraft },
-    { cfg: sec.awaitMaster, list: awaitMaster },
-    { cfg: sec.awaitDeliver, list: awaitDeliver },
+    { cfg: sec.delivered, list: deliveredThisMonth, fmt: (p: Project) => `     — ${p.name}` },
+    { cfg: sec.unconfirmed, list: waitConfirm, fmt: (p: Project) => `     — ${p.name}` },
+    { cfg: sec.awaitFilming, list: awaitFilming, fmt: oneLiner },
+    { cfg: sec.awaitRoughCut, list: awaitRoughCut, fmt: oneLiner },
+    { cfg: sec.awaitDraft, list: awaitDraft, fmt: oneLiner },
+    { cfg: sec.awaitMaster, list: awaitMaster, fmt: oneLiner },
+    { cfg: sec.awaitDeliver, list: awaitDeliver, fmt: oneLiner },
   ].filter((s) => s.cfg.enabled && s.list.length > 0);
 
   for (let i = 0; i < phaseSections.length; i++) {
-    const { cfg, list } = phaseSections[i];
+    const { cfg, list, fmt: fmtFn } = phaseSections[i];
     ln.push('');
     ln.push(`${cfg.emoji}  ${cfg.label} (${list.length})`);
-    for (const p of list) ln.push(`     ${oneLiner(p, tl)}`);
+    for (const p of list) ln.push(`     ${fmtFn(p)}`);
     if (cfg === sec.awaitMaster && i < phaseSections.length - 1) {
       ln.push('');
-      ln.push(DIV_LIGHT);
+      ln.push('──────────────');
     }
   }
 
@@ -191,20 +174,7 @@ function buildSummaryMessage(projects: Project[], tpl: TelegramTemplate): string
   return ln.join('\n');
 }
 
-// ── Route handler ─────────────────────────────────────────────────────────────
-
-export async function GET(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.get('authorization');
-  const querySecret = req.nextUrl.searchParams.get('secret');
-
-  const authorized =
-    cronSecret && (authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret);
-
-  if (!authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function sendProjectsTelegram(): Promise<{ ok: boolean; error?: string }> {
   try {
     const [projectsSnap, paymentSnap] = await Promise.all([
       adminDb.collection('projects').get(),
@@ -218,14 +188,15 @@ export async function GET(req: NextRequest) {
     const chatId = payment?.projectTelegramChatId?.trim();
 
     if (!token || !chatId) {
-      return NextResponse.json(
-        { error: 'Telegram credentials not configured in settings' },
-        { status: 400 }
-      );
+      return {
+        ok: false,
+        error: 'Add your Telegram Bot Token and Project Chat ID in Settings first.',
+      };
     }
 
     const tpl = resolveTemplate(payment ?? ({} as PaymentInfo));
-    const text = buildSummaryMessage(projects, tpl);
+    const text = buildMessage(projects, tpl);
+
     const formData = new FormData();
     formData.append('chat_id', chatId);
     formData.append('text', text);
@@ -241,12 +212,11 @@ export async function GET(req: NextRequest) {
 
     if (!res.ok) {
       const err = await res.json();
-      return NextResponse.json({ error: err.description ?? res.statusText }, { status: 502 });
+      return { ok: false, error: err.description ?? res.statusText };
     }
 
-    return NextResponse.json({ ok: true });
+    return { ok: true };
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return { ok: false, error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
