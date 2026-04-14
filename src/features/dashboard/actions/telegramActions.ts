@@ -153,10 +153,6 @@ function buildMessage(projects: Project[], tpl: TelegramTemplate): string {
     ln.push('');
     ln.push(`${cfg.emoji}  ${cfg.label} (${list.length})`);
     for (const p of list) ln.push(`     ${fmtFn(p)}`);
-    if (cfg === sec.awaitMaster && i < phaseSections.length - 1) {
-      ln.push('');
-      ln.push('──────────────');
-    }
   }
 
   if (veryLate.length > 0 || almostLate.length > 0) {

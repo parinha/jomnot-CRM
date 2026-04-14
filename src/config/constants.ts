@@ -58,11 +58,11 @@ export const DEFAULT_TELEGRAM_TEMPLATE: TelegramTemplate = {
   sections: {
     delivered: { emoji: '✅', label: 'Done this month', enabled: true },
     unconfirmed: { emoji: '⬜', label: 'Wait Project Confirm', enabled: true },
-    awaitFilming: { emoji: '🎬', label: 'Await Filming', enabled: true },
-    awaitRoughCut: { emoji: '✂️', label: 'Await Rough Cut', enabled: true },
-    awaitDraft: { emoji: '📝', label: 'Await Draft/VO', enabled: true },
-    awaitMaster: { emoji: '🎯', label: 'Await Master', enabled: true },
-    awaitDeliver: { emoji: '🏁', label: 'Await Mark as Completed', enabled: true },
+    awaitFilming: { emoji: '🎬', label: 'Filming', enabled: true },
+    awaitRoughCut: { emoji: '✂️', label: 'Rough Cut', enabled: true },
+    awaitDraft: { emoji: '📝', label: 'Draft / VO', enabled: true },
+    awaitMaster: { emoji: '🎯', label: 'Master', enabled: true },
+    awaitDeliver: { emoji: '🏁', label: 'Final Delivery', enabled: true },
   },
 };
 
