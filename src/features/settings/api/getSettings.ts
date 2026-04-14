@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { adminDb } from '@/src/lib/firebase-admin';
 import type { CompanyProfile, PaymentInfo } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
@@ -20,25 +21,25 @@ const EMPTY_PAYMENT: PaymentInfo = {
   qrImage: '',
 };
 
-export async function getCompanyProfile(): Promise<CompanyProfile> {
+export const getCompanyProfile = cache(async function getCompanyProfile(): Promise<CompanyProfile> {
   try {
     const snap = await adminDb.doc('settings/company').get();
     return snap.exists ? (snap.data() as CompanyProfile) : EMPTY_PROFILE;
   } catch {
     return EMPTY_PROFILE;
   }
-}
+});
 
-export async function getPaymentInfo(): Promise<PaymentInfo> {
+export const getPaymentInfo = cache(async function getPaymentInfo(): Promise<PaymentInfo> {
   try {
     const snap = await adminDb.doc('settings/payment').get();
     return snap.exists ? (snap.data() as PaymentInfo) : EMPTY_PAYMENT;
   } catch {
     return EMPTY_PAYMENT;
   }
-}
+});
 
-export async function getScopeOfWork(): Promise<string[]> {
+export const getScopeOfWork = cache(async function getScopeOfWork(): Promise<string[]> {
   try {
     const snap = await adminDb.doc('settings/scopes').get();
     if (snap.exists) return (snap.data()?.items as string[]) ?? DEFAULT_SCOPES;
@@ -46,4 +47,4 @@ export async function getScopeOfWork(): Promise<string[]> {
   } catch {
     return DEFAULT_SCOPES;
   }
-}
+});

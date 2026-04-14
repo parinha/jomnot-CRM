@@ -1,7 +1,8 @@
+import { cache } from 'react';
 import { adminDb } from '@/src/lib/firebase-admin';
 import type { Project } from '@/src/types';
 
-export async function getProjects(): Promise<Project[]> {
+export const getProjects = cache(async function getProjects(): Promise<Project[]> {
   const snap = await adminDb.collection('projects').get();
   return snap.docs.map((d) => {
     const data = { id: d.id, ...d.data() } as Project;
@@ -11,4 +12,4 @@ export async function getProjects(): Promise<Project[]> {
     else if (s === 'in-progress') data.status = 'confirmed';
     return data;
   });
-}
+});
