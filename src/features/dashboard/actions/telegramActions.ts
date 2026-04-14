@@ -9,6 +9,130 @@ import {
   type TelegramTimeline,
 } from '@/src/config/constants';
 
+// ── New-project notification ──────────────────────────────────────────────────
+
+function formatConfirmedMonth(ym?: string): string | null {
+  if (!ym) return null;
+  const [year, month] = ym.split('-');
+  return new Date(Number(year), Number(month) - 1, 1).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function formatStatus(status: Project['status']): string {
+  switch (status) {
+    case 'unconfirmed':
+      return 'Unconfirmed';
+    case 'confirmed':
+      return 'Confirmed';
+    case 'on-hold':
+      return 'On Hold';
+    case 'completed':
+      return 'Completed';
+  }
+}
+
+function buildNewProjectMessage(
+  project: Project,
+  totalActive: number,
+  totalUnconfirmed: number
+): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const dateStr = today.toLocaleDateString('en-US', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+  const tl = DEFAULT_TELEGRAM_TEMPLATE.timeline;
+
+  const ln: string[] = [];
+  ln.push(`🆕 New Project Added — ${dateStr}`);
+  ln.push('');
+  ln.push(`📋  ${project.name}`);
+
+  const monthLabel = formatConfirmedMonth(project.confirmedMonth);
+  ln.push(`🏷  Status: ${formatStatus(project.status)}${monthLabel ? ` (${monthLabel})` : ''}`);
+
+  if (project.filmingDate) {
+    const d = new Date(project.filmingDate);
+    ln.push(
+      `📅  Filming: ${d.toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })}`
+    );
+  }
+
+  if (project.deliverDate) {
+    const deliver = new Date(project.deliverDate);
+    deliver.setHours(0, 0, 0, 0);
+    const daysLeft = Math.round((deliver.getTime() - today.getTime()) / 86400000);
+    const isOverdue = daysLeft < 0;
+    let urgencyEmoji: string;
+    if (isOverdue || daysLeft === 0) urgencyEmoji = tl.overdue;
+    else if (daysLeft <= 3) urgencyEmoji = tl.urgent;
+    else if (daysLeft <= 10) urgencyEmoji = tl.soon;
+    else urgencyEmoji = tl.ok;
+    const daysLabel = isOverdue
+      ? `${Math.abs(daysLeft)}d late`
+      : daysLeft === 0
+        ? 'due today'
+        : `${daysLeft}d left`;
+    const deliverStr = deliver.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+    ln.push(`🗓  Deliver: ${deliverStr}  (${urgencyEmoji} ${daysLabel})`);
+  }
+
+  if (project.note?.trim()) {
+    const note = project.note.trim();
+    ln.push('');
+    ln.push(`📝  Notes: ${note.length > 120 ? note.slice(0, 120) + '…' : note}`);
+  }
+
+  ln.push('');
+  ln.push('━━━━━━━━━━━━');
+  ln.push(`💼  Total active: ${totalActive}  |  ⏳ Unconfirmed: ${totalUnconfirmed}`);
+
+  return ln.join('\n');
+}
+
+export async function sendNewProjectTelegram(project: Project): Promise<void> {
+  try {
+    const [projectsSnap, paymentSnap] = await Promise.all([
+      adminDb.collection('projects').get(),
+      adminDb.doc('settings/payment').get(),
+    ]);
+
+    const payment = paymentSnap.exists ? (paymentSnap.data() as PaymentInfo) : null;
+    const token = payment?.telegramBotToken?.trim();
+    const chatId = payment?.projectTelegramChatId?.trim();
+    if (!token || !chatId) return;
+
+    const allProjects = projectsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project);
+    const totalActive = allProjects.filter((p) => p.status === 'confirmed').length;
+    const totalUnconfirmed = allProjects.filter((p) => p.status === 'unconfirmed').length;
+
+    const text = buildNewProjectMessage(project, totalActive, totalUnconfirmed);
+
+    const formData = new FormData();
+    formData.append('chat_id', chatId);
+    formData.append('text', text);
+    formData.append('parse_mode', 'Markdown');
+    if (payment?.projectTelegramTopicId?.trim()) {
+      formData.append('message_thread_id', payment.projectTelegramTopicId.trim());
+    }
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      body: formData,
+    });
+  } catch {
+    // fire-and-forget — never throw
+  }
+}
+
 function resolveTemplate(payment: PaymentInfo): TelegramTemplate {
   const s = payment.telegramTemplate;
   if (!s) return DEFAULT_TELEGRAM_TEMPLATE;
