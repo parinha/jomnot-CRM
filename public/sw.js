@@ -1,8 +1,6 @@
-const CACHE = 'studio-v1';
+const CACHE = 'studio-v2';
 
 const PRECACHE = [
-  '/',
-  '/dashboard/timeline',
   '/android-chrome-192x192.png',
   '/android-chrome-512x512.png',
   '/apple-touch-icon.png',
@@ -42,6 +40,8 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
+      // Never serve a cached redirect — let the browser handle it natively
+      if (cached && cached.redirected) return fetch(event.request);
       const network = fetch(event.request).then((response) => {
         if (response.ok && url.pathname.match(/\.(js|css|png|ico|jpg|svg|woff2?)$/)) {
           const clone = response.clone();
@@ -49,7 +49,6 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       });
-      // Return cached immediately if available, fetch in background
       return cached ?? network;
     })
   );
