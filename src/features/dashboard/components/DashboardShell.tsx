@@ -10,7 +10,7 @@ import type { CompanyProfile, InvoiceStatus } from '@/src/types';
 import { useAuth } from '@/src/features/auth/components/AuthProvider';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtUSD } from '@/src/lib/formatters';
-import { calcInvoiceTotal } from '@/src/features/invoices/lib/calculations';
+import { calcSubtotal } from '@/src/features/invoices/lib/calculations';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import { useCompanyProfile } from '@/src/hooks/useSettings';
@@ -120,7 +120,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     ? invoices
         .filter((inv) => {
           const client = clients.find((c) => c.id === inv.clientId);
-          const total = calcInvoiceTotal(inv);
+          const total = calcSubtotal(inv);
           return [inv.number, client?.name ?? '', fmtUSD(total), inv.status]
             .join(' ')
             .toLowerCase()
@@ -436,7 +436,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                           </p>
                           {matchedInvoices.map((inv) => {
                             const client = clients.find((c) => c.id === inv.clientId);
-                            const total = calcInvoiceTotal(inv);
+                            const total = calcSubtotal(inv);
                             const status = (inv.status ?? 'draft') as InvoiceStatus;
                             const sc = STATUS_CONFIG[status];
                             return (

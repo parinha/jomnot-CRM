@@ -483,16 +483,10 @@ export default function ProjectsView() {
   const _localDate = (d: Date) =>
     `${d.getFullYear()}-${_pad(d.getMonth() + 1)}-${_pad(d.getDate())}`;
   const _now = new Date();
-  const cmStart = _localDate(new Date(_now.getFullYear(), _now.getMonth(), 1));
-  const cmEnd = _localDate(new Date(_now.getFullYear(), _now.getMonth() + 1, 0));
   const pmY = _now.getMonth() === 0 ? _now.getFullYear() - 1 : _now.getFullYear();
   const pmM = _now.getMonth() === 0 ? 11 : _now.getMonth() - 1;
-  const pmStart = _localDate(new Date(pmY, pmM, 1));
-  const pmEnd = _localDate(new Date(pmY, pmM + 1, 0));
   const nmY = _now.getMonth() === 11 ? _now.getFullYear() + 1 : _now.getFullYear();
   const nmM = _now.getMonth() === 11 ? 0 : _now.getMonth() + 1;
-  const nmStart = _localDate(new Date(nmY, nmM, 1));
-  const nmEnd = _localDate(new Date(nmY, nmM + 1, 0));
   const nextMonthLabel = new Date(nmY, nmM, 1).toLocaleString('en-US', {
     month: 'long',
     year: 'numeric',
@@ -868,60 +862,58 @@ export default function ProjectsView() {
           return invNet > 0 ? invNet : (p.budget ?? 0);
         };
 
-        // Month helpers
-        const cmStart = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-01`;
-        const cmEnd = `${_now.getFullYear()}-${_pad(_now.getMonth() + 1)}-${_pad(new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate())}`;
-
         // ── Next month
         const nmProjects = projects.filter((p) => p.confirmedMonth === nmYM);
         const nmEst = nmProjects.reduce((s, p) => s + projValue(p), 0);
 
-        // ── Last month
-        const pmProjects = projects.filter((p) => p.confirmedMonth === pmYM);
-        const pmEst = pmProjects.reduce((s, p) => s + projValue(p), 0);
-        const pmCompleted = pmProjects.filter((p) => p.status === 'completed');
-        const pmActual = pmCompleted.reduce((s, p) => s + projValue(p), 0);
-        const pmUnearned = pmProjects.filter((p) => p.status !== 'completed');
-        const pmUnearnedTotal = pmUnearned.reduce((s, p) => s + projValue(p), 0);
+        // ── Month labels
+        const cmLabel = _now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        const pmLabel = new Date(pmY, pmM, 1).toLocaleString('en-US', {
+          month: 'long',
+          year: 'numeric',
+        });
 
-        // ── This month (confirmed + completed only)
+        // ── This month: confirmed + completed with billed month = this month
         const cmProjects = projects.filter(
           (p) => p.confirmedMonth === cmYM && (p.status === 'confirmed' || p.status === 'completed')
         );
         const cmEst = cmProjects.reduce((s, p) => s + projValue(p), 0);
-
-        // ── Old projects (confirmed, billing month is not this or next month)
-        const oldActiveProjects = projects.filter(
-          (p) => p.status === 'confirmed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
-        );
-        const oldActiveEst = oldActiveProjects.reduce((s, p) => s + projValue(p), 0);
-        const cmTotalEst = cmEst + oldActiveEst;
         const cmCompleted = cmProjects.filter((p) => p.status === 'completed');
+        const cmActive = cmProjects.filter((p) => p.status === 'confirmed');
         const cmActual = cmCompleted.reduce((s, p) => s + projValue(p), 0);
+
+        // ── Last month (sign-off): confirmed + completed with billed month = last month
+        const pmProjects = projects.filter(
+          (p) => p.confirmedMonth === pmYM && (p.status === 'confirmed' || p.status === 'completed')
+        );
+        const pmEst = pmProjects.reduce((s, p) => s + projValue(p), 0);
+        const pmCompleted = pmProjects.filter((p) => p.status === 'completed');
+        const pmActual = pmCompleted.reduce((s, p) => s + projValue(p), 0);
+        const pmActive = pmProjects.filter((p) => p.status === 'confirmed');
+        const pmActiveTotal = pmActive.reduce((s, p) => s + projValue(p), 0);
 
         // ── This month pending (unconfirmed + on-hold)
         const cmPending = projects.filter(
           (p) => p.confirmedMonth === cmYM && (p.status === 'unconfirmed' || p.status === 'on-hold')
         );
         const cmPendingTotal = cmPending.reduce((s, p) => s + projValue(p), 0);
-        // prev-month projects that got completed this month
-        const prevCompletedThisMonth = projects.filter((p) => {
-          if (p.confirmedMonth !== pmYM || p.status !== 'completed' || !p.completedAt) return false;
-          const d = toLocalDateStr(p.completedAt);
-          return d >= cmStart && d <= cmEnd;
-        });
-        const prevBonus = prevCompletedThisMonth.reduce((s, p) => s + projValue(p), 0);
-        const cmTotalActual = cmActual + prevBonus;
 
-        // ── In progress (confirmed, not completed, any month)
-        const inProgressProjects = projects.filter(
-          (p) => p.status === 'confirmed' && p.confirmedMonth !== nmYM
+        // ── Active Projects: confirmed, billed this month or older (not next month)
+        const activeThisMonthProjects = projects.filter(
+          (p) => p.status === 'confirmed' && p.confirmedMonth === cmYM
         );
-        const inProgressTotal = inProgressProjects.reduce((s, p) => s + projValue(p), 0);
+        const activeOlderProjects = projects.filter(
+          (p) => p.status === 'confirmed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
+        );
+        const activeThisMonthTotal = activeThisMonthProjects.reduce((s, p) => s + projValue(p), 0);
+        const activeOlderTotal = activeOlderProjects.reduce((s, p) => s + projValue(p), 0);
+        const activeAllTotal = activeThisMonthTotal + activeOlderTotal;
 
-        // ── Completed all-time
-        const allCompleted = projects.filter((p) => p.status === 'completed');
-        const allCompletedTotal = allCompleted.reduce((s, p) => s + projValue(p), 0);
+        // ── Completed: only projects billed from older months (this month is in Sign-off widget)
+        const completedOlderProjects = projects.filter(
+          (p) => p.status === 'completed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
+        );
+        const completedOlderTotal = completedOlderProjects.reduce((s, p) => s + projValue(p), 0);
 
         return (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
@@ -939,71 +931,61 @@ export default function ProjectsView() {
             {/* This Month */}
             <div className="rounded-2xl border border-[#FFC206]/20 bg-[#FFC206]/[0.05] backdrop-blur-xl p-4">
               <p className="text-xs text-[#FFC206]/60 uppercase tracking-wide font-semibold mb-1">
-                This Month
+                Project Sign-off: {cmLabel}
               </p>
-              <p className="text-xl font-bold text-[#FFC206] amt">{fmtAmt(cmTotalEst)}</p>
+              <p className="text-xl font-bold text-[#FFC206] amt">{fmtAmt(cmEst)}</p>
               <div className="mt-1 flex flex-col gap-0.5">
                 <p className="text-xs text-white/40">
-                  {cmProjects.length} project{cmProjects.length !== 1 ? 's' : ''}{' '}
-                  <span className="amt">{fmtAmt(cmEst)}</span>
-                  {oldActiveProjects.length > 0 && (
-                    <>
-                      {' '}
-                      ·{' '}
-                      <span className="text-red-400/60">
-                        {oldActiveProjects.length} older{' '}
-                        <span className="amt">{fmtAmt(oldActiveEst)}</span>
-                      </span>
-                    </>
-                  )}
+                  {cmActive.length} active · {cmCompleted.length} completed
                 </p>
                 <p className="text-xs text-white/30">
-                  earned <span className="amt">{fmtAmt(cmTotalActual)}</span>
-                  {prevBonus > 0 && (
-                    <>
-                      {' '}
-                      · +<span className="amt">{fmtAmt(prevBonus)}</span> prev month
-                    </>
-                  )}
+                  earned <span className="amt">{fmtAmt(cmActual)}</span>
                 </p>
               </div>
             </div>
 
-            {/* Last Month */}
+            {/* Last Month Sign-off */}
             <div className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4">
               <p className="text-xs text-white/40 uppercase tracking-wide font-semibold mb-1">
-                Last Month
+                Project Sign-off: {pmLabel}
               </p>
-              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(pmActual)}</p>
+              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(pmEst)}</p>
               <div className="mt-1 flex flex-col gap-0.5">
                 <p className="text-xs text-white/40">
-                  {pmProjects.length} project{pmProjects.length !== 1 ? 's' : ''} · est.{' '}
-                  <span className="amt">{fmtAmt(pmEst)}</span>
+                  {pmActive.length} active · {pmCompleted.length} completed
                 </p>
                 {pmCompleted.length > 0 && (
                   <p className="text-xs text-emerald-400/50">
-                    {pmCompleted.length} earned <span className="amt">{fmtAmt(pmActual)}</span>
+                    earned <span className="amt">{fmtAmt(pmActual)}</span>
                   </p>
                 )}
-                {pmUnearned.length > 0 && (
+                {pmActive.length > 0 && (
                   <p className="text-xs text-red-400/50">
-                    {pmUnearned.length} late / unearned{' '}
-                    <span className="amt">{fmtAmt(pmUnearnedTotal)}</span>
+                    still active <span className="amt">{fmtAmt(pmActiveTotal)}</span>
                   </p>
                 )}
               </div>
             </div>
 
-            {/* In Progress */}
+            {/* Active Projects */}
             <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] backdrop-blur-xl p-4">
               <p className="text-xs text-sky-400/60 uppercase tracking-wide font-semibold mb-1">
-                In Progress
+                Active Projects
               </p>
-              <p className="text-xl font-bold text-sky-400 amt">{fmtAmt(inProgressTotal)}</p>
-              <p className="text-xs text-white/40 mt-1">
-                {inProgressProjects.length} project{inProgressProjects.length !== 1 ? 's' : ''}{' '}
-                active
-              </p>
+              <p className="text-xl font-bold text-sky-400 amt">{fmtAmt(activeAllTotal)}</p>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <p className="text-xs text-white/40">
+                  {activeThisMonthProjects.length + activeOlderProjects.length} project
+                  {activeThisMonthProjects.length + activeOlderProjects.length !== 1 ? 's' : ''} ·
+                  this month <span className="amt">{fmtAmt(activeThisMonthTotal)}</span>
+                </p>
+                {activeOlderProjects.length > 0 && (
+                  <p className="text-xs text-red-400/50">
+                    older {activeOlderProjects.length}{' '}
+                    <span className="amt">{fmtAmt(activeOlderTotal)}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Completed */}
@@ -1011,9 +993,12 @@ export default function ProjectsView() {
               <p className="text-xs text-emerald-400/60 uppercase tracking-wide font-semibold mb-1">
                 Completed
               </p>
-              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(allCompletedTotal)}</p>
+              <p className="text-xl font-bold text-emerald-400 amt">
+                {fmtAmt(completedOlderTotal)}
+              </p>
               <p className="text-xs text-white/40 mt-1">
-                {allCompleted.length} project{allCompleted.length !== 1 ? 's' : ''} total
+                {completedOlderProjects.length} project
+                {completedOlderProjects.length !== 1 ? 's' : ''} · older months
               </p>
             </div>
 

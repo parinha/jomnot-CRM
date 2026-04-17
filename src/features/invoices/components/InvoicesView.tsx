@@ -738,9 +738,6 @@ export default function InvoicesView() {
                   const sc = STATUS_CONFIG[status];
                   const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
                   const allItems = linkedProjects.flatMap((p) => p.items);
-                  const doneCount = allItems.filter((it) => it.status === 'done').length;
-                  const totalItems = allItems.length;
-                  const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
 
                   return (
                     <tr

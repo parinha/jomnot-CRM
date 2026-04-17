@@ -20,11 +20,6 @@ export function calcNet(inv: Invoice): number {
   return inv.withWHT ? gross * (1 - WHT_RATE) : gross;
 }
 
-/** @deprecated use calcSubtotal */
-export function calcInvoiceTotal(inv: Invoice): number {
-  return calcSubtotal(inv);
-}
-
 /**
  * Cash actually received by the freelancer for this invoice.
  * - paid    → full net amount

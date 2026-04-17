@@ -1,11 +1,7 @@
 import { getProjects } from '@/src/features/projects/api/getProjects';
 import { upsertDoc } from '@/src/lib/db-mutations';
 import { adminDb } from '@/src/lib/firebase-admin';
-import {
-  buildNewProjectMessage,
-  resolveTemplate,
-  sendTelegramMessage,
-} from '@/src/lib/telegram-messages';
+import { buildNewProjectMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
 import type { Project, PaymentInfo } from '@/src/types';
 
 export const dynamic = 'force-dynamic';

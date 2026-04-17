@@ -11,7 +11,6 @@ import { fmtUSD as fmt, fmtShort } from '@/src/lib/formatters';
 import {
   calcEarned,
   calcBalance,
-  calcInvoiceTotal,
   calcSubtotal,
   calcNet,
   WHT_RATE,
@@ -127,7 +126,7 @@ export default function ReportsView() {
   }, [invoices, clientFilter, startDate, endDate]);
 
   const totalReceived = base.reduce((s, inv) => s + calcEarned(inv), 0);
-  const totalInvoiced = base.reduce((s, inv) => s + calcInvoiceTotal(inv), 0);
+  const totalInvoiced = base.reduce((s, inv) => s + calcSubtotal(inv), 0);
   const totalWHT = base
     .filter((inv) => inv.withWHT)
     .reduce((s, inv) => s + calcSubtotal(inv) * WHT_RATE, 0);
@@ -143,7 +142,7 @@ export default function ReportsView() {
     const matched = base.filter((inv) => invBucketKey(inv, bucketMode) === b.key);
     return {
       ...b,
-      revenue: matched.reduce((s, inv) => s + calcInvoiceTotal(inv), 0),
+      revenue: matched.reduce((s, inv) => s + calcSubtotal(inv), 0),
       count: matched.length,
     };
   });
@@ -155,7 +154,7 @@ export default function ReportsView() {
       return {
         id: c.id,
         name: c.name,
-        revenue: byClient.reduce((s, inv) => s + calcInvoiceTotal(inv), 0),
+        revenue: byClient.reduce((s, inv) => s + calcSubtotal(inv), 0),
         count: byClient.length,
       };
     })
@@ -169,7 +168,7 @@ export default function ReportsView() {
       return {
         status: s,
         count: matched.length,
-        revenue: matched.reduce((sum, inv) => sum + calcInvoiceTotal(inv), 0),
+        revenue: matched.reduce((sum, inv) => sum + calcSubtotal(inv), 0),
       };
     }
   );
