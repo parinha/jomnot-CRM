@@ -2,9 +2,10 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Studio',
-    short_name: 'Studio',
-    description: 'Studio project management',
+    name: 'EasyInvoices24',
+    short_name: 'EasyInvoices24',
+    description:
+      'EasyInvoices24 is a high-performance project management and billing suite designed specifically for the modern content creator.',
     start_url: '/dashboard/timeline',
     display: 'standalone',
     orientation: 'portrait',

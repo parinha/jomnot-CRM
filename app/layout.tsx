@@ -23,13 +23,14 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Studio',
-  description: 'Studio management app',
-  applicationName: 'Studio',
+  title: 'EasyInvoices24',
+  description:
+    'EasyInvoices24 is a high-performance project management and billing suite designed specifically for the modern content creator.',
+  applicationName: 'EasyInvoices24',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Studio',
+    title: 'EasyInvoices24',
   },
   formatDetection: {
     telephone: false,
