@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
-import type { ProjectStatus } from '@/src/types';
+import type { Project, ProjectPhases, ProjectStatus } from '@/src/types';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-import { useProjects } from '@/src/hooks/useProjects';
+import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
+import ProgressPopover from './ProgressPopover';
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 const DAY_W_MAP = { day: 48, week: 18, month: 7 } as const;
@@ -445,7 +446,7 @@ function ProjectBar({
   renderStart: Date;
   dayW: number;
   today: Date;
-  onSelect: (e: GanttEvent) => void;
+  onSelect: (e: React.MouseEvent, event: GanttEvent) => void;
 }) {
   const cfg = getBarCfg(event, today);
 
@@ -454,7 +455,8 @@ function ProjectBar({
     return (
       <button
         title={event.name}
-        onClick={() => onSelect(event)}
+        data-progress-trigger
+        onClick={(e) => onSelect(e, event)}
         style={{
           position: 'absolute',
           left: x - MS_SIZE / 2,
@@ -476,7 +478,8 @@ function ProjectBar({
   return (
     <button
       title={event.name}
-      onClick={() => onSelect(event)}
+      data-progress-trigger
+      onClick={(e) => onSelect(e, event)}
       style={{ position: 'absolute', left, top: (ROW_H - BAR_H) / 2, width, height: BAR_H }}
       className={`${cfg.bg} ${cfg.text} rounded-full flex items-center px-3 overflow-hidden hover:opacity-80 transition cursor-pointer shadow-md`}
     >
@@ -618,6 +621,8 @@ function Toggle({
 // ── Main view ──────────────────────────────────────────────────────────────────
 export default function TimelineView() {
   const { data: projects, isLoading } = useProjects();
+  const { upsert } = useProjectMutations();
+  const [, startTransition] = useTransition();
 
   const today = useMemo(() => midnight(new Date()), []);
 
@@ -628,6 +633,54 @@ export default function TimelineView() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [selected, setSelected] = useState<GanttEvent | null>(null);
+  const [popover, setPopover] = useState<{
+    project: Project;
+    pos: { top: number; left: number };
+  } | null>(null);
+
+  function openPopover(e: React.MouseEvent, eventId: string) {
+    e.stopPropagation();
+    const proj = projects.find((p) => p.id === eventId);
+    if (!proj) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPopover({ project: proj, pos: { top: rect.bottom + 6, left: rect.left } });
+  }
+
+  function togglePhase(key: keyof ProjectPhases) {
+    if (!popover) return;
+    const proj = popover.project;
+    const updated: Project = {
+      ...proj,
+      phases: {
+        filming: false,
+        roughCut: false,
+        draft: false,
+        master: false,
+        delivered: false,
+        ...proj.phases,
+        [key]: !(proj.phases?.[key] ?? false),
+      },
+    };
+    setPopover((p) => (p ? { ...p, project: updated } : null));
+    startTransition(async () => {
+      await upsert(updated);
+    });
+  }
+
+  function toggleItem(itemId: string) {
+    if (!popover) return;
+    const proj = popover.project;
+    const updated: Project = {
+      ...proj,
+      items: proj.items.map((it) =>
+        it.id === itemId ? { ...it, status: it.status === 'done' ? 'todo' : 'done' } : it
+      ),
+    };
+    setPopover((p) => (p ? { ...p, project: updated } : null));
+    startTransition(async () => {
+      await upsert(updated);
+    });
+  }
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayW = DAY_W_MAP[mode];
@@ -914,15 +967,17 @@ export default function TimelineView() {
                 className="flex border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                 style={{ height: ROW_H }}
               >
-                <div
-                  className="sticky left-0 z-10 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 border-r border-white/[0.06] bg-[#0a0a0a]"
+                <button
+                  data-progress-trigger
+                  onClick={(e) => openPopover(e, event.id)}
+                  className="sticky left-0 z-10 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 border-r border-white/[0.06] bg-[#0a0a0a] hover:bg-white/[0.04] transition text-left"
                   style={{ width: leftW }}
                 >
                   <span className={`w-2 h-2 rounded-full shrink-0 ${getDotCls(event, today)}`} />
                   <span className="text-xs sm:text-sm text-white/75 truncate font-medium">
                     {event.name}
                   </span>
-                </div>
+                </button>
 
                 <div className="relative" style={{ width: totalWidth, minWidth: totalWidth }}>
                   <GridLines
@@ -938,7 +993,7 @@ export default function TimelineView() {
                     renderStart={renderStart}
                     dayW={dayW}
                     today={today}
-                    onSelect={setSelected}
+                    onSelect={(e, ev) => openPopover(e, ev.id)}
                   />
                 </div>
               </div>
@@ -987,7 +1042,15 @@ export default function TimelineView() {
         </div>
       </div>
 
-      {selected && <DetailSheet event={selected} onClose={() => setSelected(null)} />}
+      {popover && (
+        <ProgressPopover
+          project={popover.project}
+          pos={popover.pos}
+          onClose={() => setPopover(null)}
+          onTogglePhase={togglePhase}
+          onToggleItem={toggleItem}
+        />
+      )}
     </div>
   );
 }

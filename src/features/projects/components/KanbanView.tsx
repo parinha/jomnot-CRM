@@ -6,6 +6,7 @@ import { fmtDate } from '@/src/lib/formatters';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
+import ProgressPopover from './ProgressPopover';
 
 const PHASE_ORDER: (keyof ProjectPhases)[] = [
   'filming',
@@ -143,6 +144,52 @@ export default function KanbanView() {
   const [overCol, setOverCol] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { upsert } = useProjectMutations();
+  const [popover, setPopover] = useState<{
+    project: Project;
+    pos: { top: number; left: number };
+  } | null>(null);
+
+  function openPopover(e: React.MouseEvent, project: Project) {
+    e.stopPropagation();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPopover({ project, pos: { top: rect.bottom + 6, left: rect.left } });
+  }
+
+  function togglePhase(key: keyof ProjectPhases) {
+    if (!popover) return;
+    const proj = popover.project;
+    const updated: Project = {
+      ...proj,
+      phases: {
+        filming: false,
+        roughCut: false,
+        draft: false,
+        master: false,
+        delivered: false,
+        ...proj.phases,
+        [key]: !(proj.phases?.[key] ?? false),
+      },
+    };
+    setPopover((p) => (p ? { ...p, project: updated } : null));
+    startTransition(async () => {
+      await upsert(updated);
+    });
+  }
+
+  function toggleItem(itemId: string) {
+    if (!popover) return;
+    const proj = popover.project;
+    const updated: Project = {
+      ...proj,
+      items: proj.items.map((it) =>
+        it.id === itemId ? { ...it, status: it.status === 'done' ? 'todo' : 'done' } : it
+      ),
+    };
+    setPopover((p) => (p ? { ...p, project: updated } : null));
+    startTransition(async () => {
+      await upsert(updated);
+    });
+  }
 
   if (isLoading) return <TablePageSkeleton rows={6} />;
 
@@ -245,6 +292,8 @@ export default function KanbanView() {
                       <div
                         key={project.id}
                         draggable
+                        data-progress-trigger
+                        onClick={(e) => openPopover(e, project)}
                         onDragStart={(e) => {
                           setDragId(project.id);
                           e.dataTransfer.effectAllowed = 'move';
@@ -253,7 +302,7 @@ export default function KanbanView() {
                           setDragId(null);
                           setOverCol(null);
                         }}
-                        className={`border rounded-xl p-3 cursor-grab active:cursor-grabbing select-none transition ${
+                        className={`border rounded-xl p-3 cursor-pointer select-none transition ${
                           isDragging
                             ? 'opacity-30 scale-95 bg-white/[0.06] border-white/[0.08]'
                             : late
@@ -337,6 +386,15 @@ export default function KanbanView() {
           })}
         </div>
       </div>
+      {popover && (
+        <ProgressPopover
+          project={popover.project}
+          pos={popover.pos}
+          onClose={() => setPopover(null)}
+          onTogglePhase={togglePhase}
+          onToggleItem={toggleItem}
+        />
+      )}
     </div>
   );
 }
