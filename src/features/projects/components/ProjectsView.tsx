@@ -1380,7 +1380,6 @@ export default function ProjectsView() {
                   >
                     Project
                   </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Deliverables</th>
                   <th className="text-left px-4 py-3.5 font-medium text-white/45">Phases</th>
                   <th className="text-left px-4 py-3.5 font-medium text-white/45">Timeline</th>
                   <th className="px-4 py-3.5" />
@@ -1448,26 +1447,6 @@ export default function ProjectsView() {
                           </div>
                         </div>
                       </td>
-                      {/* Deliverables */}
-                      <td className="px-4 py-3.5 min-w-[180px] max-w-[260px]">
-                        {project.items.length === 0 ? (
-                          <span className="text-xs text-white/25">—</span>
-                        ) : (
-                          <div className="flex flex-col gap-0.5">
-                            {project.items.slice(0, 3).map((item) => (
-                              <span key={item.id} className="text-sm text-white/55 truncate">
-                                {item.description}
-                              </span>
-                            ))}
-                            {project.items.length > 3 && (
-                              <span className="text-xs text-white/30">
-                                +{project.items.length - 3} more
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
                       {/* Phases */}
                       <td className="px-4 py-3.5">
                         <button

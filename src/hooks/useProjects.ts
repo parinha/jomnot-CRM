@@ -1,6 +1,6 @@
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
-import type { Project, ProjectItem } from '@/src/types';
+import type { Project, ProjectItem, ProjectPhases } from '@/src/types';
 
 const projectFetcher = fetcher as (url: string) => Promise<Project[]>;
 
@@ -53,5 +53,18 @@ export function useProjectMutations() {
     await mutate('/api/projects');
   }
 
-  return { upsert, remove, updateItems };
+  async function updatePhases(projectId: string, phases: ProjectPhases): Promise<void> {
+    const res = await fetch(`/api/projects/${projectId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phases }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(body.error ?? 'Failed to update project', res.status);
+    }
+    await mutate('/api/projects');
+  }
+
+  return { upsert, remove, updateItems, updatePhases };
 }
