@@ -2376,8 +2376,43 @@ export default function ProjectsView() {
                             key={item.id}
                             className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/25 shrink-0" />
-                            <span className="text-sm flex-1 min-w-0 text-white/80">
+                            {editingId ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setForm((p) => ({
+                                    ...p,
+                                    items: p.items.map((it) =>
+                                      it.id === item.id
+                                        ? { ...it, status: it.status === 'done' ? 'todo' : 'done' }
+                                        : it
+                                    ),
+                                  }))
+                                }
+                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${item.status === 'done' ? 'bg-violet-500 border-violet-500' : 'border-white/30 hover:border-white/60'}`}
+                              >
+                                {item.status === 'done' && (
+                                  <svg
+                                    className="w-2.5 h-2.5 text-white"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth={3}
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M5 13l4 4L19 7"
+                                    />
+                                  </svg>
+                                )}
+                              </button>
+                            ) : (
+                              <span className="w-1.5 h-1.5 rounded-full bg-white/25 shrink-0" />
+                            )}
+                            <span
+                              className={`text-sm flex-1 min-w-0 transition ${editingId && item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
+                            >
                               {item.description}
                             </span>
                             <button
