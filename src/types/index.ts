@@ -108,5 +108,3 @@ export interface Project extends RecordMeta {
   budget?: number;
   note?: string;
 }
-
-export type { TelegramTemplate };
