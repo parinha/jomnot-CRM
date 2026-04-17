@@ -17,6 +17,14 @@ const PHASE_ORDER: (keyof ProjectPhases)[] = [
 
 const COLUMNS = [
   {
+    key: 'todo',
+    label: 'Todo',
+    hdr: 'text-white/50',
+    border: 'border-white/[0.08]',
+    bg: 'bg-white/[0.02]',
+    ring: 'ring-white/20',
+  },
+  {
     key: 'filming',
     label: 'Filming',
     hdr: 'text-sky-400',
@@ -73,14 +81,17 @@ function localToday(): string {
 
 function getProjectCol(project: Project): string {
   if (project.status === 'completed') return 'completed';
-  for (const key of PHASE_ORDER) {
-    if (!project.phases?.[key]) return key;
+  if (!project.phases || PHASE_ORDER.every((k) => !project.phases![k])) return 'todo';
+  // The current column = the last consecutively-checked phase
+  let lastChecked = 0;
+  for (let i = 0; i < PHASE_ORDER.length; i++) {
+    if (project.phases[PHASE_ORDER[i]]) lastChecked = i;
+    else break;
   }
-  return 'delivered';
+  return PHASE_ORDER[lastChecked];
 }
 
 function getPhasesForCol(col: string): ProjectPhases {
-  const colIdx = PHASE_ORDER.indexOf(col as keyof ProjectPhases);
   const phases: ProjectPhases = {
     filming: false,
     roughCut: false,
@@ -88,11 +99,11 @@ function getPhasesForCol(col: string): ProjectPhases {
     master: false,
     delivered: false,
   };
-  for (let i = 0; i < colIdx; i++) {
+  if (col === 'todo') return phases;
+  const colIdx = PHASE_ORDER.indexOf(col as keyof ProjectPhases);
+  // Mark all phases up to and including the target column
+  for (let i = 0; i <= colIdx; i++) {
     phases[PHASE_ORDER[i]] = true;
-  }
-  if (col === 'delivered' || col === 'completed') {
-    phases.delivered = true;
   }
   return phases;
 }
@@ -163,7 +174,6 @@ export default function KanbanView() {
   function markComplete(project: Project) {
     const updated: Project = {
       ...project,
-      phases: getPhasesForCol('completed'),
       status: 'completed',
       completedAt: localToday(),
     };
@@ -184,7 +194,7 @@ export default function KanbanView() {
 
       {/* Board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
-        <div className="flex h-full gap-3 p-4" style={{ minWidth: COLUMNS.length * 268 }}>
+        <div className="flex h-full gap-3 p-4" style={{ minWidth: COLUMNS.length * 272 }}>
           {COLUMNS.map((col) => {
             const cards = sortCards(
               visible.filter((p) => getProjectCol(p) === col.key),
