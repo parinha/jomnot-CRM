@@ -12,6 +12,7 @@ const DAY_W_MAP = { day: 48, week: 18, month: 7 } as const;
 type ViewMode = keyof typeof DAY_W_MAP;
 
 const LEFT_W = 224;
+const LEFT_W_MOBILE = 110;
 const ROW_H = 52;
 const HDR1_H = 28;
 const HDR2_H = 28;
@@ -631,6 +632,15 @@ export default function TimelineView() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dayW = DAY_W_MAP[mode];
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check, { passive: true });
+    return () => window.removeEventListener('resize', check);
+  }, []);
+  const leftW = isMobile ? LEFT_W_MOBILE : LEFT_W;
+
   const allEvents = useMemo(
     (): GanttEvent[] =>
       projects
@@ -676,9 +686,9 @@ export default function TimelineView() {
 
   const scrollToToday = useCallback(() => {
     if (!scrollRef.current) return;
-    const visibleW = scrollRef.current.clientWidth - LEFT_W;
+    const visibleW = scrollRef.current.clientWidth - leftW;
     scrollRef.current.scrollLeft = Math.max(0, todayX - visibleW / 2 + dayW / 2);
-  }, [todayX, dayW]);
+  }, [todayX, dayW, leftW]);
 
   useEffect(() => {
     setTimeout(scrollToToday, 0);
@@ -691,126 +701,153 @@ export default function TimelineView() {
   return (
     <div className="flex flex-col h-full min-h-0 pb-20 md:pb-0">
       {/* ── Controls ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-white/[0.06] shrink-0">
-        <h1 className="text-base font-bold text-white mr-1">Timeline</h1>
+      <div className="shrink-0 border-b border-white/[0.06]">
+        {/* Row 1: title + view mode + today + date range */}
+        <div className="flex items-center gap-2 px-4 py-3">
+          <h1 className="text-base font-bold text-white shrink-0">Timeline</h1>
 
-        {/* View mode */}
-        <div className="flex items-center rounded-xl border border-white/15 overflow-hidden">
-          {(['day', 'week', 'month'] as ViewMode[]).map((m) => (
-            <button
-              key={m}
-              onClick={() => {
-                setMode(m);
-                setCustomStart('');
-                setCustomEnd('');
-              }}
-              className={[
-                'px-3 py-1.5 text-xs font-semibold transition capitalize',
-                mode === m
-                  ? 'bg-[#FFC206] text-black'
-                  : 'text-white/50 hover:text-white hover:bg-white/[0.06]',
-              ].join(' ')}
-            >
-              {m}
-            </button>
-          ))}
-        </div>
+          {/* View mode */}
+          <div className="flex items-center rounded-xl border border-white/15 overflow-hidden">
+            {(['day', 'week', 'month'] as ViewMode[]).map((m) => (
+              <button
+                key={m}
+                onClick={() => {
+                  setMode(m);
+                  setCustomStart('');
+                  setCustomEnd('');
+                }}
+                className={[
+                  'px-2.5 py-1.5 text-xs font-semibold transition',
+                  mode === m
+                    ? 'bg-[#FFC206] text-black'
+                    : 'text-white/50 hover:text-white hover:bg-white/[0.06]',
+                ].join(' ')}
+              >
+                <span className="sm:hidden capitalize">{m[0]}</span>
+                <span className="hidden sm:inline capitalize">{m}</span>
+              </button>
+            ))}
+          </div>
 
-        {/* Date range picker */}
-        <div className="relative">
+          {/* Today */}
           <button
-            onClick={() => setRangeOpen((o) => !o)}
-            className={[
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition',
-              customStart && customEnd
-                ? 'border-[#FFC206]/40 bg-[#FFC206]/10 text-[#FFC206]'
-                : 'border-white/15 text-white/50 hover:text-white hover:border-white/30',
-            ].join(' ')}
+            onClick={scrollToToday}
+            className="px-2.5 py-1.5 rounded-xl border border-white/15 text-xs font-semibold text-white/50 hover:text-white transition shrink-0"
           >
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            {customStart && customEnd ? `${customStart} → ${customEnd}` : 'Date range'}
+            Today
           </button>
 
-          {rangeOpen && (
-            <div className="absolute top-full left-0 mt-1 z-30 bg-zinc-900 border border-white/15 rounded-2xl p-4 shadow-2xl w-64">
-              <p className="text-xs font-semibold text-white/40 mb-3 uppercase tracking-wide">
-                Custom range
-              </p>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-white/40 block mb-1">From</label>
-                  <input
-                    type="date"
-                    value={customStart}
-                    onChange={(e) => setCustomStart(e.target.value)}
-                    className="w-full h-9 rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FFC206]/50"
-                  />
+          {/* Date range picker */}
+          <div className="relative">
+            <button
+              onClick={() => setRangeOpen((o) => !o)}
+              className={[
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold transition',
+                customStart && customEnd
+                  ? 'border-[#FFC206]/40 bg-[#FFC206]/10 text-[#FFC206]'
+                  : 'border-white/15 text-white/50 hover:text-white',
+              ].join(' ')}
+            >
+              <svg
+                className="w-3.5 h-3.5 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                />
+              </svg>
+              <span className="hidden sm:inline">
+                {customStart && customEnd ? `${customStart} → ${customEnd}` : 'Date range'}
+              </span>
+              {customStart && customEnd && (
+                <span className="sm:hidden text-[10px]">
+                  {customStart.slice(5)} → {customEnd.slice(5)}
+                </span>
+              )}
+            </button>
+
+            {rangeOpen && (
+              <div className="absolute top-full left-0 mt-1 z-30 bg-zinc-900 border border-white/15 rounded-2xl p-4 shadow-2xl w-64">
+                <p className="text-xs font-semibold text-white/40 mb-3 uppercase tracking-wide">
+                  Custom range
+                </p>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-xs text-white/40 block mb-1">From</label>
+                    <input
+                      type="date"
+                      value={customStart}
+                      onChange={(e) => setCustomStart(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FFC206]/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-white/40 block mb-1">To</label>
+                    <input
+                      type="date"
+                      value={customEnd}
+                      min={customStart}
+                      onChange={(e) => setCustomEnd(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FFC206]/50"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-xs text-white/40 block mb-1">To</label>
-                  <input
-                    type="date"
-                    value={customEnd}
-                    min={customStart}
-                    onChange={(e) => setCustomEnd(e.target.value)}
-                    className="w-full h-9 rounded-xl border border-white/15 bg-white/5 px-3 text-sm text-white focus:outline-none focus:ring-2 focus:ring-[#FFC206]/50"
-                  />
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => {
+                      setCustomStart('');
+                      setCustomEnd('');
+                      setRangeOpen(false);
+                    }}
+                    className="flex-1 h-8 rounded-xl border border-white/15 text-xs text-white/50 hover:text-white transition"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    onClick={() => setRangeOpen(false)}
+                    className="flex-1 h-8 rounded-xl bg-[#FFC206] text-black text-xs font-semibold hover:bg-[#FFC206]/90 transition"
+                  >
+                    Apply
+                  </button>
                 </div>
               </div>
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => {
-                    setCustomStart('');
-                    setCustomEnd('');
-                    setRangeOpen(false);
-                  }}
-                  className="flex-1 h-8 rounded-xl border border-white/15 text-xs text-white/50 hover:text-white transition"
-                >
-                  Clear
-                </button>
-                <button
-                  onClick={() => setRangeOpen(false)}
-                  className="flex-1 h-8 rounded-xl bg-[#FFC206] text-black text-xs font-semibold hover:bg-[#FFC206]/90 transition"
-                >
-                  Apply
-                </button>
-              </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          {/* Toggles — desktop only in this row */}
+          <div className="hidden sm:flex items-center gap-2 ml-auto">
+            <Toggle
+              checked={showHolidays}
+              onChange={() => setShowHolidays((v) => !v)}
+              label="Cambodian Holiday"
+              activeClass="border-red-500/40 bg-red-500/10 text-red-400"
+            />
+            <Toggle
+              checked={showCompleted}
+              onChange={() => setShowCompleted((v) => !v)}
+              label="Show completed"
+              activeClass="border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+            />
+          </div>
         </div>
 
-        {/* Today */}
-        <button
-          onClick={scrollToToday}
-          className="px-3 py-1.5 rounded-xl border border-white/15 text-xs font-semibold text-white/50 hover:text-white hover:border-white/30 transition"
-        >
-          Today
-        </button>
-
-        {/* Toggles */}
-        <div className="flex items-center gap-2 ml-auto flex-wrap">
+        {/* Row 2: toggles — mobile only */}
+        <div className="sm:hidden flex items-center gap-2 px-4 pb-2.5">
           <Toggle
             checked={showHolidays}
             onChange={() => setShowHolidays((v) => !v)}
-            label="Cambodian Holiday"
+            label="Holidays"
             activeClass="border-red-500/40 bg-red-500/10 text-red-400"
           />
           <Toggle
             checked={showCompleted}
             onChange={() => setShowCompleted((v) => !v)}
-            label="Show completed"
+            label="Completed"
             activeClass="border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
           />
         </div>
@@ -844,17 +881,17 @@ export default function TimelineView() {
           style={{ minHeight: 0 }}
           onClick={() => setRangeOpen(false)}
         >
-          <div style={{ minWidth: LEFT_W + totalWidth }}>
+          <div style={{ minWidth: leftW + totalWidth }}>
             {/* Sticky header */}
             <div
               className="sticky top-0 z-20 flex border-b border-white/[0.08] bg-[#0a0a0a]"
               style={{ height: HDR_H }}
             >
               <div
-                className="sticky left-0 z-30 shrink-0 flex items-end pb-2 px-4 border-r border-white/[0.08] bg-[#0a0a0a]"
-                style={{ width: LEFT_W }}
+                className="sticky left-0 z-30 shrink-0 flex items-end pb-2 px-2 sm:px-4 border-r border-white/[0.08] bg-[#0a0a0a]"
+                style={{ width: leftW }}
               >
-                <span className="text-xs font-semibold text-white/30 uppercase tracking-wide">
+                <span className="hidden sm:inline text-xs font-semibold text-white/30 uppercase tracking-wide">
                   Project
                 </span>
               </div>
@@ -878,11 +915,13 @@ export default function TimelineView() {
                 style={{ height: ROW_H }}
               >
                 <div
-                  className="sticky left-0 z-10 shrink-0 flex items-center gap-2.5 px-4 border-r border-white/[0.06] bg-[#0a0a0a]"
-                  style={{ width: LEFT_W }}
+                  className="sticky left-0 z-10 shrink-0 flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-4 border-r border-white/[0.06] bg-[#0a0a0a]"
+                  style={{ width: leftW }}
                 >
                   <span className={`w-2 h-2 rounded-full shrink-0 ${getDotCls(event, today)}`} />
-                  <span className="text-sm text-white/75 truncate font-medium">{event.name}</span>
+                  <span className="text-xs sm:text-sm text-white/75 truncate font-medium">
+                    {event.name}
+                  </span>
                 </div>
 
                 <div className="relative" style={{ width: totalWidth, minWidth: totalWidth }}>
@@ -911,7 +950,7 @@ export default function TimelineView() {
       )}
 
       {/* ── Legend ──────────────────────────────────────────────────────────── */}
-      <div className="shrink-0 flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-t border-white/[0.06]">
+      <div className="hidden sm:flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-t border-white/[0.06]">
         <div className="flex items-center gap-1.5">
           <span className={`w-2.5 h-2.5 rounded-full ${LATE_DOT}`} />
           <span className="text-[11px] text-red-400">Late</span>

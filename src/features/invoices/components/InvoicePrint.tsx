@@ -65,14 +65,19 @@ export default function InvoicePrint({ invoice, client, company, payment }: Prop
     });
 
     const sheetEl = container.firstElementChild as HTMLElement;
-    const canvas = await html2canvas(sheetEl, { useCORS: true, scale: 2.5, logging: false });
+    const canvas = await html2canvas(sheetEl, {
+      useCORS: true,
+      scale: 5,
+      logging: false,
+      backgroundColor: '#ffffff',
+    });
     root.unmount();
     document.body.removeChild(container);
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const pdfW = 210;
     const pdfH = (canvas.height / canvas.width) * pdfW;
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, pdfW, pdfH);
+    pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, 0, pdfW, pdfH);
     return pdf.output('blob');
   }
 
@@ -276,8 +281,28 @@ export default function InvoicePrint({ invoice, client, company, payment }: Prop
       <style>{`
         @media print {
           @page { size: A4 portrait; margin: 0; }
-          html, body { margin: 0; padding: 0; background: white; display: block !important; height: auto !important; min-height: 0 !important; }
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+            background-color: white !important;
+            color: #1a1a1a !important;
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            font-family: Arial, Helvetica, sans-serif !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            color-adjust: exact !important;
+          }
+          img {
+            image-rendering: -webkit-optimize-contrast !important;
+            image-rendering: crisp-edges !important;
+          }
           .no-print   { display: none !important; }
           .print-only { display: block !important; }
         }
@@ -757,9 +782,15 @@ export function Sheet({
               <img
                 src={payment.qrImage}
                 alt="Payment QR"
-                style={{ width: '72px', height: '72px', objectFit: 'contain', display: 'block' }}
+                style={{
+                  width: '140px',
+                  height: '140px',
+                  objectFit: 'contain',
+                  display: 'block',
+                  imageRendering: 'crisp-edges',
+                }}
               />
-              <p style={{ fontSize: '9px', color: MUTED, marginTop: '3px' }}>Scan to pay</p>
+              <p style={{ fontSize: '9px', color: MUTED, marginTop: '4px' }}>Scan to pay</p>
             </div>
           )}
         </div>
