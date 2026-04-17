@@ -1,5 +1,3 @@
-import type { TelegramTemplate } from '@/src/config/constants';
-
 // ── Audit metadata ─────────────────────────────────────────────────────────────
 
 export interface RecordMeta {
@@ -72,7 +70,6 @@ export interface PaymentInfo {
   telegramTopicId?: string;
   projectTelegramChatId?: string;
   projectTelegramTopicId?: string;
-  telegramTemplate?: TelegramTemplate;
 }
 
 // ── Project ────────────────────────────────────────────────────────────────────

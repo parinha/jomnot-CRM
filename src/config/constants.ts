@@ -34,15 +34,6 @@ export interface TelegramTemplate {
   headerEmoji: string;
   headerTitle: string;
   timeline: TelegramTimeline;
-  sections: {
-    delivered: TelegramSectionConfig;
-    unconfirmed: TelegramSectionConfig;
-    awaitFilming: TelegramSectionConfig;
-    awaitRoughCut: TelegramSectionConfig;
-    awaitDraft: TelegramSectionConfig;
-    awaitMaster: TelegramSectionConfig;
-    awaitDeliver: TelegramSectionConfig;
-  };
 }
 
 export const DEFAULT_TELEGRAM_TEMPLATE: TelegramTemplate = {
@@ -54,15 +45,6 @@ export const DEFAULT_TELEGRAM_TEMPLATE: TelegramTemplate = {
     soon: '🟡',
     ok: '🟢',
     noDate: '▸',
-  },
-  sections: {
-    delivered: { emoji: '✅', label: 'Done this month', enabled: true },
-    unconfirmed: { emoji: '⬜', label: 'Wait Project Confirm', enabled: true },
-    awaitFilming: { emoji: '🎬', label: 'Filming', enabled: true },
-    awaitRoughCut: { emoji: '✂️', label: 'Rough Cut', enabled: true },
-    awaitDraft: { emoji: '📝', label: 'Draft / VO', enabled: true },
-    awaitMaster: { emoji: '🎯', label: 'Master', enabled: true },
-    awaitDeliver: { emoji: '🏁', label: 'Final Delivery', enabled: true },
   },
 };
 

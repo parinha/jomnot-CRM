@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/src/lib/firebase-admin';
-import {
-  buildProjectsSummaryMessage,
-  resolveTemplate,
-  sendTelegramMessage,
-} from '@/src/lib/telegram-messages';
+import { buildProjectsSummaryMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
 import type { Project, PaymentInfo } from '@/src/types';
 
 export async function GET(req: NextRequest) {
@@ -38,8 +34,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const tpl = resolveTemplate(payment ?? ({} as PaymentInfo));
-    const text = buildProjectsSummaryMessage(projects, tpl);
+    const text = buildProjectsSummaryMessage(projects);
     const result = await sendTelegramMessage(
       token,
       chatId,

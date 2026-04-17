@@ -1,9 +1,5 @@
 import { adminDb } from '@/src/lib/firebase-admin';
-import {
-  buildProjectsSummaryMessage,
-  resolveTemplate,
-  sendTelegramMessage,
-} from '@/src/lib/telegram-messages';
+import { buildProjectsSummaryMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
 import type { Project, PaymentInfo } from '@/src/types';
 
 export const dynamic = 'force-dynamic';
@@ -28,8 +24,7 @@ export async function POST() {
       );
     }
 
-    const tpl = resolveTemplate(payment ?? ({} as PaymentInfo));
-    const text = buildProjectsSummaryMessage(projects, tpl);
+    const text = buildProjectsSummaryMessage(projects);
     const result = await sendTelegramMessage(
       token,
       chatId,
