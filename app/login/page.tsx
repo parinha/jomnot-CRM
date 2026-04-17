@@ -34,7 +34,7 @@ function LoginForm() {
     }
   }
 
-  if (loading) {
+  if (loading || user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900">
         <div className="w-6 h-6 rounded-full border-2 border-[#FFC206] border-t-transparent animate-spin" />
