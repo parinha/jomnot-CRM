@@ -1,34 +1,35 @@
 'use client';
 
-import { useState, useTransition } from 'react';
-import { sendProjectsTelegram } from '../actions/telegramActions';
+import { useState } from 'react';
+import { useSendProjectsTelegram } from '@/src/hooks/useTelegram';
 
 export default function TelegramProjectsButton() {
-  const [isPending, startTransition] = useTransition();
+  const { sendAll } = useSendProjectsTelegram();
+  const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<'idle' | 'ok' | 'err'>('idle');
 
-  function handleSend() {
-    startTransition(async () => {
-      setStatus('idle');
-      const result = await sendProjectsTelegram();
-      if (result.ok) {
-        setStatus('ok');
-        setTimeout(() => setStatus('idle'), 3000);
-      } else {
-        alert(result.error ?? 'Failed to send.');
-        setStatus('err');
-      }
-    });
+  async function handleSend() {
+    setLoading(true);
+    setStatus('idle');
+    const result = await sendAll();
+    setLoading(false);
+    if (result.ok) {
+      setStatus('ok');
+      setTimeout(() => setStatus('idle'), 3000);
+    } else {
+      alert(result.error ?? 'Failed to send.');
+      setStatus('err');
+    }
   }
 
   return (
     <button
       onClick={handleSend}
-      disabled={isPending}
+      disabled={loading}
       title="Send project status to Telegram"
       className="flex items-center justify-center w-10 h-10 rounded-xl text-sky-400/70 hover:text-sky-300 hover:bg-sky-500/15 active:bg-sky-500/25 disabled:opacity-40 disabled:cursor-not-allowed transition"
     >
-      {isPending ? (
+      {loading ? (
         <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
           <circle
             className="opacity-25"

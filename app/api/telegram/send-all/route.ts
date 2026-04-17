@@ -1,4 +1,3 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/src/lib/firebase-admin';
 import {
   buildProjectsSummaryMessage,
@@ -7,18 +6,9 @@ import {
 } from '@/src/lib/telegram-messages';
 import type { Project, PaymentInfo } from '@/src/types';
 
-export async function GET(req: NextRequest) {
-  const cronSecret = process.env.CRON_SECRET;
-  const authHeader = req.headers.get('authorization');
-  const querySecret = req.nextUrl.searchParams.get('secret');
+export const dynamic = 'force-dynamic';
 
-  const authorized =
-    cronSecret && (authHeader === `Bearer ${cronSecret}` || querySecret === cronSecret);
-
-  if (!authorized) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+export async function POST() {
   try {
     const [projectsSnap, paymentSnap] = await Promise.all([
       adminDb.collection('projects').get(),
@@ -32,8 +22,8 @@ export async function GET(req: NextRequest) {
     const chatId = payment?.projectTelegramChatId?.trim();
 
     if (!token || !chatId) {
-      return NextResponse.json(
-        { error: 'Telegram credentials not configured in settings' },
+      return Response.json(
+        { ok: false, error: 'Add your Telegram Bot Token and Project Chat ID in Settings first.' },
         { status: 400 }
       );
     }
@@ -47,10 +37,10 @@ export async function GET(req: NextRequest) {
       payment?.projectTelegramTopicId?.trim()
     );
 
-    if (!result.ok) return NextResponse.json({ error: result.error }, { status: 502 });
-    return NextResponse.json({ ok: true });
+    if (!result.ok) return Response.json({ ok: false, error: result.error }, { status: 502 });
+    return Response.json({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return Response.json({ ok: false, error: message }, { status: 500 });
   }
 }

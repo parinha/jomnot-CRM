@@ -2,6 +2,10 @@
 
 import { useState, useMemo } from 'react';
 import type { Invoice, InvoiceStatus, Client, Project } from '@/src/types';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useClients } from '@/src/hooks/useClients';
+import { useProjects } from '@/src/hooks/useProjects';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtUSD as fmt, fmtShort } from '@/src/lib/formatters';
 import {
@@ -12,12 +16,6 @@ import {
   calcNet,
   WHT_RATE,
 } from '@/src/features/invoices/lib/calculations';
-
-interface Props {
-  invoices: Invoice[];
-  clients: Client[];
-  projects: Project[];
-}
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
@@ -114,7 +112,11 @@ const QUICK_RANGES = [
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export default function ReportsView({ invoices, clients, projects }: Props) {
+export default function ReportsView() {
+  const { data: invoices, isLoading } = useInvoices();
+  const { data: clients } = useClients();
+  const { data: projects } = useProjects();
+
   const [[startDate, endDate], setRange] = useState<[string, string]>(() => thisMonthRange());
   const [clientFilter, setClientFilter] = useState('all');
 
@@ -235,6 +237,8 @@ export default function ReportsView({ invoices, clients, projects }: Props) {
         }),
     [filteredProjects, clients, invoices]
   );
+
+  if (isLoading) return <TablePageSkeleton rows={6} />;
 
   const projectStatusCounts = (['unconfirmed', 'confirmed', 'on-hold', 'completed'] as const).map(
     (s) => ({

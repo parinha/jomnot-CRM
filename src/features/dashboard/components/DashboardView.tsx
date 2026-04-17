@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import type { Client, Invoice, Project } from '@/src/types';
 import {
   calcSubtotal,
   calcEarned,
@@ -10,6 +9,10 @@ import {
 } from '@/src/features/invoices/lib/calculations';
 import { fmtUSD, fmtShort, fmtDate } from '@/src/lib/formatters';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useProjects } from '@/src/hooks/useProjects';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 
 function localDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -69,13 +72,12 @@ function StatCard({
   return href ? <Link href={href}>{inner}</Link> : inner;
 }
 
-interface Props {
-  clients: Client[];
-  invoices: Invoice[];
-  projects: Project[];
-}
+export default function DashboardView() {
+  const { data: clients, isLoading } = useClients();
+  const { data: invoices } = useInvoices();
+  const { data: projects } = useProjects();
 
-export default function DashboardView({ clients, invoices, projects }: Props) {
+  if (isLoading) return <TablePageSkeleton rows={6} />;
   const som = startOfMonth();
   const eom = endOfMonth();
 

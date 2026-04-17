@@ -10,10 +10,15 @@ import {
   type InvoiceStatus,
   type Client,
   type Project,
-  type ProjectItemStatus,
   type CompanyProfile,
   type PaymentInfo,
+  type ProjectItemStatus,
 } from '@/src/types';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useProjects } from '@/src/hooks/useProjects';
+import { useCompanyProfile, usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { calcSubtotal, WHT_RATE } from '@/src/features/invoices/lib/calculations';
 import { fmtUSD, fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
@@ -25,8 +30,8 @@ import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
 import ProjectDetailModal from '@/src/features/projects/components/ProjectDetailModal';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
-import { upsertInvoice, deleteInvoice } from '@/src/features/invoices/actions/invoiceActions';
-import { upsertProject } from '@/src/features/projects/actions/projectActions';
+import { useInvoiceMutations } from '@/src/hooks/useInvoices';
+import { useProjectMutations } from '@/src/hooks/useProjects';
 
 const fmt = fmtUSD;
 
@@ -55,23 +60,17 @@ type FormState = Omit<Invoice, 'id'>;
 const inputCls =
   'h-11 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
-interface Props {
-  clients: Client[];
-  invoices: Invoice[];
-  projects: Project[];
-  scopeOfWork: string[];
-  companyProfile: CompanyProfile;
-  paymentInfo: PaymentInfo;
-}
-export default function InvoicesView({
-  clients,
-  invoices,
-  projects,
-  scopeOfWork,
-  companyProfile,
-  paymentInfo,
-}: Props) {
+export default function InvoicesView() {
+  const { data: clients, isLoading } = useClients();
+  const { data: invoices } = useInvoices();
+  const { data: projects } = useProjects();
+  const { data: scopeOfWork } = useScopeOfWork();
+  const { data: companyProfile } = useCompanyProfile();
+  const { data: paymentInfo } = usePaymentInfo();
+
   const [isPending, startTransition] = useTransition();
+  const { upsert: upsertInvoice, remove: deleteInvoice } = useInvoiceMutations();
+  const { upsert: upsertProject } = useProjectMutations();
   const searchParams = useSearchParams();
   const router = useRouter();
   const didAutoOpen = useRef(false);
@@ -111,8 +110,8 @@ export default function InvoicesView({
         createElement(Sheet, {
           invoice: inv,
           client,
-          company: companyProfile,
-          payment: paymentInfo,
+          company: companyProfile ?? ({} as CompanyProfile),
+          payment: paymentInfo ?? ({} as PaymentInfo),
           subtotal,
           whtAmount,
           netTotal,
@@ -138,8 +137,8 @@ export default function InvoicesView({
   }
 
   async function sendToTelegram(inv: Invoice) {
-    const token = paymentInfo.telegramBotToken?.trim();
-    const chatId = paymentInfo.telegramChatId?.trim();
+    const token = paymentInfo?.telegramBotToken?.trim();
+    const chatId = paymentInfo?.telegramChatId?.trim();
     if (!token || !chatId) {
       alert('Add your Telegram Bot Token and Chat ID in Settings first.');
       return;
@@ -163,7 +162,7 @@ export default function InvoicesView({
         ].join('\n')
       );
       formData.append('parse_mode', 'Markdown');
-      if (paymentInfo.telegramTopicId?.trim()) {
+      if (paymentInfo?.telegramTopicId?.trim()) {
         formData.append('message_thread_id', paymentInfo.telegramTopicId.trim());
       }
 
@@ -482,6 +481,9 @@ export default function InvoicesView({
 
   const [prevSearch, setPrevSearch] = useState(search);
   const [prevStatusFilter, setPrevStatusFilter] = useState(statusFilter);
+
+  if (isLoading) return <TablePageSkeleton />;
+
   if (prevSearch !== search || prevStatusFilter !== statusFilter) {
     setPrevSearch(search);
     setPrevStatusFilter(statusFilter);
@@ -1939,13 +1941,7 @@ export default function InvoicesView({
 
       {/* ── View project detail ─────────────────────────────────────────────────── */}
       {viewProjectId && (
-        <ProjectDetailModal
-          projectId={viewProjectId}
-          onClose={() => setViewProjectId(null)}
-          projects={projects}
-          clients={clients}
-          invoices={invoices}
-        />
+        <ProjectDetailModal projectId={viewProjectId} onClose={() => setViewProjectId(null)} />
       )}
     </>
   );

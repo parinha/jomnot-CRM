@@ -1,40 +1,37 @@
 'use client';
 
 import { useTransition } from 'react';
-import type { Project, Client, Invoice } from '@/src/types';
 import {
   ITEM_STATUS_CONFIG,
   ITEM_STATUS_NEXT,
   PROJECT_STATUS_CONFIG,
 } from '@/src/config/statusConfig';
-import { updateProjectItems } from '@/src/features/projects/actions/projectActions';
+import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
 
 interface Props {
   projectId: string;
   onClose: () => void;
-  projects: Project[];
-  clients: Client[];
-  invoices: Invoice[];
 }
 
-export default function ProjectDetailModal({
-  projectId,
-  onClose,
-  projects,
-  clients,
-  invoices,
-}: Props) {
+export default function ProjectDetailModal({ projectId, onClose }: Props) {
   const [isPending, startTransition] = useTransition();
+  const { data: projects } = useProjects();
+  const { data: clients } = useClients();
+  const { data: invoices } = useInvoices();
+  const { updateItems } = useProjectMutations();
+
   const project = projects.find((p) => p.id === projectId);
   const client = project ? clients.find((c) => c.id === project.clientId) : null;
+  const linkedInvs = project
+    ? project.invoiceIds.map((id) => invoices.find((i) => i.id === id)).filter(Boolean)
+    : [];
 
   const doneCount = project ? project.items.filter((it) => it.status === 'done').length : 0;
   const totalItems = project ? project.items.length : 0;
   const pct = totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
   const sc = project ? PROJECT_STATUS_CONFIG[project.status] : null;
-  const linkedInvs = project
-    ? project.invoiceIds.map((id) => invoices.find((i) => i.id === id)).filter(Boolean)
-    : [];
 
   function cycleItem(itemId: string) {
     if (!project) return;
@@ -42,7 +39,7 @@ export default function ProjectDetailModal({
       it.id !== itemId ? it : { ...it, status: ITEM_STATUS_NEXT[it.status] }
     );
     startTransition(async () => {
-      await updateProjectItems(project.id, newItems);
+      await updateItems(project.id, newItems);
     });
   }
 
@@ -93,7 +90,6 @@ export default function ProjectDetailModal({
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
-              {/* Progress bar */}
               {totalItems > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
@@ -111,7 +107,6 @@ export default function ProjectDetailModal({
                 </div>
               )}
 
-              {/* Scope items */}
               {project.items.length === 0 ? (
                 <p className="text-sm text-white/35 text-center py-6">
                   No scope items in this project.

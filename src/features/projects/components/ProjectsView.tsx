@@ -11,6 +11,11 @@ import type {
   Invoice,
   PaymentInfo,
 } from '@/src/types';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useProjects } from '@/src/hooks/useProjects';
+import { usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtDate } from '@/src/lib/formatters';
 
@@ -41,8 +46,8 @@ import SortTh from '@/src/components/SortTh';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
 import ProjectDetailModal from '@/src/features/projects/components/ProjectDetailModal';
-import { upsertProject, deleteProject } from '@/src/features/projects/actions/projectActions';
-import { upsertClient } from '@/src/features/clients/actions/clientActions';
+import { useProjectMutations } from '@/src/hooks/useProjects';
+import { useClientMutations } from '@/src/hooks/useClients';
 
 type ProjectFormState = Omit<Project, 'id' | 'createdAt'>;
 function blankForm(): ProjectFormState {
@@ -180,22 +185,16 @@ const FORM_STATUS_OPTIONS: { value: ProjectStatus; label: string; cls: string }[
   { value: 'completed', label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
 ];
 
-interface Props {
-  clients: Client[];
-  invoices: Invoice[];
-  projects: Project[];
-  scopeOfWork: string[];
-  paymentInfo: PaymentInfo;
-}
+export default function ProjectsView() {
+  const { data: clients, isLoading } = useClients();
+  const { data: invoices } = useInvoices();
+  const { data: projects } = useProjects();
+  const { data: scopeOfWork } = useScopeOfWork();
+  const { data: paymentInfo } = usePaymentInfo();
 
-export default function ProjectsView({
-  clients,
-  invoices,
-  projects,
-  scopeOfWork,
-  paymentInfo,
-}: Props) {
   const [, startTransition] = useTransition();
+  const { upsert: upsertProject, remove: deleteProject } = useProjectMutations();
+  const { upsert: upsertClient } = useClientMutations();
 
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
@@ -240,9 +239,11 @@ export default function ProjectsView({
   // ── Telegram ────────────────────────────────────────────────────────────────
   const [sendingTelegram, setSendingTelegram] = useState<string | null>(null);
 
+  if (isLoading) return <TablePageSkeleton />;
+
   async function sendProjectToTelegram(project: Project) {
-    const token = paymentInfo.telegramBotToken?.trim();
-    const chatId = paymentInfo.projectTelegramChatId?.trim();
+    const token = paymentInfo?.telegramBotToken?.trim();
+    const chatId = paymentInfo?.projectTelegramChatId?.trim();
     if (!token || !chatId) {
       alert('Add your Telegram Bot Token and Project Chat ID in Settings first.');
       return;
@@ -300,7 +301,7 @@ export default function ProjectsView({
       formData.append('chat_id', chatId);
       formData.append('text', text);
       formData.append('parse_mode', 'Markdown');
-      if (paymentInfo.projectTelegramTopicId?.trim()) {
+      if (paymentInfo?.projectTelegramTopicId?.trim()) {
         formData.append('message_thread_id', paymentInfo.projectTelegramTopicId.trim());
       }
 
@@ -1602,15 +1603,7 @@ export default function ProjectsView({
       )}
 
       {/* Detail modal */}
-      {detailId && (
-        <ProjectDetailModal
-          projectId={detailId}
-          onClose={() => setDetailId(null)}
-          projects={projects}
-          clients={clients}
-          invoices={invoices}
-        />
-      )}
+      {detailId && <ProjectDetailModal projectId={detailId} onClose={() => setDetailId(null)} />}
 
       {/* Add / Edit modal */}
       {modalOpen && (

@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { Client, Invoice, Project } from '@/src/types';
+import type { Client } from '@/src/types';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useProjects } from '@/src/hooks/useProjects';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import {
   calcEarned,
   calcNet,
@@ -18,7 +22,7 @@ import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
 import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
-import { upsertClient, deleteClient } from '@/src/features/clients/actions/clientActions';
+import { useClientMutations } from '@/src/hooks/useClients';
 
 const fmt = fmtUSD;
 const EMPTY_FORM: Omit<Client, 'id'> = {
@@ -51,14 +55,13 @@ function phoneToFull(local: string): string {
   return local.trim() ? `+855 ${local}` : '';
 }
 
-interface Props {
-  clients: Client[];
-  invoices: Invoice[];
-  projects: Project[];
-}
+export default function ClientsView() {
+  const { data: clients, isLoading } = useClients();
+  const { data: invoices } = useInvoices();
+  const { data: projects } = useProjects();
 
-export default function ClientsView({ clients, invoices, projects }: Props) {
   const [, startTransition] = useTransition();
+  const { upsert, remove } = useClientMutations();
 
   const [search, setSearch] = useState('');
 
@@ -188,19 +191,21 @@ export default function ClientsView({ clients, invoices, projects }: Props) {
     const client: Client = editingClient ? { ...editingClient, ...form } : { id: uid(), ...form };
     closeModal();
     startTransition(async () => {
-      await upsertClient(client);
+      await upsert(client);
     });
   }
   function handleDelete(id: string) {
     setDeleteId(null);
     startTransition(async () => {
-      await deleteClient(id);
+      await remove(id);
     });
   }
 
   const [previewInvId, setPreviewInvId] = useState<string | null>(null);
   const [invoicesClientId, setInvoicesClientId] = useState<string | null>(null);
   const [projectsClientId, setProjectsClientId] = useState<string | null>(null);
+
+  if (isLoading) return <TablePageSkeleton />;
 
   return (
     <>

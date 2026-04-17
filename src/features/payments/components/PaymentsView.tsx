@@ -2,7 +2,10 @@
 
 import { useState, useTransition } from 'react';
 import type { Invoice, Client, InvoiceStatus } from '@/src/types';
-import { updateInvoiceStatus } from '@/src/features/invoices/actions/invoiceActions';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useClients } from '@/src/hooks/useClients';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
+import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 import {
   calcSubtotal,
   calcNet,
@@ -16,11 +19,6 @@ import ModalShell from '@/src/components/ModalShell';
 import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
 
 const fmt = fmtUSD;
-
-interface Props {
-  invoices: Invoice[];
-  clients: Client[];
-}
 
 // ── Payment action buttons ────────────────────────────────────────────────────
 
@@ -193,14 +191,20 @@ function Section({
 
 // ── Main ──────────────────────────────────────────────────────────────────────
 
-export default function PaymentsView({ invoices, clients }: Props) {
+export default function PaymentsView() {
+  const { data: invoices, isLoading } = useInvoices();
+  const { data: clients } = useClients();
+
   const [isPending, startTransition] = useTransition();
+  const { updateStatus } = useInvoiceMutations();
   const [statusChange, setStatusChange] = useState<{
     id: string;
     from: InvoiceStatus;
     to: InvoiceStatus;
   } | null>(null);
   const [previewInvId, setPreviewInvId] = useState<string | null>(null);
+
+  if (isLoading) return <TablePageSkeleton />;
 
   function handleAction(id: string, from: InvoiceStatus, to: InvoiceStatus) {
     setStatusChange({ id, from, to });
@@ -209,7 +213,7 @@ export default function PaymentsView({ invoices, clients }: Props) {
   function confirmChange() {
     if (!statusChange) return;
     startTransition(async () => {
-      await updateInvoiceStatus(statusChange.id, statusChange.to);
+      await updateStatus(statusChange.id, statusChange.to);
       setStatusChange(null);
     });
   }

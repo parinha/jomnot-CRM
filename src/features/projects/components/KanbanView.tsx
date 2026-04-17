@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { Project, ProjectPhases, Client } from '@/src/types';
+import type { Project, ProjectPhases } from '@/src/types';
 import { fmtDate } from '@/src/lib/formatters';
-import { upsertProject } from '@/src/features/projects/actions/projectActions';
-
-interface Props {
-  projects: Project[];
-  clients: Client[];
-}
+import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
+import { useClients } from '@/src/hooks/useClients';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 
 const PHASE_ORDER: (keyof ProjectPhases)[] = [
   'filming',
@@ -127,10 +124,16 @@ function sortCards(cards: Project[], today: string): Project[] {
   });
 }
 
-export default function KanbanView({ projects, clients }: Props) {
+export default function KanbanView() {
+  const { data: projects, isLoading } = useProjects();
+  const { data: clients } = useClients();
+
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { upsert } = useProjectMutations();
+
+  if (isLoading) return <TablePageSkeleton rows={6} />;
 
   const today = localToday();
 
@@ -153,7 +156,7 @@ export default function KanbanView({ projects, clients }: Props) {
           : p.completedAt,
     };
     startTransition(async () => {
-      await upsertProject(updated);
+      await upsert(updated);
     });
   }
 
@@ -165,7 +168,7 @@ export default function KanbanView({ projects, clients }: Props) {
       completedAt: localToday(),
     };
     startTransition(async () => {
-      await upsertProject(updated);
+      await upsert(updated);
     });
   }
 

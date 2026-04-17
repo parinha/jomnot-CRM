@@ -6,23 +6,22 @@ import { useRouter, usePathname } from 'next/navigation';
 import SidebarHeader from './SidebarHeader';
 import TelegramProjectsButton from './TelegramProjectsButton';
 import QuickPayModal from '@/src/features/payments/components/QuickPayModal';
-import type { Client, Invoice, CompanyProfile, InvoiceStatus } from '@/src/types';
+import type { CompanyProfile, InvoiceStatus } from '@/src/types';
 import { useAuth } from '@/src/features/auth/components/AuthProvider';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtUSD } from '@/src/lib/formatters';
 import { calcInvoiceTotal } from '@/src/features/invoices/lib/calculations';
+import { useClients } from '@/src/hooks/useClients';
+import { useInvoices } from '@/src/hooks/useInvoices';
+import { useCompanyProfile } from '@/src/hooks/useSettings';
 
 type SidebarSize = 'full' | 'compact' | 'hidden';
 const SIDEBAR_SIZES: SidebarSize[] = ['full', 'compact', 'hidden'];
 
-interface Props {
-  clients: Client[];
-  invoices: Invoice[];
-  companyProfile: CompanyProfile;
-  children: React.ReactNode;
-}
-
-export default function DashboardShell({ clients, invoices, companyProfile, children }: Props) {
+export default function DashboardShell({ children }: { children: React.ReactNode }) {
+  const { data: clients } = useClients();
+  const { data: invoices } = useInvoices();
+  const { data: companyProfile } = useCompanyProfile();
   const { signOut } = useAuth();
   const [quickPay, setQuickPay] = useState(false);
   const [sidebarSize, setSidebarSize] = useState<SidebarSize>(() => {
@@ -185,9 +184,13 @@ export default function DashboardShell({ clients, invoices, companyProfile, chil
       >
         {/* Sidebar header */}
         {compact ? (
-          <CompactSidebarHeader profile={companyProfile} />
+          <CompactSidebarHeader
+            profile={companyProfile ?? { name: '', logo: '', address: '', phone: '', website: '' }}
+          />
         ) : (
-          <SidebarHeader profile={companyProfile} />
+          <SidebarHeader
+            profile={companyProfile ?? { name: '', logo: '', address: '', phone: '', website: '' }}
+          />
         )}
 
         <nav

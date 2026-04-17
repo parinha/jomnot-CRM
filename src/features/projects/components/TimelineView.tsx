@@ -2,12 +2,10 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import type { Project, ProjectStatus } from '@/src/types';
+import type { ProjectStatus } from '@/src/types';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-
-interface Props {
-  projects: Project[];
-}
+import { useProjects } from '@/src/hooks/useProjects';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 const DAY_W_MAP = { day: 48, week: 18, month: 7 } as const;
@@ -617,7 +615,9 @@ function Toggle({
 }
 
 // ── Main view ──────────────────────────────────────────────────────────────────
-export default function TimelineView({ projects }: Props) {
+export default function TimelineView() {
+  const { data: projects, isLoading } = useProjects();
+
   const today = useMemo(() => midnight(new Date()), []);
 
   const [mode, setMode] = useState<ViewMode>('week');
@@ -683,6 +683,8 @@ export default function TimelineView({ projects }: Props) {
   useEffect(() => {
     setTimeout(scrollToToday, 0);
   }, [mode, customStart, customEnd, scrollToToday]);
+
+  if (isLoading) return <TablePageSkeleton rows={6} />;
 
   const isEmpty = events.length === 0;
 

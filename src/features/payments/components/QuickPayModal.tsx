@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import type { Invoice, Client, InvoiceStatus } from '@/src/types';
-import { updateInvoiceStatus } from '@/src/features/invoices/actions/invoiceActions';
+import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 import { calcSubtotal, calcBalance, calcEarned } from '@/src/features/invoices/lib/calculations';
 import { fmtUSD } from '@/src/lib/formatters';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
@@ -54,6 +54,7 @@ export default function QuickPayModal({ onClose, invoices, clients }: Props) {
     to: InvoiceStatus;
   } | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { updateStatus } = useInvoiceMutations();
 
   const q = query.trim().toLowerCase();
 
@@ -74,7 +75,7 @@ export default function QuickPayModal({ onClose, invoices, clients }: Props) {
     if (!confirm) return;
     const { id, to } = confirm;
     startTransition(async () => {
-      await updateInvoiceStatus(id, to);
+      await updateStatus(id, to);
       setConfirm(null);
     });
   }

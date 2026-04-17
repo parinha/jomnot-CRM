@@ -2,27 +2,63 @@
 
 import { useState, useRef, useTransition } from 'react';
 import type { CompanyProfile, PaymentInfo } from '@/src/types';
+import { useCompanyProfile, usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
+import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import {
   DEFAULT_TELEGRAM_TEMPLATE,
   type TelegramTemplate,
   type TelegramSectionConfig,
 } from '@/src/config/constants';
-import {
-  saveCompanyProfile,
-  savePaymentInfo,
-  saveScopeOfWork,
-} from '@/src/features/settings/actions/settingsActions';
+import { useSettingsMutations } from '@/src/hooks/useSettings';
 
-interface Props {
+const EMPTY_PROFILE: CompanyProfile = {
+  name: '',
+  logo: '',
+  address: '',
+  phone: '',
+  website: '',
+  signatoryName: '',
+  signatorySignature: '',
+};
+const EMPTY_PAYMENT: PaymentInfo = {
+  bankName: '',
+  accountName: '',
+  accountNumber: '',
+  swiftCode: '',
+  currency: '',
+  qrImage: '',
+};
+
+export default function SettingsView() {
+  const { data: companyProfile, isLoading } = useCompanyProfile();
+  const { data: paymentInfo } = usePaymentInfo();
+  const { data: scopeOfWork } = useScopeOfWork();
+
+  if (isLoading) return <TablePageSkeleton rows={8} />;
+
+  return (
+    <SettingsForm
+      companyProfile={companyProfile ?? EMPTY_PROFILE}
+      paymentInfo={paymentInfo ?? EMPTY_PAYMENT}
+      scopeOfWork={scopeOfWork ?? []}
+    />
+  );
+}
+
+function SettingsForm({
+  companyProfile,
+  paymentInfo,
+  scopeOfWork,
+}: {
   companyProfile: CompanyProfile;
   paymentInfo: PaymentInfo;
   scopeOfWork: string[];
-}
-
-export default function SettingsView({ companyProfile, paymentInfo, scopeOfWork }: Props) {
+}) {
   const [isPending, startTransition] = useTransition();
+  const { saveCompanyProfile, savePaymentInfo, saveScopeOfWork } = useSettingsMutations();
   const [profile, setProfileLocal] = useState<CompanyProfile>(companyProfile);
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
+
   const [savedProfile, setSavedProfile] = useState(false);
   const [savedPayment, setSavedPayment] = useState(false);
   const [savedTelegram, setSavedTelegram] = useState(false);
