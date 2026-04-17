@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef, useTransition, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type {
   Project,
   ProjectItem,
@@ -216,6 +217,162 @@ export default function ProjectsView() {
   const [holdUnconfPage, setHoldUnconfPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
   const [unsetPage, setUnsetPage] = useState(1);
+  const [progressPopover, setProgressPopover] = useState<string | null>(null);
+  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const progressPopoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!progressPopover) return;
+    function handleClick(e: MouseEvent) {
+      const target = e.target as Element;
+      if (progressPopoverRef.current?.contains(target)) return;
+      if (target.closest('[data-progress-trigger]')) return;
+      setProgressPopover(null);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [progressPopover]);
+
+  function openPopover(e: React.MouseEvent, projectId: string) {
+    if (progressPopover === projectId) {
+      setProgressPopover(null);
+      return;
+    }
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPopoverPos({ top: rect.bottom + 6, left: rect.left });
+    setProgressPopover(projectId);
+  }
+
+  function togglePhaseInline(project: Project, key: keyof ProjectPhases) {
+    const updated: Project = {
+      ...project,
+      phases: { ...DEFAULT_PHASES, ...project.phases, [key]: !(project.phases?.[key] ?? false) },
+    };
+    startTransition(async () => {
+      await upsertProject(updated);
+    });
+  }
+
+  function toggleItemInline(project: Project, itemId: string) {
+    const updated: Project = {
+      ...project,
+      items: project.items.map((it) =>
+        it.id === itemId ? { ...it, status: it.status === 'done' ? 'todo' : 'done' } : it
+      ),
+    };
+    startTransition(async () => {
+      await upsertProject(updated);
+    });
+  }
+
+  function renderProgressPopover(proj: Project) {
+    if (progressPopover !== proj.id) return null;
+    const delivs = proj.items ?? [];
+    return createPortal(
+      <div
+        ref={progressPopoverRef}
+        style={{ top: popoverPos.top, left: popoverPos.left }}
+        className="fixed z-[9999] w-56 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl p-3 flex flex-col gap-3"
+      >
+        <button
+          onClick={() => setProgressPopover(null)}
+          className="absolute top-2 right-2 text-white/30 hover:text-white/70 transition"
+          aria-label="Close"
+        >
+          <svg
+            className="w-3.5 h-3.5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1.5">
+            Phases
+          </p>
+          <div className="flex flex-col gap-1">
+            {PHASES.map((ph) => {
+              const checked = proj.phases?.[ph.key] ?? false;
+              return (
+                <button
+                  key={ph.key}
+                  type="button"
+                  onClick={() => togglePhaseInline(proj, ph.key)}
+                  className="flex items-center gap-2 text-left w-full group/item"
+                >
+                  <span
+                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 group-hover/item:border-white/40'}`}
+                  >
+                    {checked && (
+                      <svg
+                        className="w-2.5 h-2.5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </span>
+                  <span
+                    className={`text-xs transition ${checked ? 'line-through text-white/30' : 'text-white/70 group-hover/item:text-white/90'}`}
+                  >
+                    {ph.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {delivs.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1.5">
+              Deliverables
+            </p>
+            <div className="flex flex-col gap-1">
+              {delivs.map((item) => {
+                const itemDone = item.status === 'done';
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => toggleItemInline(proj, item.id)}
+                    className="flex items-center gap-2 text-left w-full group/item"
+                  >
+                    <span
+                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${itemDone ? 'bg-violet-500 border-violet-500' : 'border-white/20 group-hover/item:border-white/40'}`}
+                    >
+                      {itemDone && (
+                        <svg
+                          className="w-2.5 h-2.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                    <span
+                      className={`text-xs transition leading-tight ${itemDone ? 'line-through text-white/30' : 'text-white/70 group-hover/item:text-white/90'}`}
+                    >
+                      {item.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>,
+      document.body
+    );
+  }
 
   function handleSort(col: string) {
     if (col === sortCol) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -905,9 +1062,18 @@ export default function ProjectsView() {
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
 
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
+          <div
+            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${upcomingPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
+          >
             {/* Fixed-height body: 5 rows × 44px */}
-            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+            <div
+              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
+              className={
+                upcomingPaged.some((p) => progressPopover === p.id)
+                  ? 'overflow-visible'
+                  : 'overflow-hidden'
+              }
+            >
               {upcomingList.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-sm text-white/30">
@@ -926,20 +1092,24 @@ export default function ProjectsView() {
                       <div
                         key={project.id}
                         style={{ height: SIDE_ROW_H }}
-                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
                       >
-                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                        <div
+                          className="relative flex-1 min-w-0 flex flex-col justify-center gap-0.5"
+                          data-progress-trigger
+                        >
                           <span
                             className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
                           >
                             {sc.label}
                           </span>
                           <button
-                            onClick={() => setDetailId(project.id)}
+                            onClick={(e) => openPopover(e, project.id)}
                             className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                           >
                             {project.name}
                           </button>
+                          {renderProgressPopover(project)}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
@@ -1017,8 +1187,17 @@ export default function ProjectsView() {
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
 
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
-            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+          <div
+            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${holdUnconfPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
+          >
+            <div
+              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
+              className={
+                holdUnconfPaged.some((p) => progressPopover === p.id)
+                  ? 'overflow-visible'
+                  : 'overflow-hidden'
+              }
+            >
               {holdUnconfCombined.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-sm text-white/30">
@@ -1037,20 +1216,24 @@ export default function ProjectsView() {
                       <div
                         key={project.id}
                         style={{ height: SIDE_ROW_H }}
-                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
                       >
-                        <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                        <div
+                          className="relative flex-1 min-w-0 flex flex-col justify-center gap-0.5"
+                          data-progress-trigger
+                        >
                           <span
                             className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
                           >
                             {sc.label}
                           </span>
                           <button
-                            onClick={() => setDetailId(project.id)}
+                            onClick={(e) => openPopover(e, project.id)}
                             className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                           >
                             {project.name}
                           </button>
+                          {renderProgressPopover(project)}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {project.deliverDate && (
@@ -1142,8 +1325,17 @@ export default function ProjectsView() {
             ))}
           </div>
 
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden flex-1">
-            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+          <div
+            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${completedPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
+          >
+            <div
+              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
+              className={
+                completedPaged.some((p) => progressPopover === p.id)
+                  ? 'overflow-visible'
+                  : 'overflow-hidden'
+              }
+            >
               {completedList.length === 0 ? (
                 <div className="flex items-center justify-center h-full">
                   <p className="text-sm text-white/30">
@@ -1163,14 +1355,14 @@ export default function ProjectsView() {
                       <div
                         key={project.id}
                         style={{ height: SIDE_ROW_H }}
-                        className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
                       >
                         <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
                           Done
                         </span>
-                        <div className="flex-1 min-w-0">
+                        <div className="relative flex-1 min-w-0" data-progress-trigger>
                           <button
-                            onClick={() => setDetailId(project.id)}
+                            onClick={(e) => openPopover(e, project.id)}
                             className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                           >
                             {project.name}
@@ -1178,6 +1370,7 @@ export default function ProjectsView() {
                           {client && (
                             <p className="text-xs text-white/40 truncate">{client.name}</p>
                           )}
+                          {renderProgressPopover(project)}
                         </div>
                         <div className="shrink-0 flex items-center gap-2">
                           {completedDate && (
@@ -1247,8 +1440,17 @@ export default function ProjectsView() {
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
 
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-orange-500/20 rounded-2xl overflow-hidden">
-            <div style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }} className="overflow-hidden">
+          <div
+            className={`bg-white/[0.05] backdrop-blur-xl border border-orange-500/20 rounded-2xl ${unsetPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
+          >
+            <div
+              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
+              className={
+                unsetPaged.some((p) => progressPopover === p.id)
+                  ? 'overflow-visible'
+                  : 'overflow-hidden'
+              }
+            >
               <>
                 {unsetPaged.map((project) => {
                   const client = clients.find((c) => c.id === project.clientId);
@@ -1257,21 +1459,22 @@ export default function ProjectsView() {
                     <div
                       key={project.id}
                       style={{ height: SIDE_ROW_H }}
-                      className="flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition overflow-hidden"
+                      className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
                     >
                       <span
                         className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
                       >
                         {sc.label}
                       </span>
-                      <div className="flex-1 min-w-0">
+                      <div className="relative flex-1 min-w-0" data-progress-trigger>
                         <button
-                          onClick={() => setDetailId(project.id)}
+                          onClick={(e) => openPopover(e, project.id)}
                           className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
                         >
                           {project.name}
                         </button>
                         {client && <p className="text-xs text-white/40 truncate">{client.name}</p>}
+                        {renderProgressPopover(project)}
                       </div>
                       <button
                         onClick={() => openEdit(project)}
@@ -1380,8 +1583,16 @@ export default function ProjectsView() {
                   >
                     Project
                   </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Phases</th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Timeline</th>
+                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Progress</th>
+                  <SortTh
+                    col="timeline"
+                    active={sortCol}
+                    dir={sortDir}
+                    onSort={handleSort}
+                    className="text-left px-4 py-3.5"
+                  >
+                    Timeline
+                  </SortTh>
                   <th className="px-4 py-3.5" />
                 </tr>
               </thead>
@@ -1389,14 +1600,17 @@ export default function ProjectsView() {
                 {activePaged.map((project, i) => {
                   const done = phasesDone(project.phases);
                   const tl = getTimelineBar(project.deliverDate);
-                  const phaseCls =
+                  const phasePillCls =
                     done === 0
-                      ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30 hover:text-zinc-300'
+                      ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30'
                       : done < 3
-                        ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 hover:text-sky-200'
+                        ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30'
                         : done < 5
-                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 hover:text-amber-200'
-                          : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 hover:text-emerald-200';
+                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
+                          : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30';
+                  const delivItems = project.items ?? [];
+                  const delivDone = delivItems.filter((it) => it.status === 'done').length;
+                  const isPopoverOpen = progressPopover === project.id;
                   return (
                     <tr
                       key={project.id}
@@ -1409,11 +1623,14 @@ export default function ProjectsView() {
                       }`}
                     >
                       <td className="px-4 py-3.5 min-w-[200px]">
-                        <div className="flex items-center gap-2 group">
+                        <div
+                          className="relative flex items-center gap-2 group"
+                          data-progress-trigger
+                        >
                           <div>
                             <div className="flex items-center gap-2">
                               <button
-                                onClick={() => setDetailId(project.id)}
+                                onClick={(e) => openPopover(e, project.id)}
                                 className="font-semibold text-base text-white hover:text-[#FFC206] transition text-left"
                               >
                                 {project.name}
@@ -1445,29 +1662,73 @@ export default function ProjectsView() {
                               </span>
                             )}
                           </div>
+                          {renderProgressPopover(project)}
                         </div>
                       </td>
-                      {/* Phases */}
+                      {/* Progress */}
                       <td className="px-4 py-3.5">
-                        <button
-                          onClick={() => setDetailId(project.id)}
-                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition whitespace-nowrap ${phaseCls}`}
-                        >
-                          <svg
-                            className="w-3 h-3 shrink-0"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2.5}
+                        <div className="flex items-center gap-1.5" data-progress-trigger>
+                          <button
+                            onClick={(e) => openPopover(e, project.id)}
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${phasePillCls}`}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                            />
-                          </svg>
-                          {done}/5
-                        </button>
+                            <svg
+                              className="w-3 h-3 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                              />
+                            </svg>
+                            {done}/5
+                          </button>
+                          {delivItems.length > 0 && (
+                            <button
+                              onClick={(e) => openPopover(e, project.id)}
+                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${
+                                delivDone === delivItems.length
+                                  ? 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
+                                  : 'bg-slate-500/20 text-slate-400 hover:bg-slate-500/30'
+                              }`}
+                            >
+                              <svg
+                                className="w-3 h-3 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M20 12V22H4V12"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M22 7H2v5h20V7z"
+                                />
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 22V7" />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"
+                                />
+                              </svg>
+                              {delivDone}/{delivItems.length}
+                            </button>
+                          )}
+                        </div>
                       </td>
 
                       {/* Timeline */}
