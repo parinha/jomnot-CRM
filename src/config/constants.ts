@@ -1,3 +1,14 @@
+// ── Project phases ────────────────────────────────────────────────────────────
+import type { ProjectPhases } from '@/src/types';
+
+export const PHASES: { key: keyof ProjectPhases; label: string }[] = [
+  { key: 'filming', label: 'Filming' },
+  { key: 'roughCut', label: 'Rough Cut' },
+  { key: 'draft', label: 'Draft/VO' },
+  { key: 'master', label: 'Master' },
+  { key: 'delivered', label: 'Done' },
+];
+
 // ── Invoice ───────────────────────────────────────────────────────────────────
 export const PAYMENT_TERMS = ['Due on receipt', 'Net 15', 'Net 30', 'Net 45', 'Net 60'] as const;
 

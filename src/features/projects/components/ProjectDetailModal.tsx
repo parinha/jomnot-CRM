@@ -6,14 +6,7 @@ import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import type { ProjectPhases } from '@/src/types';
-
-const PHASES: { key: keyof ProjectPhases; label: string }[] = [
-  { key: 'filming', label: 'Filming' },
-  { key: 'roughCut', label: 'Rough Cut' },
-  { key: 'draft', label: 'Draft/VO' },
-  { key: 'master', label: 'Master' },
-  { key: 'delivered', label: 'Done' },
-];
+import { PHASES } from '@/src/config/constants';
 
 interface Props {
   projectId: string;

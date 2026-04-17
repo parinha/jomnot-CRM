@@ -18,6 +18,7 @@ import { useProjects } from '@/src/hooks/useProjects';
 import { usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
+import { PHASES } from '@/src/config/constants';
 import { fmtDate } from '@/src/lib/formatters';
 
 // ── Phases config ─────────────────────────────────────────────────────────────

@@ -3,14 +3,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import type { Project, ProjectPhases } from '@/src/types';
-
-const PHASES: { key: keyof ProjectPhases; label: string }[] = [
-  { key: 'filming', label: 'Filming' },
-  { key: 'roughCut', label: 'Rough Cut' },
-  { key: 'draft', label: 'Draft/VO' },
-  { key: 'master', label: 'Master' },
-  { key: 'delivered', label: 'Done' },
-];
+import { PHASES } from '@/src/config/constants';
 
 interface Props {
   project: Project;
