@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useTransition, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useRef, useTransition } from 'react';
+import ProgressPopover from './ProgressPopover';
 import type {
   Project,
   ProjectItem,
@@ -21,13 +21,6 @@ import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtDate } from '@/src/lib/formatters';
 
 // ── Phases config ─────────────────────────────────────────────────────────────
-const PHASES: { key: keyof ProjectPhases; label: string }[] = [
-  { key: 'filming', label: 'Filming' },
-  { key: 'roughCut', label: 'Rough Cut' },
-  { key: 'draft', label: 'Draft/VO' },
-  { key: 'master', label: 'Master' },
-  { key: 'delivered', label: 'Done' },
-];
 const DEFAULT_PHASES: ProjectPhases = {
   filming: false,
   roughCut: false,
@@ -37,7 +30,9 @@ const DEFAULT_PHASES: ProjectPhases = {
 };
 function phasesDone(phases?: ProjectPhases): number {
   if (!phases) return 0;
-  return PHASES.filter((p) => phases[p.key]).length;
+  return (
+    ['filming', 'roughCut', 'draft', 'master', 'delivered'] as (keyof ProjectPhases)[]
+  ).filter((k) => phases[k]).length;
 }
 import { uid } from '@/src/lib/id';
 import { calcNet } from '@/src/features/invoices/lib/calculations';
@@ -218,29 +213,10 @@ export default function ProjectsView() {
   const [completedPage, setCompletedPage] = useState(1);
   const [unsetPage, setUnsetPage] = useState(1);
   const [progressPopover, setProgressPopover] = useState<string | null>(null);
-  const [popoverPos, setPopoverPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
-  const progressPopoverRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!progressPopover) return;
-    function handleClick(e: MouseEvent) {
-      const target = e.target as Element;
-      if (progressPopoverRef.current?.contains(target)) return;
-      if (target.closest('[data-progress-trigger]')) return;
-      setProgressPopover(null);
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [progressPopover]);
 
   function openPopover(e: React.MouseEvent, projectId: string) {
-    if (progressPopover === projectId) {
-      setProgressPopover(null);
-      return;
-    }
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPopoverPos({ top: rect.bottom + 6, left: rect.left });
-    setProgressPopover(projectId);
+    e.stopPropagation();
+    setProgressPopover((prev) => (prev === projectId ? null : projectId));
   }
 
   function togglePhaseInline(project: Project, key: keyof ProjectPhases) {
@@ -265,113 +241,9 @@ export default function ProjectsView() {
     });
   }
 
-  function renderProgressPopover(proj: Project) {
-    if (progressPopover !== proj.id) return null;
-    const delivs = proj.items ?? [];
-    return createPortal(
-      <div
-        ref={progressPopoverRef}
-        style={{ top: popoverPos.top, left: popoverPos.left }}
-        className="fixed z-[9999] w-56 bg-[#1a1a2e] border border-white/10 rounded-xl shadow-2xl p-3 flex flex-col gap-3"
-      >
-        <button
-          onClick={() => setProgressPopover(null)}
-          className="absolute top-2 right-2 text-white/30 hover:text-white/70 transition"
-          aria-label="Close"
-        >
-          <svg
-            className="w-3.5 h-3.5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1.5">
-            Phases
-          </p>
-          <div className="flex flex-col gap-1">
-            {PHASES.map((ph) => {
-              const checked = proj.phases?.[ph.key] ?? false;
-              return (
-                <button
-                  key={ph.key}
-                  type="button"
-                  onClick={() => togglePhaseInline(proj, ph.key)}
-                  className="flex items-center gap-2 text-left w-full group/item"
-                >
-                  <span
-                    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${checked ? 'bg-emerald-500 border-emerald-500' : 'border-white/20 group-hover/item:border-white/40'}`}
-                  >
-                    {checked && (
-                      <svg
-                        className="w-2.5 h-2.5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                    )}
-                  </span>
-                  <span
-                    className={`text-xs transition ${checked ? 'line-through text-white/30' : 'text-white/70 group-hover/item:text-white/90'}`}
-                  >
-                    {ph.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        {delivs.length > 0 && (
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/35 mb-1.5">
-              Deliverables
-            </p>
-            <div className="flex flex-col gap-1">
-              {delivs.map((item) => {
-                const itemDone = item.status === 'done';
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => toggleItemInline(proj, item.id)}
-                    className="flex items-center gap-2 text-left w-full group/item"
-                  >
-                    <span
-                      className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${itemDone ? 'bg-violet-500 border-violet-500' : 'border-white/20 group-hover/item:border-white/40'}`}
-                    >
-                      {itemDone && (
-                        <svg
-                          className="w-2.5 h-2.5 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                    <span
-                      className={`text-xs transition leading-tight ${itemDone ? 'line-through text-white/30' : 'text-white/70 group-hover/item:text-white/90'}`}
-                    >
-                      {item.description}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>,
-      document.body
-    );
+  // Modal is rendered once at the top of the JSX return; these per-row calls are no-ops
+  function renderProgressPopover(_proj: Project) {
+    return null;
   }
 
   function handleSort(col: string) {
@@ -825,8 +697,19 @@ export default function ProjectsView() {
 
   const clientInvoices = form.clientId ? invoices.filter((i) => i.clientId === form.clientId) : [];
 
+  const popoverProject = progressPopover ? projects.find((p) => p.id === progressPopover) : null;
+
   return (
     <>
+      {popoverProject && (
+        <ProgressPopover
+          project={popoverProject}
+          onClose={() => setProgressPopover(null)}
+          onTogglePhase={(key) => togglePhaseInline(popoverProject, key)}
+          onToggleItem={(itemId) => toggleItemInline(popoverProject, itemId)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -909,11 +792,19 @@ export default function ProjectsView() {
         const activeOlderTotal = activeOlderProjects.reduce((s, p) => s + projValue(p), 0);
         const activeAllTotal = activeThisMonthTotal + activeOlderTotal;
 
-        // ── Completed: only projects billed from older months (this month is in Sign-off widget)
+        // ── Completed: same split as Active Projects but with completed status
+        const completedThisMonthProjects = projects.filter(
+          (p) => p.status === 'completed' && p.confirmedMonth === cmYM
+        );
         const completedOlderProjects = projects.filter(
           (p) => p.status === 'completed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
         );
+        const completedThisMonthTotal = completedThisMonthProjects.reduce(
+          (s, p) => s + projValue(p),
+          0
+        );
         const completedOlderTotal = completedOlderProjects.reduce((s, p) => s + projValue(p), 0);
+        const completedAllTotal = completedThisMonthTotal + completedOlderTotal;
 
         return (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
@@ -993,13 +884,22 @@ export default function ProjectsView() {
               <p className="text-xs text-emerald-400/60 uppercase tracking-wide font-semibold mb-1">
                 Completed
               </p>
-              <p className="text-xl font-bold text-emerald-400 amt">
-                {fmtAmt(completedOlderTotal)}
-              </p>
-              <p className="text-xs text-white/40 mt-1">
-                {completedOlderProjects.length} project
-                {completedOlderProjects.length !== 1 ? 's' : ''} · older months
-              </p>
+              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(completedAllTotal)}</p>
+              <div className="mt-1 flex flex-col gap-0.5">
+                <p className="text-xs text-white/40">
+                  {completedThisMonthProjects.length + completedOlderProjects.length} project
+                  {completedThisMonthProjects.length + completedOlderProjects.length !== 1
+                    ? 's'
+                    : ''}{' '}
+                  · this month <span className="amt">{fmtAmt(completedThisMonthTotal)}</span>
+                </p>
+                {completedOlderProjects.length > 0 && (
+                  <p className="text-xs text-white/30">
+                    older {completedOlderProjects.length}{' '}
+                    <span className="amt">{fmtAmt(completedOlderTotal)}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* This Month Pending */}
@@ -1042,7 +942,7 @@ export default function ProjectsView() {
               {upcomingList.length}
             </span>
             {upcomingBudget && (
-              <span className="text-xs text-white/30 font-medium">({upcomingBudget})</span>
+              <span className="text-xs text-white/30 font-medium amt">({upcomingBudget})</span>
             )}
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
@@ -1167,7 +1067,7 @@ export default function ProjectsView() {
               {holdUnconfCombined.length}
             </span>
             {holdUnconfBudget && (
-              <span className="text-xs text-white/30 font-medium">({holdUnconfBudget})</span>
+              <span className="text-xs text-white/30 font-medium amt">({holdUnconfBudget})</span>
             )}
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
@@ -1289,7 +1189,7 @@ export default function ProjectsView() {
               {completedList.length}
             </span>
             {completedBudget && (
-              <span className="text-xs text-white/30 font-medium">({completedBudget})</span>
+              <span className="text-xs text-white/30 font-medium amt">({completedBudget})</span>
             )}
             <div className="flex-1 h-px bg-white/[0.07]" />
           </div>
@@ -1519,7 +1419,7 @@ export default function ProjectsView() {
             {activeThisMonth.length}
           </span>
           {activeThisMonthBudget && (
-            <span className="text-xs text-white/30 font-medium">({activeThisMonthBudget})</span>
+            <span className="text-xs text-white/30 font-medium amt">({activeThisMonthBudget})</span>
           )}
         </div>
         {activeOld.length > 0 && (
@@ -1531,7 +1431,7 @@ export default function ProjectsView() {
                 {activeOld.length}
               </span>
               {activeOldBudget && (
-                <span className="text-xs text-red-400/40 font-medium">({activeOldBudget})</span>
+                <span className="text-xs text-red-400/40 font-medium amt">({activeOldBudget})</span>
               )}
             </div>
           </>

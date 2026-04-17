@@ -144,15 +144,11 @@ export default function KanbanView() {
   const [overCol, setOverCol] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { upsert } = useProjectMutations();
-  const [popover, setPopover] = useState<{
-    project: Project;
-    pos: { top: number; left: number };
-  } | null>(null);
+  const [popover, setPopover] = useState<{ project: Project } | null>(null);
 
   function openPopover(e: React.MouseEvent, project: Project) {
     e.stopPropagation();
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPopover({ project, pos: { top: rect.bottom + 6, left: rect.left } });
+    setPopover({ project });
   }
 
   function togglePhase(key: keyof ProjectPhases) {
@@ -389,7 +385,6 @@ export default function KanbanView() {
       {popover && (
         <ProgressPopover
           project={popover.project}
-          pos={popover.pos}
           onClose={() => setPopover(null)}
           onTogglePhase={togglePhase}
           onToggleItem={toggleItem}

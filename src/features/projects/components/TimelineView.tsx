@@ -633,17 +633,13 @@ export default function TimelineView() {
   const [customStart, setCustomStart] = useState('');
   const [customEnd, setCustomEnd] = useState('');
   const [selected, setSelected] = useState<GanttEvent | null>(null);
-  const [popover, setPopover] = useState<{
-    project: Project;
-    pos: { top: number; left: number };
-  } | null>(null);
+  const [popover, setPopover] = useState<{ project: Project } | null>(null);
 
   function openPopover(e: React.MouseEvent, eventId: string) {
     e.stopPropagation();
     const proj = projects.find((p) => p.id === eventId);
     if (!proj) return;
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPopover({ project: proj, pos: { top: rect.bottom + 6, left: rect.left } });
+    setPopover({ project: proj });
   }
 
   function togglePhase(key: keyof ProjectPhases) {
@@ -1045,7 +1041,6 @@ export default function TimelineView() {
       {popover && (
         <ProgressPopover
           project={popover.project}
-          pos={popover.pos}
           onClose={() => setPopover(null)}
           onTogglePhase={togglePhase}
           onToggleItem={toggleItem}
