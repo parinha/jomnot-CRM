@@ -7,6 +7,7 @@ import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import ProgressPopover from './ProgressPopover';
+import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 const DAY_W_MAP = { day: 48, week: 18, month: 7 } as const;
@@ -184,6 +185,7 @@ function TimeAxis({
   today,
   mode,
   showHolidays,
+  getHolidayFn,
 }: {
   renderStart: Date;
   totalDays: number;
@@ -191,6 +193,7 @@ function TimeAxis({
   today: Date;
   mode: ViewMode;
   showHolidays: boolean;
+  getHolidayFn: (date: Date) => string | null;
 }) {
   const [tooltip, setTooltip] = useState<{ name: string; x: number; day: number } | null>(null);
 
@@ -216,7 +219,7 @@ function TimeAxis({
   if (mode === 'day') {
     for (let i = 0; i < totalDays; i++) {
       const dt = addDays(renderStart, i);
-      const hol = showHolidays ? getHoliday(dt) : null;
+      const hol = showHolidays ? getHolidayFn(dt) : null;
       subMarkers.push({
         label: String(dt.getDate()),
         day: i,
@@ -228,7 +231,7 @@ function TimeAxis({
     for (let i = 0; i < totalDays; i++) {
       const dt = addDays(renderStart, i);
       if (dt.getDay() === 1 || i === 0) {
-        const hol = showHolidays ? getHoliday(dt) : null;
+        const hol = showHolidays ? getHolidayFn(dt) : null;
         subMarkers.push({
           label: `${dt.getDate()} ${MONTHS_SHORT[dt.getMonth()]}`,
           day: i,
@@ -267,7 +270,7 @@ function TimeAxis({
                 showHolidays &&
                 (() => {
                   for (let d = 0; d < g.spanDays; d++) {
-                    if (getHoliday(addDays(renderStart, g.startDay + d))) return true;
+                    if (getHolidayFn(addDays(renderStart, g.startDay + d))) return true;
                   }
                   return false;
                 })();
@@ -364,6 +367,7 @@ function GridLines({
   today,
   mode,
   showHolidays,
+  getHolidayFn,
 }: {
   renderStart: Date;
   totalDays: number;
@@ -371,6 +375,7 @@ function GridLines({
   today: Date;
   mode: ViewMode;
   showHolidays: boolean;
+  getHolidayFn: (date: Date) => string | null;
 }) {
   const todayIdx = diffDays(renderStart, today);
 
@@ -379,7 +384,7 @@ function GridLines({
       {Array.from({ length: totalDays }).map((_, i) => {
         const dt = addDays(renderStart, i);
         const dow = dt.getDay();
-        const hol = showHolidays ? getHoliday(dt) : null;
+        const hol = showHolidays ? getHolidayFn(dt) : null;
         const isWE = mode === 'day' && (dow === 0 || dow === 6);
 
         if (!isWE && !hol) return null;
@@ -623,6 +628,19 @@ export default function TimelineView() {
   const { data: projects, isLoading } = useProjects();
   const { upsert } = useProjectMutations();
   const [, startTransition] = useTransition();
+  const prefs = useAppPreferences();
+
+  const getHolidayFn = useCallback(
+    (date: Date): string | null => {
+      if (prefs.holidays.length > 0) {
+        const iso = toInputDate(date);
+        const found = prefs.holidays.find((h) => h.date === iso);
+        return found?.name ?? null;
+      }
+      return getHoliday(date);
+    },
+    [prefs.holidays]
+  );
 
   const today = useMemo(() => midnight(new Date()), []);
 
@@ -952,6 +970,7 @@ export default function TimelineView() {
                   today={today}
                   mode={mode}
                   showHolidays={showHolidays}
+                  getHolidayFn={getHolidayFn}
                 />
               </div>
             </div>
@@ -983,6 +1002,7 @@ export default function TimelineView() {
                     today={today}
                     mode={mode}
                     showHolidays={showHolidays}
+                    getHolidayFn={getHolidayFn}
                   />
                   <ProjectBar
                     event={event}
@@ -1044,6 +1064,7 @@ export default function TimelineView() {
           onClose={() => setPopover(null)}
           onTogglePhase={togglePhase}
           onToggleItem={toggleItem}
+          phaseLabels={prefs.phaseLabels}
         />
       )}
     </div>

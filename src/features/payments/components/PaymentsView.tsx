@@ -11,14 +11,12 @@ import {
   calcNet,
   calcEarned,
   calcBalance,
-  WHT_RATE,
+  taxConfigFromPrefs,
 } from '@/src/features/invoices/lib/calculations';
-import { fmtUSD } from '@/src/lib/formatters';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import ModalShell from '@/src/components/ModalShell';
 import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
-
-const fmt = fmtUSD;
+import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
 
 // ── Payment action buttons ────────────────────────────────────────────────────
 
@@ -96,14 +94,17 @@ function InvoiceRow({
   onAction: (id: string, from: InvoiceStatus, to: InvoiceStatus) => void;
   onPreview: (id: string) => void;
 }) {
+  const rowPrefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const rowTaxConfig = taxConfigFromPrefs(rowPrefs);
+
   const client = clients.find((c) => c.id === inv.clientId);
   const sub = calcSubtotal(inv);
-  const wht = inv.withWHT ? sub * WHT_RATE : null;
-  const net = calcNet(inv);
+  const net = calcNet(inv, rowTaxConfig);
   const invDeposit = inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
   const invBalance = invDeposit != null ? net - invDeposit : null;
-  const received = calcEarned(inv);
-  const balance = calcBalance(inv);
+  const received = calcEarned(inv, rowTaxConfig);
+  const balance = calcBalance(inv, rowTaxConfig);
   const sc = STATUS_CONFIG[inv.status ?? 'draft'];
 
   return (
@@ -122,10 +123,11 @@ function InvoiceRow({
       </td>
       <td className="px-4 py-3.5 text-right whitespace-nowrap">
         <span className="font-semibold text-white amt">{fmt(sub)}</span>
-        {wht != null && (
+        {net !== sub && (
           <div className="flex flex-col items-end gap-0.5 mt-0.5">
             <span className="text-xs text-orange-400/80">
-              −<span className="amt">{fmt(wht)}</span> WHT
+              −<span className="amt">{fmt(sub - net)}</span>{' '}
+              {rowTaxConfig.enabled ? rowTaxConfig.label : 'tax'}
             </span>
             <span className="text-xs font-medium text-white/70">
               <span className="amt">{fmt(net)}</span> net
@@ -194,6 +196,9 @@ function Section({
 export default function PaymentsView() {
   const { data: invoices, isLoading } = useInvoices();
   const { data: clients } = useClients();
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const taxConfig = taxConfigFromPrefs(prefs);
 
   const [isPending, startTransition] = useTransition();
   const { updateStatus } = useInvoiceMutations();
@@ -223,10 +228,10 @@ export default function PaymentsView() {
   const unpaid = invoices.filter((inv) => inv.status === 'sent' || inv.status === 'overdue');
   const draft = invoices.filter((inv) => inv.status === 'draft');
 
-  const totalReceived = invoices.reduce((s, inv) => s + calcEarned(inv), 0);
-  const awaitingFinalTotal = partial.reduce((s, inv) => s + calcBalance(inv), 0);
-  const depositReceivedTotal = partial.reduce((s, inv) => s + calcEarned(inv), 0);
-  const outstandingTotal = unpaid.reduce((s, inv) => s + calcBalance(inv), 0);
+  const totalReceived = invoices.reduce((s, inv) => s + calcEarned(inv, taxConfig), 0);
+  const awaitingFinalTotal = partial.reduce((s, inv) => s + calcBalance(inv, taxConfig), 0);
+  const depositReceivedTotal = partial.reduce((s, inv) => s + calcEarned(inv, taxConfig), 0);
+  const outstandingTotal = unpaid.reduce((s, inv) => s + calcBalance(inv, taxConfig), 0);
 
   const previewInv = previewInvId ? (invoices.find((i) => i.id === previewInvId) ?? null) : null;
   const previewClient = previewInv

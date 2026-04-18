@@ -1,6 +1,7 @@
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
-import type { CompanyProfile, PaymentInfo } from '@/src/types';
+import type { AppPreferences, CompanyProfile, PaymentInfo } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
 
 const profileFetcher = fetcher as (url: string) => Promise<CompanyProfile>;
@@ -73,5 +74,31 @@ export function useSettingsMutations() {
     await mutate('/api/settings/scopes');
   }
 
-  return { saveCompanyProfile, savePaymentInfo, saveScopeOfWork };
+  async function saveAppPreferences(prefs: AppPreferences): Promise<void> {
+    const res = await fetch('/api/settings/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(prefs),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(body.error ?? 'Failed to save preferences', res.status);
+    }
+    await mutate('/api/settings/preferences');
+  }
+
+  return { saveCompanyProfile, savePaymentInfo, saveScopeOfWork, saveAppPreferences };
+}
+
+export function useAppPreferences() {
+  const { data, error, isLoading, mutate } = useSWR<AppPreferences>(
+    '/api/settings/preferences',
+    fetcher as (url: string) => Promise<AppPreferences>
+  );
+  return {
+    data: data ? { ...DEFAULT_APP_PREFERENCES, ...data } : DEFAULT_APP_PREFERENCES,
+    isLoading,
+    isError: !!error,
+    mutate,
+  };
 }

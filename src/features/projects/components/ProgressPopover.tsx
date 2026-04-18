@@ -10,9 +10,17 @@ interface Props {
   onClose: () => void;
   onTogglePhase: (key: keyof ProjectPhases) => void;
   onToggleItem: (itemId: string) => void;
+  phaseLabels?: [string, string, string, string, string];
 }
 
-export default function ProgressPopover({ project, onClose, onTogglePhase, onToggleItem }: Props) {
+export default function ProgressPopover({
+  project,
+  onClose,
+  onTogglePhase,
+  onToggleItem,
+  phaseLabels,
+}: Props) {
+  const phases = PHASES.map((ph, i) => ({ ...ph, label: phaseLabels?.[i] ?? ph.label }));
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onClose();
@@ -58,7 +66,7 @@ export default function ProgressPopover({ project, onClose, onTogglePhase, onTog
             Phases
           </p>
           <div className="flex flex-col gap-1">
-            {PHASES.map((ph) => {
+            {phases.map((ph) => {
               const checked = project.phases?.[ph.key] ?? false;
               return (
                 <button

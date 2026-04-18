@@ -3,7 +3,7 @@
 import { useState, createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/src/types';
-import { fmtUSD as fmt } from '@/src/lib/formatters';
+import { fmtUSD, fmtCurrency } from '@/src/lib/formatters';
 import { WHT_RATE } from '@/src/features/invoices/lib/calculations';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -17,6 +17,10 @@ interface Props {
   client: Client | null;
   company: CompanyProfile;
   payment: PaymentInfo;
+  taxLabel?: string;
+  taxRate?: number;
+  taxType?: 'additive' | 'deductive';
+  currencyCode?: string;
 }
 
 function isIOS() {
@@ -24,14 +28,25 @@ function isIOS() {
   return /iP(hone|od|ad)/.test(navigator.userAgent);
 }
 
-export default function InvoicePrint({ invoice, client, company, payment }: Props) {
+export default function InvoicePrint({
+  invoice,
+  client,
+  company,
+  payment,
+  taxLabel,
+  taxRate,
+  taxType,
+  currencyCode,
+}: Props) {
   const [ios] = useState(() => isIOS());
   const [sendingTelegram, setSendingTelegram] = useState(false);
   const [telegramStatus, setTelegramStatus] = useState<'idle' | 'ok' | 'err'>('idle');
 
+  const effectiveTaxRate = taxRate ?? WHT_RATE * 100;
   const subtotal = invoice.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
-  const whtAmount = invoice.withWHT ? subtotal * WHT_RATE : null;
-  const netTotal = invoice.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+  const whtAmount = invoice.withWHT ? subtotal * (effectiveTaxRate / 100) : null;
+  const netTotal =
+    invoice.withWHT && taxType !== 'additive' ? subtotal * (1 - effectiveTaxRate / 100) : subtotal;
   const depositAmount =
     invoice.depositPercent != null ? netTotal * (invoice.depositPercent / 100) : null;
   const balanceDue = depositAmount != null ? netTotal - depositAmount : null;
@@ -59,6 +74,10 @@ export default function InvoicePrint({ invoice, client, company, payment }: Prop
           netTotal,
           depositAmount,
           balanceDue,
+          taxLabel,
+          taxRate,
+          taxType,
+          currencyCode,
         })
       );
       setTimeout(resolve, 900);
@@ -260,6 +279,10 @@ export default function InvoicePrint({ invoice, client, company, payment }: Prop
             netTotal={netTotal}
             depositAmount={depositAmount}
             balanceDue={balanceDue}
+            taxLabel={taxLabel}
+            taxRate={taxRate}
+            taxType={taxType}
+            currencyCode={currencyCode}
           />
         </div>
       </div>
@@ -275,6 +298,10 @@ export default function InvoicePrint({ invoice, client, company, payment }: Prop
           netTotal={netTotal}
           depositAmount={depositAmount}
           balanceDue={balanceDue}
+          taxLabel={taxLabel}
+          taxRate={taxRate}
+          taxType={taxType}
+          currencyCode={currencyCode}
         />
       </div>
 
@@ -324,6 +351,10 @@ export function Sheet({
   netTotal,
   depositAmount,
   balanceDue,
+  taxLabel,
+  taxRate,
+  taxType,
+  currencyCode,
 }: {
   invoice: Invoice;
   client: Client | null;
@@ -334,7 +365,14 @@ export function Sheet({
   netTotal: number;
   depositAmount: number | null;
   balanceDue: number | null;
+  taxLabel?: string;
+  taxRate?: number;
+  taxType?: 'additive' | 'deductive';
+  currencyCode?: string;
 }) {
+  const fmt = (n: number) => fmtCurrency(n, currencyCode ?? 'USD');
+  const effectiveTaxLabel = taxLabel ?? 'WHT';
+  const effectiveTaxRate = taxRate ?? WHT_RATE * 100;
   const projectLabel = invoice.projectName || (client ? `${client.name} Campaign` : '');
   const hasPayment =
     payment.bankName || payment.accountName || payment.accountNumber || payment.swiftCode;
@@ -619,7 +657,9 @@ export function Sheet({
                   color: '#c2410c',
                 }}
               >
-                <span>Less WHT {WHT_RATE * 100}% (USD)</span>
+                <span>
+                  {taxType === 'additive' ? 'Add' : 'Less'} {effectiveTaxLabel} {effectiveTaxRate}%
+                </span>
                 <span style={{ fontWeight: 600 }}>({fmt(whtAmount)})</span>
               </div>
             )}

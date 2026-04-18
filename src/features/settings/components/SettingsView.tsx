@@ -1,10 +1,16 @@
 'use client';
 
 import { useState, useRef, useTransition } from 'react';
-import type { CompanyProfile, PaymentInfo } from '@/src/types';
-import { useCompanyProfile, usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
+import type { AppPreferences, CompanyProfile, PaymentInfo } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
+import {
+  useCompanyProfile,
+  usePaymentInfo,
+  useScopeOfWork,
+  useAppPreferences,
+  useSettingsMutations,
+} from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import { useSettingsMutations } from '@/src/hooks/useSettings';
 
 const EMPTY_PROFILE: CompanyProfile = {
   name: '',
@@ -28,6 +34,7 @@ export default function SettingsView() {
   const { data: companyProfile, isLoading } = useCompanyProfile();
   const { data: paymentInfo } = usePaymentInfo();
   const { data: scopeOfWork } = useScopeOfWork();
+  const { data: appPreferences } = useAppPreferences();
 
   if (isLoading) return <TablePageSkeleton rows={8} />;
 
@@ -36,6 +43,7 @@ export default function SettingsView() {
       companyProfile={companyProfile ?? EMPTY_PROFILE}
       paymentInfo={paymentInfo ?? EMPTY_PAYMENT}
       scopeOfWork={scopeOfWork ?? []}
+      appPreferences={appPreferences}
     />
   );
 }
@@ -44,19 +52,37 @@ function SettingsForm({
   companyProfile,
   paymentInfo,
   scopeOfWork,
+  appPreferences,
 }: {
   companyProfile: CompanyProfile;
   paymentInfo: PaymentInfo;
   scopeOfWork: string[];
+  appPreferences: AppPreferences;
 }) {
   const [isPending, startTransition] = useTransition();
-  const { saveCompanyProfile, savePaymentInfo, saveScopeOfWork } = useSettingsMutations();
+  const { saveCompanyProfile, savePaymentInfo, saveScopeOfWork, saveAppPreferences } =
+    useSettingsMutations();
   const [profile, setProfileLocal] = useState<CompanyProfile>(companyProfile);
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
 
   const [savedProfile, setSavedProfile] = useState(false);
   const [savedPayment, setSavedPayment] = useState(false);
   const [savedTelegram, setSavedTelegram] = useState(false);
+  const [savedPrefs, setSavedPrefs] = useState(false);
+  const [prefs, setPrefsLocal] = useState<AppPreferences>(appPreferences);
+
+  function setPref<K extends keyof AppPreferences>(k: K, v: AppPreferences[K]) {
+    setPrefsLocal((prev) => ({ ...prev, [k]: v }));
+    setSavedPrefs(false);
+  }
+
+  function handleSavePrefs() {
+    startTransition(async () => {
+      await saveAppPreferences(prefs);
+      setSavedPrefs(true);
+      setTimeout(() => setSavedPrefs(false), 2000);
+    });
+  }
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const qrInputRef = useRef<HTMLInputElement>(null);
@@ -512,6 +538,187 @@ function SettingsForm({
           }}
         />
       </section>
+
+      {/* Workspace Preferences */}
+      <section className={sectionCls}>
+        <h2 className="text-sm font-semibold text-white mb-1">Workspace Preferences</h2>
+        <p className="text-xs text-white/40 mb-5">
+          Currency, date format, project phases, and tax — used across the entire app.
+        </p>
+        <div className="flex flex-col gap-6">
+          {/* Currency */}
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/40">Currency</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>Currency Code (ISO 4217)</label>
+                <input
+                  type="text"
+                  value={prefs.currencyCode}
+                  onChange={(e) =>
+                    setPref('currencyCode', e.target.value.toUpperCase().slice(0, 3))
+                  }
+                  placeholder="USD"
+                  maxLength={3}
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>Currency Symbol</label>
+                <input
+                  type="text"
+                  value={prefs.currencySymbol}
+                  onChange={(e) => setPref('currencySymbol', e.target.value.slice(0, 3))}
+                  placeholder="$"
+                  maxLength={3}
+                  className={inputCls}
+                />
+              </div>
+            </div>
+            <p className="text-xs text-white/35">
+              Common codes: USD ($), EUR (€), GBP (£), THB (฿), JPY (¥), SGD (S$), AUD (A$), KHR (រ)
+            </p>
+          </div>
+
+          {/* Date format */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/40">Date Format</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['DD/Mon/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  type="button"
+                  onClick={() => setPref('dateFormat', fmt)}
+                  className={`h-10 px-3 rounded-xl border text-sm font-medium transition text-left ${prefs.dateFormat === fmt ? 'border-[#FFC206]/50 bg-[#FFC206]/10 text-[#FFC206]' : 'border-white/15 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                >
+                  {fmt}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Phase labels */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/40">
+              Kanban Phase Labels
+            </p>
+            <p className="text-xs text-white/35">
+              Rename the 5 production phases to match your workflow.
+            </p>
+            <div className="flex flex-col gap-2">
+              {(prefs.phaseLabels as string[]).map((label, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-xs text-white/30 w-6 shrink-0">#{i + 1}</span>
+                  <input
+                    type="text"
+                    value={label}
+                    onChange={(e) => {
+                      const next = [...prefs.phaseLabels] as [
+                        string,
+                        string,
+                        string,
+                        string,
+                        string,
+                      ];
+                      next[i] = e.target.value;
+                      setPref('phaseLabels', next);
+                    }}
+                    placeholder={DEFAULT_APP_PREFERENCES.phaseLabels[i]}
+                    className={`${inputCls} flex-1`}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Tax config */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/40">Tax Line</p>
+              <button
+                type="button"
+                onClick={() => setPref('taxEnabled', !prefs.taxEnabled)}
+                className={`relative w-10 h-5 rounded-full transition-colors ${prefs.taxEnabled ? 'bg-[#FFC206]' : 'bg-white/20'}`}
+              >
+                <span
+                  className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${prefs.taxEnabled ? 'left-5.5' : 'left-0.5'}`}
+                  style={{ left: prefs.taxEnabled ? '22px' : '2px' }}
+                />
+              </button>
+            </div>
+            {prefs.taxEnabled && (
+              <div className="flex flex-col gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls}>Tax Label</label>
+                    <input
+                      type="text"
+                      value={prefs.taxLabel}
+                      onChange={(e) => setPref('taxLabel', e.target.value)}
+                      placeholder="VAT"
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls}>Rate (%)</label>
+                    <input
+                      type="number"
+                      value={prefs.taxRate}
+                      onChange={(e) => setPref('taxRate', parseFloat(e.target.value) || 0)}
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className={labelCls}>Tax Type</label>
+                  <div className="flex gap-2">
+                    {(['additive', 'deductive'] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setPref('taxType', t)}
+                        className={`flex-1 h-10 rounded-xl border text-sm font-medium transition ${prefs.taxType === t ? 'border-[#FFC206]/50 bg-[#FFC206]/10 text-[#FFC206]' : 'border-white/15 text-white/60 hover:bg-white/10 hover:text-white'}`}
+                      >
+                        {t === 'additive' ? 'Additive (VAT / GST)' : 'Deductive (WHT)'}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-white/35">
+                    {prefs.taxType === 'additive'
+                      ? 'Tax is added on top of the subtotal (e.g. VAT, GST).'
+                      : 'Tax is withheld from the payment (e.g. WHT).'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Holidays */}
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold uppercase tracking-widest text-white/40">
+              Public Holidays
+            </p>
+            <p className="text-xs text-white/35">
+              Shown on the Timeline as non-working days. Add your country&apos;s holidays.
+            </p>
+            <HolidayList holidays={prefs.holidays} onChange={(h) => setPref('holidays', h)} />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]">
+          {savedPrefs && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
+          <button
+            onClick={handleSavePrefs}
+            disabled={isPending}
+            className="h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15 disabled:opacity-60"
+          >
+            Save preferences
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
@@ -612,6 +819,82 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
           onClick={addScope}
           disabled={!newValue.trim()}
           className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Holiday list ───────────────────────────────────────────────────────────────
+
+function HolidayList({
+  holidays,
+  onChange,
+}: {
+  holidays: { date: string; name: string }[];
+  onChange: (h: { date: string; name: string }[]) => void;
+}) {
+  const [newDate, setNewDate] = useState('');
+  const [newName, setNewName] = useState('');
+
+  const inputCls =
+    'h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition backdrop-blur-sm';
+
+  function addHoliday() {
+    if (!newDate || !newName.trim()) return;
+    onChange([...holidays, { date: newDate, name: newName.trim() }]);
+    setNewDate('');
+    setNewName('');
+  }
+
+  function removeHoliday(i: number) {
+    onChange(holidays.filter((_, idx) => idx !== i));
+  }
+
+  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <div className="flex flex-col gap-2">
+      {sorted.length === 0 && (
+        <p className="text-xs text-white/30 italic py-2">
+          No holidays configured. Add your first one below.
+        </p>
+      )}
+      {sorted.map((h, i) => (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <span className="text-white/50 font-mono text-xs w-24 shrink-0">{h.date}</span>
+          <span className="flex-1 text-white/80 truncate">{h.name}</span>
+          <button
+            onClick={() => removeHoliday(holidays.indexOf(h))}
+            className="shrink-0 text-red-400/60 hover:text-red-400 text-xs px-2 py-1 rounded-lg hover:bg-red-500/10 transition"
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 mt-2 pt-3 border-t border-white/[0.08]">
+        <input
+          type="date"
+          value={newDate}
+          onChange={(e) => setNewDate(e.target.value)}
+          className={`${inputCls} w-36 shrink-0`}
+        />
+        <input
+          type="text"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') addHoliday();
+          }}
+          placeholder="Holiday name"
+          className={`${inputCls} flex-1`}
+        />
+        <button
+          onClick={addHoliday}
+          disabled={!newDate || !newName.trim()}
+          className="h-10 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
         >
           Add
         </button>

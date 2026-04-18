@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { adminDb } from '@/src/lib/firebase-admin';
-import type { CompanyProfile, PaymentInfo } from '@/src/types';
+import type { AppPreferences, CompanyProfile, PaymentInfo } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
 
 const EMPTY_PROFILE: CompanyProfile = {
@@ -46,5 +47,16 @@ export const getScopeOfWork = cache(async function getScopeOfWork(): Promise<str
     return DEFAULT_SCOPES;
   } catch {
     return DEFAULT_SCOPES;
+  }
+});
+
+export const getAppPreferences = cache(async function getAppPreferences(): Promise<AppPreferences> {
+  try {
+    const snap = await adminDb.doc('settings/preferences').get();
+    return snap.exists
+      ? { ...DEFAULT_APP_PREFERENCES, ...(snap.data() as AppPreferences) }
+      : DEFAULT_APP_PREFERENCES;
+  } catch {
+    return DEFAULT_APP_PREFERENCES;
   }
 });

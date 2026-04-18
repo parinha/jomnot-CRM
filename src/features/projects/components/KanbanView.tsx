@@ -7,6 +7,7 @@ import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import ProgressPopover from './ProgressPopover';
+import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 
 const PHASE_ORDER: (keyof ProjectPhases)[] = [
   'filming',
@@ -139,6 +140,17 @@ function sortCards(cards: Project[], today: string): Project[] {
 export default function KanbanView() {
   const { data: projects, isLoading } = useProjects();
   const { data: clients } = useClients();
+  const prefs = useAppPreferences();
+
+  const columns = [
+    COLUMNS[0],
+    { ...COLUMNS[1], label: prefs.phaseLabels[0] },
+    { ...COLUMNS[2], label: prefs.phaseLabels[1] },
+    { ...COLUMNS[3], label: prefs.phaseLabels[2] },
+    { ...COLUMNS[4], label: prefs.phaseLabels[3] },
+    { ...COLUMNS[5], label: prefs.phaseLabels[4] },
+    COLUMNS[6],
+  ];
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -237,8 +249,8 @@ export default function KanbanView() {
 
       {/* Board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
-        <div className="flex h-full gap-3 p-4" style={{ minWidth: COLUMNS.length * 272 }}>
-          {COLUMNS.map((col) => {
+        <div className="flex h-full gap-3 p-4" style={{ minWidth: columns.length * 272 }}>
+          {columns.map((col) => {
             const cards = sortCards(
               visible.filter((p) => getProjectCol(p) === col.key),
               today
@@ -388,6 +400,7 @@ export default function KanbanView() {
           onClose={() => setPopover(null)}
           onTogglePhase={togglePhase}
           onToggleItem={toggleItem}
+          phaseLabels={prefs.phaseLabels}
         />
       )}
     </div>

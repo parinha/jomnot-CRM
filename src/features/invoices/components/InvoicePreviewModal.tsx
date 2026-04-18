@@ -1,11 +1,11 @@
 'use client';
 
 import type { Invoice, Client } from '@/src/types';
-import { fmtUSD } from '@/src/lib/formatters';
-import { WHT_RATE } from '@/src/features/invoices/lib/calculations';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
-
-const fmt = fmtUSD;
+import { calcTaxAmount, calcNet } from '@/src/features/invoices/lib/calculations';
+import { useCurrency } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { taxConfigFromPrefs } from '@/src/features/invoices/lib/calculations';
 
 export default function InvoicePreviewModal({
   inv,
@@ -16,9 +16,13 @@ export default function InvoicePreviewModal({
   client: Client | null;
   onClose: () => void;
 }) {
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const taxConfig = taxConfigFromPrefs(prefs);
+
   const subtotal = inv ? inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0) : 0;
-  const whtAmount = inv?.withWHT ? subtotal * WHT_RATE : null;
-  const netTotal = inv?.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+  const whtAmount = inv ? calcTaxAmount(inv, taxConfig) : null;
+  const netTotal = inv ? calcNet(inv, taxConfig) : subtotal;
   const depositAmount = inv?.depositPercent != null ? netTotal * (inv.depositPercent / 100) : null;
   const balanceDue = depositAmount != null ? netTotal - depositAmount : null;
   const sc = inv ? STATUS_CONFIG[inv.status ?? 'draft'] : null;
@@ -96,8 +100,14 @@ export default function InvoicePreviewModal({
               </div>
               {whtAmount !== null && (
                 <div className="flex justify-between text-sm text-amber-400/80">
-                  <span>WHT (15%)</span>
-                  <span className="font-medium">−{fmt(whtAmount)}</span>
+                  <span>
+                    {taxConfig.enabled ? taxConfig.label : 'WHT'} (
+                    {taxConfig.enabled ? taxConfig.rate : 15}%)
+                  </span>
+                  <span className="font-medium">
+                    {taxConfig.type === 'additive' ? '+' : '−'}
+                    {fmt(whtAmount)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between text-sm font-bold text-white border-t border-white/10 pt-2 mt-1">

@@ -19,8 +19,14 @@ import { useInvoices } from '@/src/hooks/useInvoices';
 import { useProjects } from '@/src/hooks/useProjects';
 import { useCompanyProfile, usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import { calcSubtotal, WHT_RATE } from '@/src/features/invoices/lib/calculations';
-import { fmtUSD, fmtDate } from '@/src/lib/formatters';
+import {
+  calcSubtotal,
+  calcTaxAmount,
+  calcNet,
+  taxConfigFromPrefs,
+} from '@/src/features/invoices/lib/calculations';
+import { fmtDate } from '@/src/lib/formatters';
+import { useAppPreferences, useCurrency, useDateFmt } from '@/src/contexts/AppPreferencesContext';
 import { uid } from '@/src/lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
@@ -32,8 +38,6 @@ import ProjectDetailModal from '@/src/features/projects/components/ProjectDetail
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 import { useProjectMutations } from '@/src/hooks/useProjects';
-
-const fmt = fmtUSD;
 
 function localToday(): string {
   const d = new Date();
@@ -67,6 +71,10 @@ export default function InvoicesView() {
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: companyProfile } = useCompanyProfile();
   const { data: paymentInfo } = usePaymentInfo();
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const fmtDt = useDateFmt();
+  const taxConfig = taxConfigFromPrefs(prefs);
 
   const [isPending, startTransition] = useTransition();
   const { upsert: upsertInvoice, remove: deleteInvoice } = useInvoiceMutations();
@@ -95,8 +103,8 @@ export default function InvoicesView() {
 
     const client = clients.find((c) => c.id === inv.clientId) ?? null;
     const subtotal = inv.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
-    const whtAmount = inv.withWHT ? subtotal * WHT_RATE : null;
-    const netTotal = inv.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+    const whtAmount = calcTaxAmount(inv, taxConfig);
+    const netTotal = calcNet(inv, taxConfig);
     const depositAmount = inv.depositPercent != null ? netTotal * (inv.depositPercent / 100) : null;
     const balanceDue = depositAmount != null ? netTotal - depositAmount : null;
 
@@ -117,6 +125,10 @@ export default function InvoicesView() {
           netTotal,
           depositAmount,
           balanceDue,
+          taxLabel: taxConfig.label,
+          taxRate: taxConfig.rate,
+          taxType: taxConfig.type,
+          currencyCode: prefs.currencyCode,
         })
       );
       setTimeout(resolve, 900);
@@ -387,10 +399,13 @@ export default function InvoicesView() {
   }
 
   const subtotal = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
-  const whtAmount = form.withWHT ? subtotal * WHT_RATE : 0;
-  const netTotal = form.withWHT ? subtotal * (1 - WHT_RATE) : subtotal;
+  const formTaxAmount = calcTaxAmount(form as Parameters<typeof calcTaxAmount>[0], taxConfig) ?? 0;
+  const whtAmount = formTaxAmount;
+  const netTotal = calcNet(form as Parameters<typeof calcNet>[0], taxConfig);
   const depositAmount = form.depositPercent != null ? netTotal * (form.depositPercent / 100) : 0;
   const balanceDue = netTotal - depositAmount;
+
+  const taxRate = taxConfig.enabled ? taxConfig.rate / 100 : 0.15;
 
   function toggleWHT() {
     setForm((prev) => {
@@ -401,8 +416,8 @@ export default function InvoicesView() {
         items: prev.items.map((it) => ({
           ...it,
           unitPrice: enabling
-            ? Math.round((it.unitPrice / (1 - WHT_RATE)) * 100) / 100
-            : Math.round(it.unitPrice * (1 - WHT_RATE) * 100) / 100,
+            ? Math.round((it.unitPrice / (1 - taxRate)) * 100) / 100
+            : Math.round(it.unitPrice * (1 - taxRate) * 100) / 100,
         })),
       };
     });
@@ -729,8 +744,8 @@ export default function InvoicesView() {
                 {pagedInvoices.map((inv, i) => {
                   const client = clients.find((c) => c.id === inv.clientId);
                   const sub = calcSubtotal(inv);
-                  const wht = inv.withWHT ? sub * WHT_RATE : null;
-                  const net = wht != null ? sub - wht : sub;
+                  const wht = calcTaxAmount(inv, taxConfig);
+                  const net = calcNet(inv, taxConfig);
                   const invDeposit =
                     inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
                   const invBalance = invDeposit != null ? net - invDeposit : null;
@@ -751,14 +766,16 @@ export default function InvoicesView() {
                         {client?.name ?? '—'}
                       </td>
                       <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
-                        {fmtDate(inv.date)}
+                        {fmtDt(inv.date)}
                       </td>
                       <td className="px-4 py-3.5 text-right whitespace-nowrap">
                         <span className="font-semibold text-white amt">{fmt(sub)}</span>
                         {wht != null && (
                           <div className="flex flex-col items-end gap-0.5 mt-0.5">
                             <span className="text-xs text-orange-400/80">
-                              −<span className="amt">{fmt(wht)}</span> WHT
+                              {taxConfig.type === 'additive' ? '+' : '−'}
+                              <span className="amt">{fmt(wht)}</span>{' '}
+                              {taxConfig.enabled ? taxConfig.label : 'WHT'}
                             </span>
                             <span className="text-xs font-medium text-white/70">
                               <span className="amt">{fmt(net)}</span> net
@@ -1485,10 +1502,13 @@ export default function InvoicesView() {
                             {fmt(subtotal)}
                           </span>
                         </div>
-                        {form.withWHT && (
+                        {form.withWHT && taxConfig.enabled && (
                           <>
                             <div className="flex gap-8 text-orange-400">
-                              <span>Less WHT {WHT_RATE * 100}%</span>
+                              <span>
+                                {taxConfig.type === 'deductive' ? 'Less' : 'Add'} {taxConfig.label}{' '}
+                                {taxConfig.rate}%
+                              </span>
                               <span className="font-medium w-28 text-right">
                                 ({fmt(whtAmount)})
                               </span>
@@ -1523,30 +1543,35 @@ export default function InvoicesView() {
                 );
               })()}
 
-              {/* WHT toggle */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-orange-300">Withholding Tax (WHT 15%)</p>
-                  <p className="text-xs text-orange-400/70 mt-0.5">
-                    Gross-up unit prices so the client withholds 15% and you receive the deal
-                    amount.
-                  </p>
-                  {form.withWHT && (
-                    <p className="text-xs text-orange-300 mt-2 font-medium">
-                      Grand Total: {fmt(subtotal)} · Less WHT: ({fmt(whtAmount)}) · You receive:{' '}
-                      {fmt(netTotal)}
+              {/* Tax toggle — only shown if tax is configured in workspace preferences */}
+              {taxConfig.enabled && (
+                <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-orange-300">
+                      {taxConfig.label} ({taxConfig.rate}%)
                     </p>
-                  )}
+                    <p className="text-xs text-orange-400/70 mt-0.5">
+                      {taxConfig.type === 'deductive'
+                        ? `Gross-up unit prices so the client withholds ${taxConfig.rate}% and you receive the deal amount.`
+                        : `Add ${taxConfig.rate}% ${taxConfig.label} on top of the invoice total.`}
+                    </p>
+                    {form.withWHT && (
+                      <p className="text-xs text-orange-300 mt-2 font-medium">
+                        Subtotal: {fmt(subtotal)} · {taxConfig.label}: ({fmt(whtAmount)}) · Net:{' '}
+                        {fmt(netTotal)}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={toggleWHT}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.withWHT ? 'bg-orange-500' : 'bg-zinc-300'}`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.withWHT ? 'translate-x-6' : 'translate-x-1'}`}
+                    />
+                  </button>
                 </div>
-                <button
-                  onClick={toggleWHT}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.withWHT ? 'bg-orange-500' : 'bg-zinc-300'}`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.withWHT ? 'translate-x-6' : 'translate-x-1'}`}
-                  />
-                </button>
-              </div>
+              )}
 
               {/* Deposit toggle */}
               <div className="flex items-start gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProgressPopover from './ProgressPopover';
+import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 import type {
   Project,
   ProjectItem,
@@ -189,6 +190,8 @@ export default function ProjectsView() {
   const { data: projects } = useProjects();
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: paymentInfo } = usePaymentInfo();
+  const prefs = useAppPreferences();
+  const phases = PHASES.map((ph, i) => ({ ...ph, label: prefs.phaseLabels[i] ?? ph.label }));
 
   const [, startTransition] = useTransition();
   const { upsert: upsertProject, remove: deleteProject } = useProjectMutations();
@@ -722,6 +725,7 @@ export default function ProjectsView() {
           onClose={() => setProgressPopover(null)}
           onTogglePhase={(key) => togglePhaseInline(popoverProject, key)}
           onToggleItem={(itemId) => toggleItemInline(popoverProject, itemId)}
+          phaseLabels={prefs.phaseLabels}
         />
       )}
 
@@ -2177,7 +2181,7 @@ export default function ProjectsView() {
                     Phases
                   </label>
                   <div className="flex flex-col gap-2">
-                    {PHASES.map((phase) => {
+                    {phases.map((phase) => {
                       const checked = form.phases?.[phase.key] ?? false;
                       return (
                         <button

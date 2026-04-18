@@ -7,6 +7,7 @@ import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import type { ProjectPhases } from '@/src/types';
 import { PHASES } from '@/src/config/constants';
+import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 
 interface Props {
   projectId: string;
@@ -19,6 +20,8 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
   const { data: clients } = useClients();
   const { data: invoices } = useInvoices();
   const { updatePhases } = useProjectMutations();
+  const prefs = useAppPreferences();
+  const phases = PHASES.map((ph, i) => ({ ...ph, label: prefs.phaseLabels[i] ?? ph.label }));
 
   const project = projects.find((p) => p.id === projectId);
   const client = project ? clients.find((c) => c.id === project.clientId) : null;
@@ -27,7 +30,7 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
     : [];
 
   const sc = project ? PROJECT_STATUS_CONFIG[project.status] : null;
-  const done = project ? PHASES.filter((p) => project.phases?.[p.key]).length : 0;
+  const done = project ? phases.filter((p) => project.phases?.[p.key]).length : 0;
 
   function togglePhase(key: keyof ProjectPhases) {
     if (!project) return;
@@ -97,23 +100,23 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-white/45">
-                    {done}/{PHASES.length} phases done
+                    {done}/{phases.length} phases done
                   </span>
                   <span className="text-xs font-semibold text-white/70">
-                    {Math.round((done / PHASES.length) * 100)}%
+                    {Math.round((done / phases.length) * 100)}%
                   </span>
                 </div>
                 <div className="h-2 rounded-full bg-white/10 overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${done === PHASES.length ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                    style={{ width: `${Math.round((done / PHASES.length) * 100)}%` }}
+                    className={`h-full rounded-full transition-all ${done === phases.length ? 'bg-green-400' : 'bg-[#FFC206]'}`}
+                    style={{ width: `${Math.round((done / phases.length) * 100)}%` }}
                   />
                 </div>
               </div>
 
               {/* Phase list */}
               <div className="flex flex-col gap-2">
-                {PHASES.map((phase) => {
+                {phases.map((phase) => {
                   const checked = project.phases?.[phase.key] ?? false;
                   return (
                     <button

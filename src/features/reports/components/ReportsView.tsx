@@ -7,14 +7,14 @@ import { useClients } from '@/src/hooks/useClients';
 import { useProjects } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-import { fmtUSD as fmt, fmtShort } from '@/src/lib/formatters';
 import {
   calcEarned,
   calcBalance,
   calcSubtotal,
   calcNet,
-  WHT_RATE,
+  taxConfigFromPrefs,
 } from '@/src/features/invoices/lib/calculations';
+import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 
@@ -115,6 +115,13 @@ export default function ReportsView() {
   const { data: invoices, isLoading } = useInvoices();
   const { data: clients } = useClients();
   const { data: projects } = useProjects();
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt, fmtShort } = useCurrency();
+  const taxConfig = useMemo(
+    () => taxConfigFromPrefs(prefs),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefs.taxEnabled, prefs.taxRate, prefs.taxType, prefs.taxLabel]
+  );
 
   const [[startDate, endDate], setRange] = useState<[string, string]>(() => thisMonthRange());
   const [clientFilter, setClientFilter] = useState('all');
@@ -125,15 +132,13 @@ export default function ReportsView() {
     return byClient.filter((inv) => inv.date >= startDate && inv.date <= endDate);
   }, [invoices, clientFilter, startDate, endDate]);
 
-  const totalReceived = base.reduce((s, inv) => s + calcEarned(inv), 0);
+  const totalReceived = base.reduce((s, inv) => s + calcEarned(inv, taxConfig), 0);
   const totalInvoiced = base.reduce((s, inv) => s + calcSubtotal(inv), 0);
-  const totalWHT = base
-    .filter((inv) => inv.withWHT)
-    .reduce((s, inv) => s + calcSubtotal(inv) * WHT_RATE, 0);
-  const totalNet = base.reduce((s, inv) => s + calcNet(inv), 0);
+  const totalNet = base.reduce((s, inv) => s + calcNet(inv, taxConfig), 0);
+  const totalWHT = totalInvoiced - totalNet;
   const outstanding = base
     .filter((inv) => ['sent', 'overdue', 'partial'].includes(inv.status ?? 'draft'))
-    .reduce((s, inv) => s + calcBalance(inv), 0);
+    .reduce((s, inv) => s + calcBalance(inv, taxConfig), 0);
   const overdueCount = base.filter((inv) => (inv.status ?? 'draft') === 'overdue').length;
 
   const bucketMode = getBucketMode(startDate, endDate);
@@ -206,7 +211,7 @@ export default function ReportsView() {
             .map((id) => invoices.find((i) => i.id === id))
             .filter(Boolean) as typeof invoices;
           const revenue = linkedInvs.reduce((s, inv) => s + calcSubtotal(inv), 0);
-          const revenueNet = linkedInvs.reduce((s, inv) => s + calcNet(inv), 0);
+          const revenueNet = linkedInvs.reduce((s, inv) => s + calcNet(inv, taxConfig), 0);
           const hasWHT = linkedInvs.some((inv) => inv.withWHT);
           const doneCount = p.items.filter((it) => it.status === 'done').length;
           const totalItems = p.items.length;
@@ -234,7 +239,7 @@ export default function ReportsView() {
           const diff = (order[a.project.status] ?? 99) - (order[b.project.status] ?? 99);
           return diff !== 0 ? diff : b.revenue - a.revenue;
         }),
-    [filteredProjects, clients, invoices]
+    [filteredProjects, clients, invoices, taxConfig]
   );
 
   if (isLoading) return <TablePageSkeleton rows={6} />;

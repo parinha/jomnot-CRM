@@ -3,17 +3,20 @@
 import { useState, useTransition } from 'react';
 import type { Invoice, Client, InvoiceStatus } from '@/src/types';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
-import { calcSubtotal, calcBalance, calcEarned } from '@/src/features/invoices/lib/calculations';
-import { fmtUSD } from '@/src/lib/formatters';
+import {
+  calcSubtotal,
+  calcBalance,
+  calcEarned,
+  taxConfigFromPrefs,
+} from '@/src/features/invoices/lib/calculations';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
+import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
 
 interface Props {
   onClose: () => void;
   invoices: Invoice[];
   clients: Client[];
 }
-
-const fmt = fmtUSD;
 
 function actionFor(
   status: InvoiceStatus,
@@ -47,6 +50,9 @@ const CONFIRM_COPY: Partial<Record<string, { title: string; desc: string }>> = {
 };
 
 export default function QuickPayModal({ onClose, invoices, clients }: Props) {
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const taxConfig = taxConfigFromPrefs(prefs);
   const [query, setQuery] = useState('');
   const [confirm, setConfirm] = useState<{
     id: string;
@@ -197,8 +203,8 @@ export default function QuickPayModal({ onClose, invoices, clients }: Props) {
               const status = inv.status ?? 'draft';
               const sc = STATUS_CONFIG[status];
               const sub = calcSubtotal(inv);
-              const earned = calcEarned(inv);
-              const balance = calcBalance(inv);
+              const earned = calcEarned(inv, taxConfig);
+              const balance = calcBalance(inv, taxConfig);
               const action = actionFor(status, inv.depositPercent != null)!;
 
               return (
