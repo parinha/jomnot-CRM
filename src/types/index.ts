@@ -94,6 +94,9 @@ export interface PaymentInfo {
   telegramTopicId?: string;
   projectTelegramChatId?: string;
   projectTelegramTopicId?: string;
+  kanbanUpdateEnabled?: boolean;
+  kanbanUpdateTime?: string; // "HH:MM" 24-hour
+  kanbanUpdateDays?: string[]; // ["mon","tue","wed","thu","fri","sat","sun"]
 }
 
 // ── Project ────────────────────────────────────────────────────────────────────
