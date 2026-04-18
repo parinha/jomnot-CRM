@@ -111,7 +111,8 @@ select {
   padding-top: 1rem;
   padding-left: max(1rem, env(safe-area-inset-left, 0px));
   padding-right: max(1rem, env(safe-area-inset-right, 0px));
-  padding-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  /* Extra bottom clearance for the mobile bottom nav bar (~56px) + safe area */
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 1rem);
 }
 
 @media (min-width: 768px) {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import type { Client } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
@@ -62,6 +63,9 @@ export default function ClientsView() {
 
   const [, startTransition] = useTransition();
   const { upsert, remove } = useClientMutations();
+
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [search, setSearch] = useState('');
 
@@ -146,11 +150,18 @@ export default function ClientsView() {
   const safePage = Math.min(page, totalPages);
   const pagedClients = sortedClients.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(() => searchParams.get('new') === '1');
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  // Strip ?new=1 from URL after using it for initial state — no setState here
+  useEffect(() => {
+    if (searchParams.get('new') === '1') {
+      router.replace('/dashboard/clients');
+    }
+  }, [router, searchParams]);
 
   function openAdd() {
     setEditingClient(null);
@@ -158,6 +169,7 @@ export default function ClientsView() {
     setFormError('');
     setModalOpen(true);
   }
+
   function openEdit(client: Client) {
     setEditingClient(client);
     setForm({

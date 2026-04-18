@@ -1,4 +1,4 @@
-const CACHE = 'studio-v2';
+const CACHE = 'app-v1';
 
 const PRECACHE = [
   '/android-chrome-192x192.png',
@@ -10,7 +10,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE).then((cache) => cache.addAll(PRECACHE))
   );
-  self.skipWaiting();
+  // Do NOT call skipWaiting() here — the app will trigger it after prompting the user
 });
 
 self.addEventListener('activate', (event) => {
@@ -22,34 +22,61 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// App sends this message when user taps "Update"
+self.addEventListener('message', (event) => {
+  if (event.data === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener('fetch', (event) => {
-  // Only handle GET requests for same-origin or static assets
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Skip Firebase, API routes, and external requests
+  // Skip Firebase, API routes, and cross-origin requests
   if (
     url.hostname.includes('firebase') ||
     url.hostname.includes('googleapis') ||
     url.hostname !== self.location.hostname ||
     url.pathname.startsWith('/api/')
-  ) {
+  ) return;
+
+  // Next.js static chunks are content-hashed — safe to cache forever
+  if (url.pathname.startsWith('/_next/static/')) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+          }
+          return response;
+        });
+      })
+    );
     return;
   }
 
+  // Icons / fonts — cache-first
+  if (url.pathname.match(/\.(png|ico|jpg|jpeg|svg|woff2?)$/)) {
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        if (cached) return cached;
+        return fetch(event.request).then((response) => {
+          if (response.ok) {
+            caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+          }
+          return response;
+        });
+      })
+    );
+    return;
+  }
+
+  // HTML pages — always network-first so users get fresh content
+  // Fall back to cache only when offline
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      // Never serve a cached redirect — let the browser handle it natively
-      if (cached && cached.redirected) return fetch(event.request);
-      const network = fetch(event.request).then((response) => {
-        if (response.ok && url.pathname.match(/\.(js|css|png|ico|jpg|svg|woff2?)$/)) {
-          const clone = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      });
-      return cached ?? network;
-    })
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });

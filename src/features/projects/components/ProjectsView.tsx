@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef, useTransition } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ProgressPopover from './ProgressPopover';
 import type {
   Project,
@@ -193,11 +194,16 @@ export default function ProjectsView() {
   const { upsert: upsertProject, remove: deleteProject } = useProjectMutations();
   const { upsert: upsertClient } = useClientMutations();
 
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const autoOpen = searchParams.get('new') === '1';
+
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(autoOpen);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<ProjectFormState>(blankForm());
-  const [confirmMonth, setConfirmMonth] = useState('');
+  const [confirmMonth, setConfirmMonth] = useState(() => blankForm().confirmedMonth ?? '');
   const [billingOpen, setBillingOpen] = useState(false);
   const [newItemText, setNewItemText] = useState('');
   const [formError, setFormError] = useState('');
@@ -268,6 +274,13 @@ export default function ProjectsView() {
 
   // ── Telegram ────────────────────────────────────────────────────────────────
   const [sendingTelegram, setSendingTelegram] = useState<string | null>(null);
+
+  // Strip ?new=1 from URL after using it for initial state — no setState here
+  useEffect(() => {
+    if (autoOpen) {
+      router.replace('/dashboard/projects');
+    }
+  }, [autoOpen, router]);
 
   if (isLoading) return <TablePageSkeleton />;
 
@@ -514,6 +527,7 @@ export default function ProjectsView() {
     resetClientCombo();
     setModalOpen(true);
   }
+
   function openEdit(project: Project) {
     setEditingId(project.id);
     setForm({

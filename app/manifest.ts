@@ -8,7 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       'EasyInvoices24 is a high-performance project management and billing suite designed specifically for the modern content creator.',
     start_url: '/dashboard/timeline',
     display: 'standalone',
-    orientation: 'portrait',
+    orientation: 'any',
     background_color: '#090c14',
     theme_color: '#090c14',
     icons: [

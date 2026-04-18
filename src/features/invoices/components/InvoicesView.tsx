@@ -600,7 +600,7 @@ export default function InvoicesView() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-white/[0.08]">
+      <div className="flex gap-1 mb-4 border-b border-white/[0.08] overflow-x-auto">
         {(
           [
             { key: 'all', label: 'All', count: invoices.length },
@@ -983,7 +983,10 @@ export default function InvoicesView() {
       {panelOpen && (
         <>
           <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={closePanel} />
-          <div className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-slate-900/95 backdrop-blur-2xl border-l border-white/[0.1] shadow-2xl flex flex-col">
+          <div
+            className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-slate-900/95 backdrop-blur-2xl border-l border-white/[0.1] shadow-2xl flex flex-col"
+            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+          >
             <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
               <h2 className="text-lg font-bold text-white">
                 {editingId ? 'Edit invoice' : 'New invoice'}
@@ -1616,18 +1619,21 @@ export default function InvoicesView() {
               </PanelField>
             </div>
 
-            <div className="px-6 py-4 border-t border-white/[0.08] flex items-center justify-between shrink-0">
-              {formError ? <p className="text-sm text-red-400">{formError}</p> : <span />}
-              <div className="flex gap-3">
+            <div
+              className="px-6 py-4 border-t border-white/[0.08] flex flex-col gap-3 shrink-0"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+            >
+              {formError && <p className="text-sm text-red-400">{formError}</p>}
+              <div className="flex items-center gap-2 justify-end">
                 <button
                   onClick={closePanel}
-                  className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
+                  className="h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSaveAndPreview}
-                  className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition flex items-center gap-2"
+                  className="hidden sm:flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
                 >
                   <svg
                     className="w-4 h-4"
