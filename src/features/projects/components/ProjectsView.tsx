@@ -8,7 +8,6 @@ import type {
   Project,
   ProjectItem,
   ProjectItemStatus,
-  ProjectPhases,
   ProjectStatus,
   Client,
   Invoice,
@@ -20,23 +19,7 @@ import { useProjects } from '@/src/hooks/useProjects';
 import { usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-import { PHASES } from '@/src/config/constants';
 import { fmtDate } from '@/src/lib/formatters';
-
-// ── Phases config ─────────────────────────────────────────────────────────────
-const DEFAULT_PHASES: ProjectPhases = {
-  filming: false,
-  roughCut: false,
-  draft: false,
-  master: false,
-  delivered: false,
-};
-function phasesDone(phases?: ProjectPhases): number {
-  if (!phases) return 0;
-  return (
-    ['filming', 'roughCut', 'draft', 'master', 'delivered'] as (keyof ProjectPhases)[]
-  ).filter((k) => phases[k]).length;
-}
 import { uid } from '@/src/lib/id';
 import { calcNet } from '@/src/features/invoices/lib/calculations';
 import SearchInput from '@/src/components/SearchInput';
@@ -55,7 +38,6 @@ function blankForm(): ProjectFormState {
     clientId: '',
     invoiceIds: [],
     items: [],
-    phases: { ...DEFAULT_PHASES },
     status: 'confirmed',
     confirmedMonth: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
     filmingDate: '',
@@ -191,7 +173,6 @@ export default function ProjectsView() {
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: paymentInfo } = usePaymentInfo();
   const prefs = useAppPreferences();
-  const phases = PHASES.map((ph, i) => ({ ...ph, label: prefs.phaseLabels[i] ?? ph.label }));
 
   const [, startTransition] = useTransition();
   const { upsert: upsertProject, remove: deleteProject } = useProjectMutations();
@@ -227,16 +208,6 @@ export default function ProjectsView() {
   function openPopover(e: React.MouseEvent, projectId: string) {
     e.stopPropagation();
     setProgressPopover((prev) => (prev === projectId ? null : projectId));
-  }
-
-  function togglePhaseInline(project: Project, key: keyof ProjectPhases) {
-    const updated: Project = {
-      ...project,
-      phases: { ...DEFAULT_PHASES, ...project.phases, [key]: !(project.phases?.[key] ?? false) },
-    };
-    startTransition(async () => {
-      await upsertProject(updated);
-    });
   }
 
   function toggleItemInline(project: Project, itemId: string) {
@@ -538,7 +509,6 @@ export default function ProjectsView() {
       clientId: project.clientId,
       invoiceIds: [...project.invoiceIds],
       items: project.items.map((it) => ({ ...it })),
-      phases: { ...DEFAULT_PHASES, ...project.phases },
       status: project.status,
       confirmedMonth: project.confirmedMonth ?? '',
       filmingDate: project.filmingDate ?? '',
@@ -655,10 +625,6 @@ export default function ProjectsView() {
       setFormError('Please select a client.');
       return;
     }
-    if (form.status === 'completed' && phasesDone(form.phases) < 5) {
-      setFormError('All 5 phases must be completed before marking the project as Done.');
-      return;
-    }
     const cleanedForm = {
       ...form,
       confirmedMonth: form.confirmedMonth?.trim() || undefined,
@@ -700,7 +666,6 @@ export default function ProjectsView() {
       clientId: project.clientId,
       invoiceIds: [...project.invoiceIds],
       items: project.items.map((it) => ({ ...it })),
-      phases: { ...DEFAULT_PHASES, ...project.phases },
       status: project.status,
       filmingDate: project.filmingDate ?? '',
       deliverDate: project.deliverDate ?? '',
@@ -723,9 +688,7 @@ export default function ProjectsView() {
         <ProgressPopover
           project={popoverProject}
           onClose={() => setProgressPopover(null)}
-          onTogglePhase={(key) => togglePhaseInline(popoverProject, key)}
           onToggleItem={(itemId) => toggleItemInline(popoverProject, itemId)}
-          phaseLabels={prefs.phaseLabels}
         />
       )}
 
@@ -1502,16 +1465,7 @@ export default function ProjectsView() {
               </thead>
               <tbody>
                 {activePaged.map((project, i) => {
-                  const done = phasesDone(project.phases);
                   const tl = getTimelineBar(project.deliverDate);
-                  const phasePillCls =
-                    done === 0
-                      ? 'bg-zinc-500/20 text-zinc-400 hover:bg-zinc-500/30'
-                      : done < 3
-                        ? 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30'
-                        : done < 5
-                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                          : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30';
                   const delivItems = project.items ?? [];
                   const delivDone = delivItems.filter((it) => it.status === 'done').length;
                   const isPopoverOpen = progressPopover === project.id;
@@ -1572,26 +1526,7 @@ export default function ProjectsView() {
                       {/* Progress */}
                       <td className="px-4 py-3.5">
                         <div className="flex items-center gap-1.5" data-progress-trigger>
-                          <button
-                            onClick={(e) => openPopover(e, project.id)}
-                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${phasePillCls}`}
-                          >
-                            <svg
-                              className="w-3 h-3 shrink-0"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2.5}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                              />
-                            </svg>
-                            {done}/5
-                          </button>
-                          {delivItems.length > 0 && (
+                          {delivItems.length > 0 ? (
                             <button
                               onClick={(e) => openPopover(e, project.id)}
                               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${
@@ -1600,37 +1535,10 @@ export default function ProjectsView() {
                                   : 'bg-slate-500/20 text-slate-400 hover:bg-slate-500/30'
                               }`}
                             >
-                              <svg
-                                className="w-3 h-3 shrink-0"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M20 12V22H4V12"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M22 7H2v5h20V7z"
-                                />
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 22V7" />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M12 7H7.5a2.5 2.5 0 010-5C11 2 12 7 12 7z"
-                                />
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M12 7h4.5a2.5 2.5 0 000-5C13 2 12 7 12 7z"
-                                />
-                              </svg>
-                              {delivDone}/{delivItems.length}
+                              {delivDone}/{delivItems.length} deliverables
                             </button>
+                          ) : (
+                            <span className="text-xs text-white/20">—</span>
                           )}
                         </div>
                       </td>
@@ -2171,61 +2079,6 @@ export default function ProjectsView() {
                         <span className="text-xs text-white/40">{fmtDate(inv.date)}</span>
                       </label>
                     ))}
-                  </div>
-                </div>
-              )}
-              {/* Phases — edit only */}
-              {editingId && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                    Phases
-                  </label>
-                  <div className="flex flex-col gap-2">
-                    {phases.map((phase) => {
-                      const checked = form.phases?.[phase.key] ?? false;
-                      return (
-                        <button
-                          key={phase.key}
-                          type="button"
-                          onClick={() =>
-                            setForm((p) => ({
-                              ...p,
-                              phases: { ...DEFAULT_PHASES, ...p.phases, [phase.key]: !checked },
-                            }))
-                          }
-                          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition text-left ${
-                            checked
-                              ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
-                              : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
-                          }`}
-                        >
-                          <span
-                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
-                          >
-                            {checked && (
-                              <svg
-                                className="w-3 h-3 text-zinc-900"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={3}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M5 13l4 4L19 7"
-                                />
-                              </svg>
-                            )}
-                          </span>
-                          <span
-                            className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/75'}`}
-                          >
-                            {phase.label}
-                          </span>
-                        </button>
-                      );
-                    })}
                   </div>
                 </div>
               )}

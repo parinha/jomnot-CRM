@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback, useTransition } from 'react';
 import Link from 'next/link';
-import type { Project, ProjectPhases, ProjectStatus } from '@/src/types';
+import type { Project, ProjectStatus } from '@/src/types';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
@@ -660,27 +660,6 @@ export default function TimelineView() {
     setPopover({ project: proj });
   }
 
-  function togglePhase(key: keyof ProjectPhases) {
-    if (!popover) return;
-    const proj = popover.project;
-    const updated: Project = {
-      ...proj,
-      phases: {
-        filming: false,
-        roughCut: false,
-        draft: false,
-        master: false,
-        delivered: false,
-        ...proj.phases,
-        [key]: !(proj.phases?.[key] ?? false),
-      },
-    };
-    setPopover((p) => (p ? { ...p, project: updated } : null));
-    startTransition(async () => {
-      await upsert(updated);
-    });
-  }
-
   function toggleItem(itemId: string) {
     if (!popover) return;
     const proj = popover.project;
@@ -1062,9 +1041,7 @@ export default function TimelineView() {
         <ProgressPopover
           project={popover.project}
           onClose={() => setPopover(null)}
-          onTogglePhase={togglePhase}
           onToggleItem={toggleItem}
-          phaseLabels={prefs.phaseLabels}
         />
       )}
     </div>

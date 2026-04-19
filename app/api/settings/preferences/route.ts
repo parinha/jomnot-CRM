@@ -1,5 +1,5 @@
 import { getAppPreferences } from '@/src/features/settings/api/getSettings';
-import { setDoc } from '@/src/lib/db-mutations';
+import { mergeDoc } from '@/src/lib/db-mutations';
 import type { AppPreferences } from '@/src/types';
 
 export const dynamic = 'force-dynamic';
@@ -16,7 +16,12 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const prefs: AppPreferences = await req.json();
-    await setDoc('settings/preferences', prefs as unknown as Record<string, unknown>);
+    // Merge only workspace fields — telegram fields also live in this doc and must not be overwritten
+    const workspaceFields = {
+      kanbanPhases: prefs.kanbanPhases,
+      holidays: prefs.holidays,
+    };
+    await mergeDoc('settings/preferences', workspaceFields as unknown as Record<string, unknown>);
     return Response.json({ ok: true });
   } catch {
     return Response.json({ error: 'Failed to save preferences' }, { status: 500 });

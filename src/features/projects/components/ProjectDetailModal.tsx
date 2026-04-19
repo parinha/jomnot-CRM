@@ -1,12 +1,9 @@
 'use client';
 
-import { useTransition } from 'react';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
+import { useProjects } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import type { ProjectPhases } from '@/src/types';
-import { PHASES } from '@/src/config/constants';
 import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 
 interface Props {
@@ -15,13 +12,10 @@ interface Props {
 }
 
 export default function ProjectDetailModal({ projectId, onClose }: Props) {
-  const [isPending, startTransition] = useTransition();
   const { data: projects } = useProjects();
   const { data: clients } = useClients();
   const { data: invoices } = useInvoices();
-  const { updatePhases } = useProjectMutations();
   const prefs = useAppPreferences();
-  const phases = PHASES.map((ph, i) => ({ ...ph, label: prefs.phaseLabels[i] ?? ph.label }));
 
   const project = projects.find((p) => p.id === projectId);
   const client = project ? clients.find((c) => c.id === project.clientId) : null;
@@ -30,24 +24,12 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
     : [];
 
   const sc = project ? PROJECT_STATUS_CONFIG[project.status] : null;
-  const done = project ? phases.filter((p) => project.phases?.[p.key]).length : 0;
+  const currentPhase = project?.kanbanPhase
+    ? prefs.kanbanPhases.find((p) => p.id === project.kanbanPhase)
+    : prefs.kanbanPhases[0];
 
-  function togglePhase(key: keyof ProjectPhases) {
-    if (!project) return;
-    const current = project.phases?.[key] ?? false;
-    const newPhases: ProjectPhases = {
-      filming: false,
-      roughCut: false,
-      draft: false,
-      master: false,
-      delivered: false,
-      ...project.phases,
-      [key]: !current,
-    };
-    startTransition(async () => {
-      await updatePhases(project.id, newPhases);
-    });
-  }
+  const delivs = project?.items ?? [];
+  const delivDone = delivs.filter((it) => it.status === 'done').length;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -57,7 +39,6 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
           <div className="p-8 text-center text-white/40 text-sm">Project not found.</div>
         ) : (
           <>
-            {/* Header */}
             <div className="flex items-start justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -94,66 +75,50 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
               </button>
             </div>
 
-            {/* Body */}
             <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
-              {/* Progress bar */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-xs text-white/45">
-                    {done}/{phases.length} phases done
-                  </span>
-                  <span className="text-xs font-semibold text-white/70">
-                    {Math.round((done / phases.length) * 100)}%
+              {currentPhase && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-white/45">Kanban phase:</span>
+                  <span className="text-xs font-semibold text-white/75 px-2 py-0.5 bg-white/[0.07] rounded-full">
+                    {currentPhase.label}
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${done === phases.length ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                    style={{ width: `${Math.round((done / phases.length) * 100)}%` }}
-                  />
-                </div>
-              </div>
+              )}
 
-              {/* Phase list */}
-              <div className="flex flex-col gap-2">
-                {phases.map((phase) => {
-                  const checked = project.phases?.[phase.key] ?? false;
-                  return (
-                    <button
-                      key={phase.key}
-                      type="button"
-                      onClick={() => togglePhase(phase.key)}
-                      disabled={isPending}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition text-left disabled:opacity-60 ${
-                        checked
-                          ? 'border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15'
-                          : 'border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.07]'
-                      }`}
-                    >
-                      <span
-                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${checked ? 'border-emerald-400 bg-emerald-400' : 'border-white/25'}`}
+              {delivs.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-white/45">
+                      Deliverables {delivDone}/{delivs.length}
+                    </span>
+                  </div>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${delivDone === delivs.length ? 'bg-violet-400' : 'bg-[#FFC206]'}`}
+                      style={{
+                        width: `${delivs.length ? Math.round((delivDone / delivs.length) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 mt-1">
+                    {delivs.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.03]"
                       >
-                        {checked && (
-                          <svg
-                            className="w-3 h-3 text-zinc-900"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={3}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        )}
-                      </span>
-                      <span
-                        className={`text-sm font-medium ${checked ? 'line-through text-white/30' : 'text-white/75'}`}
-                      >
-                        {phase.label}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
+                        <span
+                          className={`w-2 h-2 rounded-full shrink-0 ${item.status === 'done' ? 'bg-violet-400' : 'bg-white/20'}`}
+                        />
+                        <span
+                          className={`text-sm ${item.status === 'done' ? 'line-through text-white/30' : 'text-white/75'}`}
+                        >
+                          {item.description}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

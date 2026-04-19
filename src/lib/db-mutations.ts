@@ -47,5 +47,16 @@ export async function patchDoc(collection: string, id: string, fields: PlainObje
 
 /** Overwrite a single-document path (e.g. settings/company). */
 export async function setDoc(docPath: string, data: PlainObject): Promise<void> {
-  await adminDb.doc(docPath).set({ ...data, updatedAt: now() });
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: now() }).filter(([, v]) => v !== undefined)
+  );
+  await adminDb.doc(docPath).set(clean);
+}
+
+/** Merge specific fields into a document without touching other fields. */
+export async function mergeDoc(docPath: string, data: PlainObject): Promise<void> {
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: now() }).filter(([, v]) => v !== undefined)
+  );
+  await adminDb.doc(docPath).set(clean, { merge: true });
 }

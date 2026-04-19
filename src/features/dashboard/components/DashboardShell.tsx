@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import SidebarHeader from './SidebarHeader';
-import TelegramProjectsButton from './TelegramProjectsButton';
 import QuickPayModal from '@/src/features/payments/components/QuickPayModal';
 import type { CompanyProfile, InvoiceStatus } from '@/src/types';
 import { useAuth } from '@/src/features/auth/components/AuthProvider';
@@ -282,9 +281,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div
             className={`py-3 border-t border-white/[0.06] shrink-0 flex flex-col gap-0.5 ${compact ? 'px-1.5' : 'px-3'}`}
           >
-            <div className={compact ? 'flex justify-center' : ''}>
-              <TelegramProjectsButton compact={compact} />
-            </div>
             <NavItem
               href="/dashboard/settings"
               label="Settings"

@@ -3,7 +3,7 @@
  * No external dependencies beyond types and constants.
  */
 
-import type { Project } from '@/src/types';
+import type { Project, KanbanPhase, TelegramKanbanTemplate } from '@/src/types';
 import { DEFAULT_TELEGRAM_TEMPLATE } from '@/src/config/constants';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -115,9 +115,20 @@ export function buildNewProjectMessage(
 
 // ── Projects-summary message ──────────────────────────────────────────────────
 
-export function buildProjectsSummaryMessage(projects: Project[]): string {
-  const tl = DEFAULT_TELEGRAM_TEMPLATE.timeline;
-  const { headerEmoji, headerTitle } = DEFAULT_TELEGRAM_TEMPLATE;
+export function buildProjectsSummaryMessage(
+  projects: Project[],
+  kanbanPhases: KanbanPhase[] = [],
+  tmpl?: TelegramKanbanTemplate
+): string {
+  const D = DEFAULT_TELEGRAM_TEMPLATE;
+  const headerEmoji = tmpl?.headerEmoji ?? D.headerEmoji;
+  const headerTitle = tmpl?.headerTitle ?? D.headerTitle;
+
+  // Phase order: stored IDs (filtered to valid) + any new phases appended
+  const allPhaseIds = kanbanPhases.map((p) => p.id);
+  const stored = (tmpl?.sectionOrder ?? []).filter((id) => allPhaseIds.includes(id));
+  const missingPhases = allPhaseIds.filter((id) => !stored.includes(id));
+  const phaseOrder = stored.length > 0 ? [...stored, ...missingPhases] : allPhaseIds;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -127,112 +138,59 @@ export function buildProjectsSummaryMessage(projects: Project[]): string {
     year: 'numeric',
   });
 
-  const isThisMonth = (d?: string) => {
-    if (!d) return false;
-    const dt = new Date(d);
-    return dt.getFullYear() === today.getFullYear() && dt.getMonth() === today.getMonth();
-  };
-
+  // Use timeline info only for urgency sorting, not display
+  const tl = D.timeline;
   const sortByUrgency = (a: Project, b: Project) =>
     (getTimelineInfo(a.deliverDate, tl)?.daysLeft ?? 9999) -
     (getTimelineInfo(b.deliverDate, tl)?.daysLeft ?? 9999);
 
-  const confirmed = (p: Project) => p.status === 'confirmed';
-
-  // Kanban columns — mirrors KanbanView.tsx getProjectCol logic
-  const todo = projects
-    .filter((p) => confirmed(p) && (!p.phases || !p.phases.filming))
-    .sort(sortByUrgency);
-  const filmed = projects
-    .filter((p) => confirmed(p) && p.phases?.filming && !p.phases?.roughCut)
-    .sort(sortByUrgency);
-  const roughCut = projects
-    .filter((p) => confirmed(p) && p.phases?.roughCut && !p.phases?.draft)
-    .sort(sortByUrgency);
-  const draftedVo = projects
-    .filter((p) => confirmed(p) && p.phases?.draft && !p.phases?.master)
-    .sort(sortByUrgency);
-  const master = projects
-    .filter((p) => confirmed(p) && p.phases?.master && !p.phases?.delivered)
-    .sort(sortByUrgency);
-  const done = projects.filter((p) => confirmed(p) && p.phases?.delivered).sort(sortByUrgency);
-  const completed = projects
-    .filter((p) => p.status === 'completed' && isThisMonth(p.completedAt))
-    .sort(sortByUrgency);
-  const waitConfirm = projects.filter((p) => p.status === 'unconfirmed');
-
-  const allActive = [...todo, ...filmed, ...roughCut, ...draftedVo, ...master, ...done];
-  const veryLate = allActive.filter((p) => getTimelineInfo(p.deliverDate, tl)?.isOverdue);
-  const almostLate = allActive.filter((p) => {
-    const i = getTimelineInfo(p.deliverDate, tl);
-    return i && !i.isOverdue && i.daysLeft <= 2;
-  });
-
-  const hasAny = allActive.length > 0 || completed.length > 0 || waitConfirm.length > 0;
-  if (!hasAny) return `${headerEmoji} ${headerTitle} — ${dateStr}\n\nNo active projects.`;
-
-  const oneLiner = (p: Project): string => {
-    const info = getTimelineInfo(p.deliverDate, tl);
-    return info ? `${tl.noDate} ${p.name} (${info.emoji} ${info.label})` : `${tl.noDate} ${p.name}`;
+  const firstPhaseId = kanbanPhases[0]?.id ?? '';
+  const getPhaseId = (p: Project): string => {
+    if (!p.kanbanPhase) return firstPhaseId;
+    return kanbanPhases.some((ph) => ph.id === p.kanbanPhase) ? p.kanbanPhase : firstPhaseId;
   };
+
+  const phaseMap = new Map(
+    kanbanPhases.map((phase) => [
+      phase.id,
+      {
+        phase,
+        list: projects
+          .filter((p) => p.status === 'confirmed' && getPhaseId(p) === phase.id)
+          .sort(sortByUrgency),
+      },
+    ])
+  );
+
+  const allActive = [...phaseMap.values()].flatMap((b) => b.list);
+  if (allActive.length === 0)
+    return `${headerEmoji} ${headerTitle} — ${dateStr}\n\nNo active projects.`;
 
   const ln: string[] = [];
   ln.push(`${headerEmoji} ${headerTitle} — ${dateStr}`);
   ln.push('');
 
-  // Summary counts
-  const summaryRows = [
-    { emoji: '🏁', label: 'Completed', list: completed },
-    { emoji: '⬜', label: 'Wait Project Confirm', list: waitConfirm },
-    { emoji: '⚪', label: 'Todo', list: todo },
-    { emoji: '🎬', label: 'Filmed', list: filmed },
-    { emoji: '✂️', label: 'Rough Cut', list: roughCut },
-    { emoji: '📝', label: 'Drafted VO', list: draftedVo },
-    { emoji: '🎯', label: 'Master', list: master },
-    { emoji: '✅', label: 'Done', list: done },
-  ].filter((r) => r.list.length > 0);
-
-  for (const r of summaryRows) ln.push(`${r.emoji} ${r.list.length}  ${r.label}`);
+  // Summary count rows — phases only, in order
+  for (const id of phaseOrder) {
+    const b = phaseMap.get(id);
+    if (b && b.list.length > 0) ln.push(`▸ ${b.list.length}  ${b.phase.label}`);
+  }
   ln.push('');
   ln.push('━━━━━━━━━━━━');
 
-  // Completed section (no timeline — already done)
-  if (completed.length > 0) {
-    ln.push('');
-    ln.push(`🏁  Completed (${completed.length})`);
-    for (const p of completed) ln.push(`     ▸ ${p.name}`);
-  }
-
-  // Wait confirm section (no timeline)
-  if (waitConfirm.length > 0) {
-    ln.push('');
-    ln.push(`⬜  Wait Project Confirm (${waitConfirm.length})`);
-    for (const p of waitConfirm) ln.push(`     ▸ ${p.name}`);
-  }
-
-  // Active phase sections
-  const phaseSections = [
-    { emoji: '⚪', label: 'Todo', list: todo },
-    { emoji: '🎬', label: 'Filmed', list: filmed },
-    { emoji: '✂️', label: 'Rough Cut', list: roughCut },
-    { emoji: '📝', label: 'Drafted VO', list: draftedVo },
-    { emoji: '🎯', label: 'Master', list: master },
-    { emoji: '✅', label: 'Done', list: done },
-  ].filter((s) => s.list.length > 0);
-
-  for (const { emoji, label, list } of phaseSections) {
-    ln.push('');
-    ln.push(`${emoji}  ${label} (${list.length})`);
-    for (const p of list) ln.push(`     ${oneLiner(p)}`);
-  }
-
-  if (veryLate.length > 0 || almostLate.length > 0) {
-    ln.push('');
-    ln.push('━━━━━━━━━━━━');
-    if (veryLate.length > 0)
-      ln.push(`Late: ${veryLate.length} project${veryLate.length > 1 ? 's' : ''}.`);
-    if (almostLate.length > 0)
-      ln.push(`Due Soon (≤2d): ${almostLate.length} project${almostLate.length > 1 ? 's' : ''}.`);
+  // Detail sections — phases in user-defined order
+  for (const id of phaseOrder) {
+    const b = phaseMap.get(id);
+    if (b && b.list.length > 0) {
+      ln.push('');
+      ln.push(`■ ${b.phase.label}:`);
+      for (const p of b.list) {
+        ln.push(`  ▸ ${p.name}`);
+        for (const item of p.items ?? []) {
+          ln.push(`    - ${item.description}`);
+        }
+      }
+    }
   }
 
   return ln.join('\n');

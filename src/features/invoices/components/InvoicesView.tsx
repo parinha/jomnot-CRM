@@ -17,7 +17,12 @@ import {
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import { useProjects } from '@/src/hooks/useProjects';
-import { useCompanyProfile, usePaymentInfo, useScopeOfWork } from '@/src/hooks/useSettings';
+import {
+  useCompanyProfile,
+  usePaymentInfo,
+  useInvoicingSettings,
+  useScopeOfWork,
+} from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import {
   calcSubtotal,
@@ -71,6 +76,7 @@ export default function InvoicesView() {
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: companyProfile } = useCompanyProfile();
   const { data: paymentInfo } = usePaymentInfo();
+  const { data: invoicingSettings } = useInvoicingSettings();
   const prefs = useAppPreferences();
   const { fmtAmount: fmt } = useCurrency();
   const fmtDt = useDateFmt();
@@ -119,7 +125,7 @@ export default function InvoicesView() {
           invoice: inv,
           client,
           company: companyProfile ?? ({} as CompanyProfile),
-          payment: paymentInfo ?? ({} as PaymentInfo),
+          payment: { ...(invoicingSettings ?? {}), ...(paymentInfo ?? {}) } as PaymentInfo,
           subtotal,
           whtAmount,
           netTotal,
@@ -1941,7 +1947,6 @@ export default function InvoicesView() {
                             items: cpItems.filter((it) => !cpExcluded.has(it.id)),
                             status: 'confirmed',
                             createdAt: new Date().toISOString(),
-                            phases: undefined,
                             filmingDate: undefined,
                             deliverDate: undefined,
                             confirmedMonth: undefined,

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import type { Project, ProjectPhases } from '@/src/types';
+import { useRouter } from 'next/navigation';
+import type { Project } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { fmtDate } from '@/src/lib/formatters';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
@@ -9,105 +11,94 @@ import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import ProgressPopover from './ProgressPopover';
 import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
 
-const PHASE_ORDER: (keyof ProjectPhases)[] = [
-  'filming',
-  'roughCut',
-  'draft',
-  'master',
-  'delivered',
-];
-
-const COLUMNS = [
+const PALETTE = [
   {
-    key: 'todo',
-    label: 'Todo',
-    hdr: 'text-white/50',
-    border: 'border-white/[0.08]',
-    bg: 'bg-white/[0.02]',
-    ring: 'ring-white/20',
-  },
-  {
-    key: 'filming',
-    label: 'Filming',
     hdr: 'text-sky-400',
     border: 'border-sky-500/20',
     bg: 'bg-sky-500/[0.03]',
     ring: 'ring-sky-500/30',
   },
   {
-    key: 'roughCut',
-    label: 'Rough Cut',
     hdr: 'text-violet-400',
     border: 'border-violet-500/20',
     bg: 'bg-violet-500/[0.03]',
     ring: 'ring-violet-500/30',
   },
   {
-    key: 'draft',
-    label: 'Draft / VO',
     hdr: 'text-amber-400',
     border: 'border-amber-500/20',
     bg: 'bg-amber-500/[0.03]',
     ring: 'ring-amber-500/30',
   },
   {
-    key: 'master',
-    label: 'Master',
     hdr: 'text-orange-400',
     border: 'border-orange-500/20',
     bg: 'bg-orange-500/[0.03]',
     ring: 'ring-orange-500/30',
   },
   {
-    key: 'delivered',
-    label: 'Done',
     hdr: 'text-emerald-400',
     border: 'border-emerald-500/20',
     bg: 'bg-emerald-500/[0.03]',
     ring: 'ring-emerald-500/30',
   },
   {
-    key: 'completed',
-    label: 'Completed',
-    hdr: 'text-white/35',
-    border: 'border-white/[0.07]',
-    bg: 'bg-white/[0.015]',
-    ring: 'ring-white/20',
+    hdr: 'text-pink-400',
+    border: 'border-pink-500/20',
+    bg: 'bg-pink-500/[0.03]',
+    ring: 'ring-pink-500/30',
+  },
+  {
+    hdr: 'text-blue-400',
+    border: 'border-blue-500/20',
+    bg: 'bg-blue-500/[0.03]',
+    ring: 'ring-blue-500/30',
+  },
+  {
+    hdr: 'text-teal-400',
+    border: 'border-teal-500/20',
+    bg: 'bg-teal-500/[0.03]',
+    ring: 'ring-teal-500/30',
+  },
+  {
+    hdr: 'text-rose-400',
+    border: 'border-rose-500/20',
+    bg: 'bg-rose-500/[0.03]',
+    ring: 'ring-rose-500/30',
+  },
+  {
+    hdr: 'text-indigo-400',
+    border: 'border-indigo-500/20',
+    bg: 'bg-indigo-500/[0.03]',
+    ring: 'ring-indigo-500/30',
   },
 ];
+
+const FILTER_KEY = 'kanban_filters';
+
+function readFilter(key: string, def: boolean): boolean {
+  if (typeof window === 'undefined') return def;
+  try {
+    const stored = localStorage.getItem(FILTER_KEY);
+    if (!stored) return def;
+    const obj = JSON.parse(stored);
+    return key in obj ? Boolean(obj[key]) : def;
+  } catch {
+    return def;
+  }
+}
+
+function saveFilter(key: string, value: boolean) {
+  try {
+    const stored = localStorage.getItem(FILTER_KEY);
+    const obj = stored ? JSON.parse(stored) : {};
+    localStorage.setItem(FILTER_KEY, JSON.stringify({ ...obj, [key]: value }));
+  } catch {}
+}
 
 function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function getProjectCol(project: Project): string {
-  if (project.status === 'completed') return 'completed';
-  if (!project.phases || PHASE_ORDER.every((k) => !project.phases![k])) return 'todo';
-  // The current column = the last consecutively-checked phase
-  let lastChecked = 0;
-  for (let i = 0; i < PHASE_ORDER.length; i++) {
-    if (project.phases[PHASE_ORDER[i]]) lastChecked = i;
-    else break;
-  }
-  return PHASE_ORDER[lastChecked];
-}
-
-function getPhasesForCol(col: string): ProjectPhases {
-  const phases: ProjectPhases = {
-    filming: false,
-    roughCut: false,
-    draft: false,
-    master: false,
-    delivered: false,
-  };
-  if (col === 'todo') return phases;
-  const colIdx = PHASE_ORDER.indexOf(col as keyof ProjectPhases);
-  // Mark all phases up to and including the target column
-  for (let i = 0; i <= colIdx; i++) {
-    phases[PHASE_ORDER[i]] = true;
-  }
-  return phases;
 }
 
 function relDays(deliverDate: string, today: string): string {
@@ -141,16 +132,12 @@ export default function KanbanView() {
   const { data: projects, isLoading } = useProjects();
   const { data: clients } = useClients();
   const prefs = useAppPreferences();
+  const router = useRouter();
 
-  const columns = [
-    COLUMNS[0],
-    { ...COLUMNS[1], label: prefs.phaseLabels[0] },
-    { ...COLUMNS[2], label: prefs.phaseLabels[1] },
-    { ...COLUMNS[3], label: prefs.phaseLabels[2] },
-    { ...COLUMNS[4], label: prefs.phaseLabels[3] },
-    { ...COLUMNS[5], label: prefs.phaseLabels[4] },
-    COLUMNS[6],
-  ];
+  const kanbanPhases =
+    prefs.kanbanPhases.length > 0 ? prefs.kanbanPhases : DEFAULT_APP_PREFERENCES.kanbanPhases;
+
+  const firstPhaseId = kanbanPhases[0].id;
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
@@ -158,30 +145,17 @@ export default function KanbanView() {
   const { upsert } = useProjectMutations();
   const [popover, setPopover] = useState<{ project: Project } | null>(null);
 
+  const [showActive, setShowActive] = useState(() => readFilter('showActive', true));
+  const [showCompleted, setShowCompleted] = useState(() => readFilter('showCompleted', true));
+  const [showUpcoming, setShowUpcoming] = useState(() => readFilter('showUpcoming', false));
+  const [showUnconfirmed, setShowUnconfirmed] = useState(() =>
+    readFilter('showUnconfirmed', false)
+  );
+
   function openPopover(e: React.MouseEvent, project: Project) {
     e.stopPropagation();
+    if ((project.items ?? []).length === 0) return;
     setPopover({ project });
-  }
-
-  function togglePhase(key: keyof ProjectPhases) {
-    if (!popover) return;
-    const proj = popover.project;
-    const updated: Project = {
-      ...proj,
-      phases: {
-        filming: false,
-        roughCut: false,
-        draft: false,
-        master: false,
-        delivered: false,
-        ...proj.phases,
-        [key]: !(proj.phases?.[key] ?? false),
-      },
-    };
-    setPopover((p) => (p ? { ...p, project: updated } : null));
-    startTransition(async () => {
-      await upsert(updated);
-    });
   }
 
   function toggleItem(itemId: string) {
@@ -202,36 +176,30 @@ export default function KanbanView() {
   if (isLoading) return <TablePageSkeleton rows={6} />;
 
   const today = localToday();
+  const currentYM = today.slice(0, 7);
 
-  const visible = projects.filter((p) => p.status === 'confirmed' || p.status === 'completed');
-
-  function moveToCol(projectId: string, newCol: string) {
-    const p = projects.find((proj) => proj.id === projectId);
-    if (!p) return;
-    const newPhases = getPhasesForCol(newCol);
-    const isCompleting = newCol === 'completed';
-    const wasCompleted = p.status === 'completed';
-    const updated: Project = {
-      ...p,
-      phases: newPhases,
-      status: isCompleting ? 'completed' : wasCompleted ? 'confirmed' : p.status,
-      completedAt: isCompleting
-        ? localToday()
-        : wasCompleted && !isCompleting
-          ? undefined
-          : p.completedAt,
-    };
-    startTransition(async () => {
-      await upsert(updated);
-    });
+  function isUpcoming(p: Project): boolean {
+    return !!p.confirmedMonth && p.confirmedMonth > currentYM;
   }
 
-  function markComplete(project: Project) {
-    const updated: Project = {
-      ...project,
-      status: 'completed',
-      completedAt: localToday(),
-    };
+  const visible = projects.filter((p) => {
+    if (p.status === 'confirmed' && !isUpcoming(p) && !showActive) return false;
+    if (p.status === 'completed' && !showCompleted) return false;
+    if (p.status === 'unconfirmed' && !showUnconfirmed) return false;
+    if (isUpcoming(p) && !showUpcoming) return false;
+    return true;
+  });
+
+  function getProjectPhaseId(project: Project): string {
+    if (!project.kanbanPhase) return firstPhaseId;
+    const exists = kanbanPhases.some((ph) => ph.id === project.kanbanPhase);
+    return exists ? project.kanbanPhase : firstPhaseId;
+  }
+
+  function moveToCol(projectId: string, phaseId: string) {
+    const p = projects.find((proj) => proj.id === projectId);
+    if (!p) return;
+    const updated: Project = { ...p, kanbanPhase: phaseId };
     startTransition(async () => {
       await upsert(updated);
     });
@@ -239,31 +207,115 @@ export default function KanbanView() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
-      {/* Header */}
-      <div className="px-4 py-4 border-b border-white/[0.06] shrink-0 flex items-center gap-3">
+      <div className="px-4 py-3 border-b border-white/[0.06] shrink-0 flex flex-wrap items-center gap-2">
         <h1 className="text-base font-bold text-white">Kanban</h1>
-        <span className="text-xs text-white/35">
+        <span className="text-xs text-white/35 mr-1">
           {visible.length} project{visible.length !== 1 ? 's' : ''}
         </span>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {(
+            [
+              {
+                label: 'Active',
+                active: showActive,
+                toggle: () => {
+                  setShowActive((v) => {
+                    saveFilter('showActive', !v);
+                    return !v;
+                  });
+                },
+                activeClr: 'border-violet-500/40 bg-violet-500/10 text-violet-300',
+              },
+              {
+                label: 'Completed',
+                active: showCompleted,
+                toggle: () => {
+                  setShowCompleted((v) => {
+                    saveFilter('showCompleted', !v);
+                    return !v;
+                  });
+                },
+                activeClr: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+              },
+              {
+                label: 'Upcoming',
+                active: showUpcoming,
+                toggle: () => {
+                  setShowUpcoming((v) => {
+                    saveFilter('showUpcoming', !v);
+                    return !v;
+                  });
+                },
+                activeClr: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
+              },
+              {
+                label: 'Unconfirmed',
+                active: showUnconfirmed,
+                toggle: () => {
+                  setShowUnconfirmed((v) => {
+                    saveFilter('showUnconfirmed', !v);
+                    return !v;
+                  });
+                },
+                activeClr: 'border-zinc-500/40 bg-zinc-500/10 text-zinc-300',
+              },
+            ] as const
+          ).map(({ label, active, toggle, activeClr }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={toggle}
+              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-lg border text-[11px] font-semibold transition ${active ? activeClr : 'border-white/[0.08] text-white/25 hover:text-white/50 hover:border-white/20'}`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${active ? 'bg-current' : 'bg-white/20'}`}
+              />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1" />
+        <button
+          type="button"
+          onClick={() => router.push('/dashboard/settings?tab=workspace')}
+          className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/[0.10] text-[11px] font-medium text-white/40 hover:bg-white/[0.07] hover:text-white/70 transition"
+        >
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.75}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"
+            />
+          </svg>
+          Kanban Settings
+        </button>
       </div>
 
-      {/* Board */}
       <div className="flex-1 overflow-x-auto overflow-y-hidden min-h-0">
-        <div className="flex h-full gap-3 p-4" style={{ minWidth: columns.length * 272 }}>
-          {columns.map((col) => {
+        <div className="flex h-full gap-3 p-4" style={{ minWidth: kanbanPhases.length * 272 }}>
+          {kanbanPhases.map((phase, idx) => {
+            const color = PALETTE[idx % PALETTE.length];
             const cards = sortCards(
-              visible.filter((p) => getProjectCol(p) === col.key),
+              visible.filter((p) => getProjectPhaseId(p) === phase.id),
               today
             );
-            const isOver = overCol === col.key && dragId !== null;
+            const isOver = overCol === phase.id && dragId !== null;
 
             return (
               <div
-                key={col.key}
+                key={phase.id}
                 className="flex flex-col shrink-0 w-64"
                 onDragOver={(e) => {
                   e.preventDefault();
-                  setOverCol(col.key);
+                  setOverCol(phase.id);
                 }}
                 onDragLeave={(e) => {
                   if (!e.currentTarget.contains(e.relatedTarget as Node)) {
@@ -272,29 +324,28 @@ export default function KanbanView() {
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (dragId) moveToCol(dragId, col.key);
+                  if (dragId) moveToCol(dragId, phase.id);
                   setDragId(null);
                   setOverCol(null);
                 }}
               >
-                {/* Column header */}
                 <div className="flex items-center gap-2 mb-2.5 px-1">
-                  <span className={`text-[11px] font-bold uppercase tracking-widest ${col.hdr}`}>
-                    {col.label}
+                  <span className={`text-[11px] font-bold uppercase tracking-widest ${color.hdr}`}>
+                    {phase.label}
                   </span>
                   <span className="text-[11px] text-white/25 font-semibold">{cards.length}</span>
                 </div>
 
-                {/* Drop zone */}
                 <div
-                  className={`flex-1 flex flex-col gap-2 rounded-2xl border p-2 overflow-y-auto transition-all ${col.border} ${col.bg} ${isOver ? `ring-2 ${col.ring}` : ''}`}
+                  className={`flex-1 flex flex-col gap-2 rounded-2xl border p-2 overflow-y-auto transition-all ${color.border} ${color.bg} ${isOver ? `ring-2 ${color.ring}` : ''}`}
                 >
                   {cards.map((project) => {
                     const client = clients.find((c) => c.id === project.clientId);
                     const isDragging = dragId === project.id;
-                    const doneCount = PHASE_ORDER.filter((k) => project.phases?.[k]).length;
-                    const inDelivered = col.key === 'delivered';
                     const late = isLate(project, today);
+                    const delivItems = project.items ?? [];
+                    const delivDone = delivItems.filter((it) => it.status === 'done').length;
+                    const hasDelivs = delivItems.length > 0;
 
                     return (
                       <div
@@ -329,30 +380,29 @@ export default function KanbanView() {
                           </p>
                         )}
 
-                        {/* Phase progress bar */}
-                        <div className="flex items-center gap-1 mt-2.5">
-                          {PHASE_ORDER.map((k) => (
-                            <div
-                              key={k}
-                              className={`h-1 flex-1 rounded-full transition-colors ${
-                                project.phases?.[k] ? 'bg-emerald-400/70' : 'bg-white/[0.08]'
-                              }`}
-                            />
-                          ))}
-                        </div>
-
-                        <div className="flex items-center justify-between mt-1.5">
-                          <span
-                            className={`text-[10px] ${late ? 'text-red-400/60' : 'text-white/30'}`}
-                          >
-                            {doneCount}/5 phases
-                          </span>
-                          {project.budget ? (
-                            <span className="text-[10px] text-white/35 amt">
-                              ${project.budget.toLocaleString()}
+                        {hasDelivs && (
+                          <div className="flex items-center gap-1.5 mt-2.5">
+                            <div className="flex-1 h-1 rounded-full bg-white/[0.08] overflow-hidden">
+                              <div
+                                className={`h-full rounded-full transition-all ${delivDone === delivItems.length ? 'bg-violet-400/70' : 'bg-[#FFC206]/60'}`}
+                                style={{
+                                  width: `${Math.round((delivDone / delivItems.length) * 100)}%`,
+                                }}
+                              />
+                            </div>
+                            <span
+                              className={`text-[10px] ${late ? 'text-red-400/60' : 'text-white/30'}`}
+                            >
+                              {delivDone}/{delivItems.length}
                             </span>
-                          ) : null}
-                        </div>
+                          </div>
+                        )}
+
+                        {project.budget ? (
+                          <p className="text-[10px] text-white/35 amt mt-1.5">
+                            ${project.budget.toLocaleString()}
+                          </p>
+                        ) : null}
 
                         {project.deliverDate && (
                           <p
@@ -369,16 +419,6 @@ export default function KanbanView() {
                             </span>
                           </p>
                         )}
-
-                        {inDelivered && (
-                          <button
-                            onClick={() => markComplete(project)}
-                            disabled={isPending}
-                            className="mt-2.5 w-full h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-[11px] font-semibold hover:bg-emerald-500/25 transition disabled:opacity-50"
-                          >
-                            Mark as Completed
-                          </button>
-                        )}
                       </div>
                     );
                   })}
@@ -394,13 +434,12 @@ export default function KanbanView() {
           })}
         </div>
       </div>
+
       {popover && (
         <ProgressPopover
           project={popover.project}
           onClose={() => setPopover(null)}
-          onTogglePhase={togglePhase}
           onToggleItem={toggleItem}
-          phaseLabels={prefs.phaseLabels}
         />
       )}
     </div>

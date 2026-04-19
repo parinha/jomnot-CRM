@@ -1,6 +1,6 @@
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
-import type { Project, ProjectItem, ProjectPhases } from '@/src/types';
+import type { Project, ProjectItem } from '@/src/types';
 
 const projectFetcher = fetcher as (url: string) => Promise<Project[]>;
 
@@ -53,11 +53,11 @@ export function useProjectMutations() {
     await mutate('/api/projects');
   }
 
-  async function updatePhases(projectId: string, phases: ProjectPhases): Promise<void> {
+  async function updateKanbanPhase(projectId: string, kanbanPhase: string): Promise<void> {
     const res = await fetch(`/api/projects/${projectId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phases }),
+      body: JSON.stringify({ kanbanPhase }),
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
@@ -66,5 +66,5 @@ export function useProjectMutations() {
     await mutate('/api/projects');
   }
 
-  return { upsert, remove, updateItems, updatePhases };
+  return { upsert, remove, updateItems, updateKanbanPhase };
 }

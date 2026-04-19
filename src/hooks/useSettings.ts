@@ -1,11 +1,12 @@
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
-import type { AppPreferences, CompanyProfile, PaymentInfo } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES } from '@/src/types';
+import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
 
 const profileFetcher = fetcher as (url: string) => Promise<CompanyProfile>;
 const paymentFetcher = fetcher as (url: string) => Promise<PaymentInfo>;
+const invoicingFetcher = fetcher as (url: string) => Promise<InvoicingSettings>;
 const scopesFetcher = fetcher as (url: string) => Promise<string[]>;
 
 export function useCompanyProfile() {
@@ -22,6 +23,14 @@ export function usePaymentInfo() {
     paymentFetcher
   );
   return { data: data ?? null, isLoading, isError: !!error, error, mutate };
+}
+
+export function useInvoicingSettings() {
+  const { data, error, isLoading, mutate } = useSWR<InvoicingSettings>(
+    '/api/settings/invoicing',
+    invoicingFetcher
+  );
+  return { data: data ?? DEFAULT_INVOICING_SETTINGS, isLoading, isError: !!error, error, mutate };
 }
 
 export function useScopeOfWork() {
@@ -87,7 +96,28 @@ export function useSettingsMutations() {
     await mutate('/api/settings/preferences');
   }
 
-  return { saveCompanyProfile, savePaymentInfo, saveScopeOfWork, saveAppPreferences };
+  async function saveInvoicingSettings(invoicing: InvoicingSettings): Promise<void> {
+    const res = await fetch('/api/settings/invoicing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(invoicing),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new ApiError(body.error ?? 'Failed to save invoicing settings', res.status);
+    }
+    await mutate('/api/settings/invoicing');
+    // Also invalidate preferences cache since getAppPreferences merges from invoicing
+    await mutate('/api/settings/preferences');
+  }
+
+  return {
+    saveCompanyProfile,
+    savePaymentInfo,
+    saveScopeOfWork,
+    saveAppPreferences,
+    saveInvoicingSettings,
+  };
 }
 
 export function useAppPreferences() {

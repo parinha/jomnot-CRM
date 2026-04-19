@@ -48,14 +48,53 @@ export interface Invoice extends RecordMeta {
 
 // ── Settings ───────────────────────────────────────────────────────────────────
 
-export interface AppPreferences {
-  currencyCode: string; // ISO 4217 e.g. 'USD', 'EUR', 'THB'
+export interface KanbanPhase {
+  id: string;
+  label: string;
+}
+
+// Invoicing tab: bank payment details + currency/date/tax display settings
+export interface InvoicingSettings {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  swiftCode: string;
+  currency: string; // display name e.g. "United States Dollars"
+  qrImage: string;
+  currencyCode: string; // ISO 4217 e.g. 'USD'
   currencySymbol: string; // '$', '€', '฿'
   dateFormat: 'DD/Mon/YYYY' | 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
-  phaseLabels: [string, string, string, string, string];
   taxEnabled: boolean;
-  taxLabel: string; // 'WHT', 'VAT', 'GST', 'Tax'
-  taxRate: number; // percentage e.g. 15
+  taxLabel: string;
+  taxRate: number;
+  taxType: 'additive' | 'deductive';
+}
+
+export const DEFAULT_INVOICING_SETTINGS: InvoicingSettings = {
+  bankName: '',
+  accountName: '',
+  accountNumber: '',
+  swiftCode: '',
+  currency: '',
+  qrImage: '',
+  currencyCode: 'USD',
+  currencySymbol: '$',
+  dateFormat: 'DD/Mon/YYYY',
+  taxEnabled: false,
+  taxLabel: 'Tax',
+  taxRate: 0,
+  taxType: 'additive',
+};
+
+// Workspace tab: kanban phases and calendar config
+export interface AppPreferences {
+  currencyCode: string; // kept for AppPreferencesContext backward compat (merged from invoicing)
+  currencySymbol: string;
+  dateFormat: 'DD/Mon/YYYY' | 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
+  kanbanPhases: KanbanPhase[];
+  taxEnabled: boolean;
+  taxLabel: string;
+  taxRate: number;
   taxType: 'additive' | 'deductive';
   holidays: { date: string; name: string }[];
 }
@@ -64,7 +103,11 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   currencyCode: 'USD',
   currencySymbol: '$',
   dateFormat: 'DD/Mon/YYYY',
-  phaseLabels: ['Phase 1', 'Phase 2', 'Phase 3', 'Phase 4', 'Phase 5'],
+  kanbanPhases: [
+    { id: 'phase-todo', label: 'To-do' },
+    { id: 'phase-inprogress', label: 'In Progress' },
+    { id: 'phase-done', label: 'Done' },
+  ],
   taxEnabled: false,
   taxLabel: 'Tax',
   taxRate: 0,
@@ -82,6 +125,12 @@ export interface CompanyProfile {
   signatorySignature?: string;
 }
 
+export interface TelegramKanbanTemplate {
+  headerEmoji?: string;
+  headerTitle?: string;
+  sectionOrder?: string[]; // ordered kanban phase IDs only
+}
+
 export interface PaymentInfo {
   bankName: string;
   accountName: string;
@@ -95,8 +144,10 @@ export interface PaymentInfo {
   projectTelegramChatId?: string;
   projectTelegramTopicId?: string;
   kanbanUpdateEnabled?: boolean;
-  kanbanUpdateTime?: string; // "HH:MM" 24-hour
+  kanbanUpdateTimes?: string[]; // ["09:00", "16:00"] 24-hour in user's timezone
   kanbanUpdateDays?: string[]; // ["mon","tue","wed","thu","fri","sat","sun"]
+  kanbanUpdateTimezone?: string; // IANA timezone e.g. "Asia/Bangkok"
+  telegramTemplate?: TelegramKanbanTemplate;
 }
 
 // ── Project ────────────────────────────────────────────────────────────────────
@@ -111,21 +162,13 @@ export interface ProjectItem {
 
 export type ProjectStatus = 'unconfirmed' | 'confirmed' | 'on-hold' | 'completed';
 
-export interface ProjectPhases {
-  filming: boolean;
-  roughCut: boolean;
-  draft: boolean;
-  master: boolean;
-  delivered: boolean;
-}
-
 export interface Project extends RecordMeta {
   id: string;
   name: string;
   clientId: string;
   invoiceIds: string[];
   items: ProjectItem[];
-  phases?: ProjectPhases;
+  kanbanPhase?: string; // phase id; undefined = first column
   status: ProjectStatus;
   createdAt: string;
   confirmedMonth?: string;
