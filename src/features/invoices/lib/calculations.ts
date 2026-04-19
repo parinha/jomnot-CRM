@@ -39,7 +39,7 @@ export function calcSubtotal(inv: Invoice): number {
  */
 export function calcNet(inv: Invoice, tax?: TaxConfig): number {
   const gross = calcSubtotal(inv);
-  if (tax?.enabled && tax.type === 'deductive') {
+  if (tax?.enabled && inv.withWHT && tax.type === 'deductive') {
     return gross * (1 - tax.rate / 100);
   }
   if (!tax && inv.withWHT) {
@@ -54,7 +54,7 @@ export function calcNet(inv: Invoice, tax?: TaxConfig): number {
  */
 export function calcTaxAmount(inv: Invoice, tax?: TaxConfig): number | null {
   const gross = calcSubtotal(inv);
-  if (tax?.enabled) {
+  if (tax?.enabled && inv.withWHT) {
     return gross * (tax.rate / 100);
   }
   if (!tax && inv.withWHT) {
