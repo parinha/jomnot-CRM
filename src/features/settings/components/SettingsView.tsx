@@ -967,18 +967,19 @@ function SettingsForm({
                         </button>
                       </div>
                     ))}
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        disabled
-                        className="h-9 px-4 rounded-xl border border-white/10 text-xs font-semibold text-white/25 cursor-not-allowed self-start"
-                      >
-                        + Add time
-                      </button>
-                      <span className="text-xs text-amber-400/70">
-                        Upgrade to Vercel Pro to add more schedules
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = [
+                          ...(payment.kanbanUpdateTimes ?? ['09:00', '16:00']),
+                          '09:00',
+                        ];
+                        setPay('kanbanUpdateTimes', next);
+                      }}
+                      className="h-9 px-4 rounded-xl border border-white/15 text-xs font-semibold text-white/50 hover:bg-white/[0.07] hover:text-white/80 transition self-start"
+                    >
+                      + Add time
+                    </button>
                   </div>
                 </div>
 
