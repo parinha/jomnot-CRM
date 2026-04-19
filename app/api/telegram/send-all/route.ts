@@ -1,24 +1,19 @@
 import { adminDb } from '@/src/lib/firebase-admin';
 import { buildProjectsSummaryMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
-import type { AppPreferences, PaymentInfo, Project } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES } from '@/src/types';
+import type { Project } from '@/src/types';
+import { getPaymentInfo, getAppPreferences } from '@/src/features/settings/api/getSettings';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
   try {
-    const [projectsSnap, prefsSnap] = await Promise.all([
+    const [projectsSnap, payment, prefs] = await Promise.all([
       adminDb.collection('projects').get(),
-      adminDb.doc('settings/preferences').get(),
+      getPaymentInfo(),
+      getAppPreferences(),
     ]);
 
     const projects = projectsSnap.docs.map((d) => ({ id: d.id, ...d.data() }) as Project);
-    const prefsData = prefsSnap.exists ? (prefsSnap.data() as Record<string, unknown>) : {};
-    const payment = prefsData as unknown as PaymentInfo;
-    const prefs: AppPreferences = {
-      ...DEFAULT_APP_PREFERENCES,
-      ...(prefsData as Partial<AppPreferences>),
-    };
 
     const token = payment.telegramBotToken?.trim();
     const chatId = payment.projectTelegramChatId?.trim();

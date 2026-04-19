@@ -6,26 +6,37 @@ import { getClients } from '@/src/features/clients/api/getClients';
 import {
   getCompanyProfile,
   getPaymentInfo,
+  getInvoicingSettings,
   getAppPreferences,
 } from '@/src/features/settings/api/getSettings';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [invoice, clients, company, payment, prefs] = await Promise.all([
+  const [invoice, clients, company, payment, invoicing, prefs] = await Promise.all([
     getInvoice(id),
     getClients(),
     getCompanyProfile(),
     getPaymentInfo(),
+    getInvoicingSettings(),
     getAppPreferences(),
   ]);
   if (!invoice) return <p style={{ padding: 32 }}>Invoice not found.</p>;
   const client = clients.find((c) => c.id === invoice.clientId) ?? null;
+  const mergedPayment = {
+    ...payment,
+    bankName: invoicing.bankName,
+    accountName: invoicing.accountName,
+    accountNumber: invoicing.accountNumber,
+    swiftCode: invoicing.swiftCode,
+    currency: invoicing.currency,
+    qrImage: invoicing.qrImage,
+  };
   return (
     <InvoicePrint
       invoice={invoice}
       client={client}
       company={company}
-      payment={payment}
+      payment={mergedPayment}
       taxLabel={prefs.taxLabel}
       taxRate={prefs.taxRate}
       taxType={prefs.taxType}
