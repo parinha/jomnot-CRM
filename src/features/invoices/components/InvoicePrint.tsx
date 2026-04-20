@@ -114,20 +114,12 @@ export default function InvoicePrint({
       const formData = new FormData();
       formData.append('chat_id', chatId);
       formData.append('document', pdfBlob, `${invoice.number}.pdf`);
-      const captionLines = [
+      const caption = [
         `📄 *${invoice.number}*`,
         `📅 Date: ${invoice.date}`,
         `👤 Client: ${client?.name ?? '—'}`,
-      ];
-      if (payment.bankName || payment.accountName || payment.accountNumber || payment.swiftCode) {
-        captionLines.push('', '💳 *Payment Info*');
-        if (payment.bankName) captionLines.push(`🏦 Bank: ${payment.bankName}`);
-        if (payment.accountName) captionLines.push(`👤 Account Name: ${payment.accountName}`);
-        if (payment.accountNumber) captionLines.push(`🔢 Account No: ${payment.accountNumber}`);
-        if (payment.swiftCode) captionLines.push(`🔀 SWIFT/ABA: ${payment.swiftCode}`);
-        if (payment.currency) captionLines.push(`💰 Currency: ${payment.currency}`);
-      }
-      formData.append('caption', captionLines.join('\n'));
+      ].join('\n');
+      formData.append('caption', caption);
       formData.append('parse_mode', 'Markdown');
       if (payment.telegramTopicId?.trim())
         formData.append('message_thread_id', payment.telegramTopicId.trim());
