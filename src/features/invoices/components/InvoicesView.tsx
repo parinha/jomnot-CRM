@@ -347,61 +347,56 @@ export default function InvoicesView() {
     setSelectedProjectIds((prev) => prev.filter((id) => id !== projectId));
   }
 
-  function handleSave() {
-    if (!form.projectName?.trim()) {
-      setFormError('Project / Campaign Name is required.');
-      return;
-    }
-    if (!form.clientId) {
-      setFormError('Please select a client.');
-      return;
-    }
-    if (!form.number.trim()) {
-      setFormError('Invoice number is required.');
-      return;
-    }
+  function validateForm(): string | null {
+    if (!form.projectName?.trim()) return 'Project / Campaign Name is required.';
+    if (!form.clientId) return 'Please select a client.';
+    if (!form.number.trim()) return 'Invoice number is required.';
     const duplicate = invoices.find(
       (inv) => inv.number === form.number.trim() && inv.id !== editingId
     );
-    if (duplicate) {
-      setFormError(`Invoice number "${form.number.trim()}" is already used.`);
-      return;
-    }
-    if (form.items.some((it) => !it.description.trim())) {
-      setFormError('All line items need a description.');
-      return;
-    }
+    if (duplicate) return `Invoice number "${form.number.trim()}" is already used.`;
+    if (form.items.some((it) => !it.description.trim()))
+      return 'All line items need a description.';
+    return null;
+  }
 
+  async function performSave(invoiceId: string) {
+    await upsertInvoice({ id: invoiceId, ...form });
+    for (const p of projects) {
+      const wasLinked = p.invoiceIds.includes(invoiceId);
+      const isSelected = selectedProjectIds.includes(p.id);
+      if (isSelected && !wasLinked) {
+        await upsertProject({ ...p, invoiceIds: [...p.invoiceIds, invoiceId] });
+      } else if (!isSelected && wasLinked) {
+        await upsertProject({ ...p, invoiceIds: p.invoiceIds.filter((id) => id !== invoiceId) });
+      }
+    }
+  }
+
+  function handleSave() {
+    const error = validateForm();
+    if (error) {
+      setFormError(error);
+      return;
+    }
     const invoiceId = editingId ?? uid();
     startTransition(async () => {
-      await upsertInvoice({ id: invoiceId, ...form });
-      // sync project links
-      for (const p of projects) {
-        const wasLinked = p.invoiceIds.includes(invoiceId);
-        const isSelected = selectedProjectIds.includes(p.id);
-        if (isSelected && !wasLinked) {
-          await upsertProject({ ...p, invoiceIds: [...p.invoiceIds, invoiceId] });
-        } else if (!isSelected && wasLinked) {
-          await upsertProject({ ...p, invoiceIds: p.invoiceIds.filter((id) => id !== invoiceId) });
-        }
-      }
+      await performSave(invoiceId);
       closePanel();
     });
   }
 
   function handleSaveAndPreview() {
-    if (
-      !form.projectName?.trim() ||
-      !form.clientId ||
-      !form.number.trim() ||
-      form.items.some((it) => !it.description.trim())
-    ) {
-      handleSave(); // will set the error message
+    const error = validateForm();
+    if (error) {
+      setFormError(error);
       return;
     }
     const invoiceId = editingId ?? uid();
-    window.open(`/invoices/${invoiceId}`, '_blank');
-    handleSave();
+    startTransition(async () => {
+      await performSave(invoiceId);
+      window.open(`/invoices/${invoiceId}`, '_blank');
+    });
   }
 
   const subtotal = form.items.reduce((s, it) => s + it.qty * it.unitPrice, 0);
