@@ -169,15 +169,11 @@ export default function InvoicesView() {
       const formData = new FormData();
       formData.append('chat_id', chatId);
       formData.append('document', pdfBlob, `${inv.number}.pdf`);
-      const invoiceUrl = `${window.location.origin}/invoices/${inv.id}`;
       formData.append(
         'caption',
-        [
-          `📄 *${inv.number}*`,
-          `📅 Date: ${inv.date}`,
-          `👤 Client: ${client?.name ?? '—'}`,
-          `🔗 ${invoiceUrl}`,
-        ].join('\n')
+        [`📄 *${inv.number}*`, `📅 Date: ${inv.date}`, `👤 Client: ${client?.name ?? '—'}`].join(
+          '\n'
+        )
       );
       formData.append('parse_mode', 'Markdown');
       if (paymentInfo?.telegramTopicId?.trim()) {

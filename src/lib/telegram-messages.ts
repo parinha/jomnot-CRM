@@ -184,12 +184,13 @@ export function buildProjectsSummaryMessage(
     if (b && b.list.length > 0) {
       ln.push('');
       ln.push(`■ ${b.phase.label}:`);
-      for (const p of b.list) {
+      b.list.forEach((p, pi) => {
+        if (pi > 0) ln.push('');
         ln.push(`  ▸ ${p.name}`);
         for (const item of p.items ?? []) {
           ln.push(`    - ${item.description}`);
         }
-      }
+      });
     }
   }
 

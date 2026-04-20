@@ -835,6 +835,13 @@ function SettingsForm({
                     />
                   </div>
                 ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className={labelCls}>Preview</label>
+                    <span className="text-[10px] text-white/25 italic">sample message</span>
+                  </div>
+                  <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">{`📄 INV-0042\n📅 Date: 20 Apr 2026\n👤 Client: Jane Smith\n\n📎 PDF attached`}</pre>
+                </div>
               </div>
 
               {/* Projects group */}
@@ -868,6 +875,13 @@ function SettingsForm({
                     />
                   </div>
                 ))}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <label className={labelCls}>Preview</label>
+                    <span className="text-[10px] text-white/25 italic">sample message</span>
+                  </div>
+                  <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">{`🆕 New Project Added — 20 Apr 2026\n\n📋  Wedding Film\n🏷  Status: Confirmed (Apr 2026)\n📅  Filming: 25 Apr 2026\n🗓  Deliver: 10 May 2026  (🟡 20d left)\n\n━━━━━━━━━━━━\n💼  Total active: 4  |  ⏳ Unconfirmed: 1`}</pre>
+                </div>
               </div>
             </div>
 
