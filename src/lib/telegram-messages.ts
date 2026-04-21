@@ -8,6 +8,10 @@ import { DEFAULT_TELEGRAM_TEMPLATE } from '@/src/config/constants';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+function strikeThrough(text: string): string {
+  return [...text].map((c) => c + '\u0336').join('');
+}
+
 function formatConfirmedMonth(ym?: string): string | null {
   if (!ym) return null;
   const [year, month] = ym.split('-');
@@ -188,7 +192,8 @@ export function buildProjectsSummaryMessage(
         if (pi > 0) ln.push('');
         ln.push(`  ▸ ${p.name}`);
         for (const item of p.items ?? []) {
-          ln.push(`    - ${item.description}`);
+          const desc = item.status === 'done' ? strikeThrough(item.description) : item.description;
+          ln.push(`    - ${desc}`);
         }
       });
     }
