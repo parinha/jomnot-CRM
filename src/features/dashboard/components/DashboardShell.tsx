@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import { useSWRConfig } from 'swr';
 import SidebarHeader from './SidebarHeader';
 import QuickPayModal from '@/src/features/payments/components/QuickPayModal';
 import type { CompanyProfile, InvoiceStatus } from '@/src/types';
@@ -26,7 +27,23 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const { data: companyProfile } = useCompanyProfile();
   const { data: prefs } = useAppPreferences();
   const { signOut } = useAuth();
+  const { mutate } = useSWRConfig();
   const [quickPay, setQuickPay] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await mutate(() => true, undefined, { revalidate: true });
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        await reg?.update();
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, mutate]);
   const [sidebarSize, setSidebarSize] = useState<SidebarSize>(() => {
     if (typeof window === 'undefined') return 'hidden';
     const saved = localStorage.getItem('sidebarSize') as SidebarSize | null;
@@ -568,6 +585,25 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
               {/* Header actions */}
               <div className="ml-auto flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleRefresh}
+                  title="Refresh data"
+                  className="flex items-center justify-center w-10 h-10 rounded-xl text-white/50 hover:text-white hover:bg-white/10 active:bg-white/15 transition"
+                >
+                  <svg
+                    className={`w-4 h-4 transition-transform ${refreshing ? 'animate-spin' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                </button>
                 <button
                   onClick={toggleAmountsVisible}
                   title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
