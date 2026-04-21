@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project } from '@/src/types';
 import { DEFAULT_APP_PREFERENCES } from '@/src/types';
@@ -74,6 +74,16 @@ const PALETTE = [
   },
 ];
 
+function findPhaseId(el: Element | null): string | null {
+  let cur = el;
+  while (cur) {
+    const id = (cur as HTMLElement).dataset?.phaseId;
+    if (id) return id;
+    cur = cur.parentElement;
+  }
+  return null;
+}
+
 const FILTER_KEY = 'kanban_filters';
 
 function readFilter(key: string, def: boolean): boolean {
@@ -141,6 +151,7 @@ export default function KanbanView() {
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const touchDragRef = useRef<{ id: string; moved: boolean } | null>(null);
   const [isPending, startTransition] = useTransition();
   const { upsert } = useProjectMutations();
   const [popover, setPopover] = useState<{ project: Project } | null>(null);
@@ -312,6 +323,7 @@ export default function KanbanView() {
             return (
               <div
                 key={phase.id}
+                data-phase-id={phase.id}
                 className="flex flex-col shrink-0 w-64"
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -352,12 +364,39 @@ export default function KanbanView() {
                         key={project.id}
                         draggable
                         data-progress-trigger
-                        onClick={(e) => openPopover(e, project)}
+                        style={{ touchAction: 'none' }}
+                        onClick={(e) => {
+                          if (touchDragRef.current?.moved) return;
+                          openPopover(e, project);
+                        }}
                         onDragStart={(e) => {
                           setDragId(project.id);
                           e.dataTransfer.effectAllowed = 'move';
                         }}
                         onDragEnd={() => {
+                          setDragId(null);
+                          setOverCol(null);
+                        }}
+                        onTouchStart={() => {
+                          touchDragRef.current = { id: project.id, moved: false };
+                        }}
+                        onTouchMove={(e) => {
+                          if (!touchDragRef.current) return;
+                          if (!touchDragRef.current.moved) {
+                            touchDragRef.current.moved = true;
+                            setDragId(touchDragRef.current.id);
+                          }
+                          const touch = e.touches[0];
+                          const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                          const phaseId = findPhaseId(el);
+                          setOverCol((prev) => (prev === phaseId ? prev : phaseId));
+                        }}
+                        onTouchEnd={(e) => {
+                          if (touchDragRef.current?.moved) {
+                            e.preventDefault();
+                            if (dragId && overCol) moveToCol(dragId, overCol);
+                          }
+                          touchDragRef.current = null;
                           setDragId(null);
                           setOverCol(null);
                         }}
