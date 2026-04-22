@@ -364,7 +364,6 @@ export default function KanbanView() {
                         key={project.id}
                         draggable
                         data-progress-trigger
-                        style={{ touchAction: 'none' }}
                         onClick={(e) => {
                           if (touchDragRef.current?.moved) return;
                           openPopover(e, project);
@@ -377,29 +376,6 @@ export default function KanbanView() {
                           setDragId(null);
                           setOverCol(null);
                         }}
-                        onTouchStart={() => {
-                          touchDragRef.current = { id: project.id, moved: false };
-                        }}
-                        onTouchMove={(e) => {
-                          if (!touchDragRef.current) return;
-                          if (!touchDragRef.current.moved) {
-                            touchDragRef.current.moved = true;
-                            setDragId(touchDragRef.current.id);
-                          }
-                          const touch = e.touches[0];
-                          const el = document.elementFromPoint(touch.clientX, touch.clientY);
-                          const phaseId = findPhaseId(el);
-                          setOverCol((prev) => (prev === phaseId ? prev : phaseId));
-                        }}
-                        onTouchEnd={(e) => {
-                          if (touchDragRef.current?.moved) {
-                            e.preventDefault();
-                            if (dragId && overCol) moveToCol(dragId, overCol);
-                          }
-                          touchDragRef.current = null;
-                          setDragId(null);
-                          setOverCol(null);
-                        }}
                         className={`border rounded-xl p-3 cursor-pointer select-none transition ${
                           isDragging
                             ? 'opacity-30 scale-95 bg-white/[0.06] border-white/[0.08]'
@@ -408,16 +384,58 @@ export default function KanbanView() {
                               : 'bg-white/[0.06] border-white/[0.08] hover:bg-white/[0.09] hover:border-white/[0.14]'
                         }`}
                       >
-                        <p className="text-sm font-semibold text-white leading-snug truncate">
-                          {project.name}
-                        </p>
-                        {client && (
-                          <p
-                            className={`text-xs truncate mt-0.5 ${late ? 'text-red-300/50' : 'text-white/40'}`}
+                        <div className="flex items-start gap-1.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white leading-snug truncate">
+                              {project.name}
+                            </p>
+                            {client && (
+                              <p
+                                className={`text-xs truncate mt-0.5 ${late ? 'text-red-300/50' : 'text-white/40'}`}
+                              >
+                                {client.name}
+                              </p>
+                            )}
+                          </div>
+                          {/* Mobile drag handle — touch-action:none only on this element */}
+                          <div
+                            className="md:hidden shrink-0 flex items-center justify-center w-6 h-6 -mr-1 -mt-0.5 rounded text-white/20 active:text-white/50"
+                            style={{ touchAction: 'none' }}
+                            onClick={(e) => e.stopPropagation()}
+                            onTouchStart={() => {
+                              touchDragRef.current = { id: project.id, moved: false };
+                            }}
+                            onTouchMove={(e) => {
+                              if (!touchDragRef.current) return;
+                              if (!touchDragRef.current.moved) {
+                                touchDragRef.current.moved = true;
+                                setDragId(touchDragRef.current.id);
+                              }
+                              const touch = e.touches[0];
+                              const el = document.elementFromPoint(touch.clientX, touch.clientY);
+                              const phaseId = findPhaseId(el);
+                              setOverCol((prev) => (prev === phaseId ? prev : phaseId));
+                            }}
+                            onTouchEnd={(e) => {
+                              e.preventDefault();
+                              if (touchDragRef.current?.moved && dragId && overCol) {
+                                moveToCol(dragId, overCol);
+                              }
+                              touchDragRef.current = null;
+                              setDragId(null);
+                              setOverCol(null);
+                            }}
                           >
-                            {client.name}
-                          </p>
-                        )}
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+                              <circle cx="5" cy="4" r="1.5" />
+                              <circle cx="11" cy="4" r="1.5" />
+                              <circle cx="5" cy="8" r="1.5" />
+                              <circle cx="11" cy="8" r="1.5" />
+                              <circle cx="5" cy="12" r="1.5" />
+                              <circle cx="11" cy="12" r="1.5" />
+                            </svg>
+                          </div>
+                        </div>
 
                         {hasDelivs && (
                           <div className="flex items-center gap-1.5 mt-2.5">

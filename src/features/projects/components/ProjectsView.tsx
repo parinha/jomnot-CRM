@@ -621,10 +621,6 @@ export default function ProjectsView() {
       setFormError('Project name is required.');
       return;
     }
-    if (!form.clientId) {
-      setFormError('Please select a client.');
-      return;
-    }
     const cleanedForm = {
       ...form,
       confirmedMonth: form.confirmedMonth?.trim() || undefined,
@@ -1465,6 +1461,7 @@ export default function ProjectsView() {
               </thead>
               <tbody>
                 {activePaged.map((project, i) => {
+                  const client = clients.find((c) => c.id === project.clientId);
                   const tl = getTimelineBar(project.deliverDate);
                   const delivItems = project.items ?? [];
                   const delivDone = delivItems.filter((it) => it.status === 'done').length;
@@ -1514,11 +1511,20 @@ export default function ProjectsView() {
                                 </svg>
                               </button>
                             </div>
-                            {project.budget && (
-                              <span className="text-xs text-white/40 amt">
-                                ${project.budget.toLocaleString()}
-                              </span>
-                            )}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {project.budget && (
+                                <span className="text-xs text-white/40 amt">
+                                  ${project.budget.toLocaleString()}
+                                </span>
+                              )}
+                              {client ? (
+                                <span className="text-xs text-white/35">{client.name}</span>
+                              ) : (
+                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-white/[0.07] text-white/30">
+                                  Unset client
+                                </span>
+                              )}
+                            </div>
                           </div>
                           {renderProgressPopover(project)}
                         </div>
@@ -1685,7 +1691,7 @@ export default function ProjectsView() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                    Client *
+                    Client
                   </label>
                   {!showClientForm && (
                     <button
