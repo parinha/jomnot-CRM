@@ -2090,7 +2090,7 @@ export default function ProjectsView() {
               )}
               {/* Deliverables */}
               <div className="relative">
-                {!form.clientId && (
+                {!form.name.trim() && (
                   <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
                     <svg
                       className="w-5 h-5 text-white/30"
@@ -2105,17 +2105,21 @@ export default function ProjectsView() {
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                       />
                     </svg>
-                    <p className="text-xs text-white/40 text-center px-4">Select a client first</p>
+                    <p className="text-xs text-white/40 text-center px-4">
+                      Enter a project name first
+                    </p>
                   </div>
                 )}
-                <div className={!form.clientId ? 'pointer-events-none select-none opacity-30' : ''}>
+                <div
+                  className={!form.name.trim() ? 'pointer-events-none select-none opacity-30' : ''}
+                >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
                         Deliverables
                       </label>
                     </div>
-                    {form.items.length === 0 && form.clientId && (
+                    {form.items.length === 0 && form.name.trim() && (
                       <button
                         onClick={() =>
                           setForm((p) => ({
