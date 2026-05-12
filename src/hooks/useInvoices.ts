@@ -1,32 +1,28 @@
-import useSWR, { useSWRConfig } from 'swr';
-import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
+import { useSWRConfig } from 'swr';
+import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Invoice, InvoiceStatus } from '@/src/types';
-
-const invoiceFetcher = fetcher as (url: string) => Promise<Invoice[]>;
-const singleFetcher = fetcher as (url: string) => Promise<Invoice>;
+import { useInvoicesContext } from '@/src/contexts/InvoicesContext';
 
 export function useInvoices() {
-  const { data, error, isLoading, mutate } = useSWR<Invoice[]>('/api/invoices', invoiceFetcher);
+  const { invoices, loading } = useInvoicesContext();
   return {
-    data: data ?? [],
-    isLoading,
-    isError: !!error,
-    error,
-    mutate,
+    data: invoices,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
   };
 }
 
 export function useInvoice(id: string | null) {
-  const { data, error, isLoading, mutate } = useSWR<Invoice>(
-    id ? `/api/invoices/${id}` : null,
-    singleFetcher
-  );
+  const { invoices, loading } = useInvoicesContext();
+  const data = id ? (invoices.find((i) => i.id === id) ?? null) : null;
   return {
-    data: data ?? null,
-    isLoading,
-    isError: !!error,
-    error,
-    mutate,
+    data,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
   };
 }
 

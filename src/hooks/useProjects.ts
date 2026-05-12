@@ -1,17 +1,16 @@
-import useSWR, { useSWRConfig } from 'swr';
-import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
+import { useSWRConfig } from 'swr';
+import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Project, ProjectItem } from '@/src/types';
-
-const projectFetcher = fetcher as (url: string) => Promise<Project[]>;
+import { useProjectsContext } from '@/src/contexts/ProjectsContext';
 
 export function useProjects() {
-  const { data, error, isLoading, mutate } = useSWR<Project[]>('/api/projects', projectFetcher);
+  const { projects, loading } = useProjectsContext();
   return {
-    data: data ?? [],
-    isLoading,
-    isError: !!error,
-    error,
-    mutate,
+    data: projects,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
   };
 }
 

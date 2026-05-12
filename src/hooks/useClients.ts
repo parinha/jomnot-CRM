@@ -1,17 +1,16 @@
-import useSWR, { useSWRConfig } from 'swr';
-import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
+import { useSWRConfig } from 'swr';
+import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Client } from '@/src/types';
-
-const clientFetcher = fetcher as (url: string) => Promise<Client[]>;
+import { useClientsContext } from '@/src/contexts/ClientsContext';
 
 export function useClients() {
-  const { data, error, isLoading, mutate } = useSWR<Client[]>('/api/clients', clientFetcher);
+  const { clients, loading } = useClientsContext();
   return {
-    data: data ?? [],
-    isLoading,
-    isError: !!error,
-    error,
-    mutate,
+    data: clients,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
   };
 }
 
