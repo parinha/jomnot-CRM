@@ -1,7 +1,6 @@
-import { useSWRConfig } from 'swr';
-import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Project, ProjectItem } from '@/src/types';
 import { useProjectsContext } from '@/src/contexts/ProjectsContext';
+import { deleteClientDoc, patchClientDoc } from '@/src/lib/firestoreService';
 
 export function useProjects() {
   const { projects, loading } = useProjectsContext();
@@ -15,9 +14,8 @@ export function useProjects() {
 }
 
 export function useProjectMutations() {
-  const { mutate } = useSWRConfig();
-
   async function upsert(project: Project): Promise<void> {
+    // Keep API route: triggers server-side telegram notification on new project creation
     const res = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -25,44 +23,23 @@ export function useProjectMutations() {
     });
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save project', res.status);
+      throw new Error(body.error ?? 'Failed to save project');
     }
-    await mutate('/api/projects');
   }
 
   async function remove(id: string): Promise<void> {
-    const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to delete project', res.status);
-    }
-    await mutate('/api/projects');
+    await deleteClientDoc('projects', id);
   }
 
   async function updateItems(projectId: string, items: ProjectItem[]): Promise<void> {
-    const res = await fetch(`/api/projects/${projectId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to update project', res.status);
-    }
-    await mutate('/api/projects');
+    await patchClientDoc('projects', projectId, { items: items as unknown[] } as Record<
+      string,
+      unknown
+    >);
   }
 
   async function updateKanbanPhase(projectId: string, kanbanPhase: string): Promise<void> {
-    const res = await fetch(`/api/projects/${projectId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kanbanPhase }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to update project', res.status);
-    }
-    await mutate('/api/projects');
+    await patchClientDoc('projects', projectId, { kanbanPhase });
   }
 
   return { upsert, remove, updateItems, updateKanbanPhase };

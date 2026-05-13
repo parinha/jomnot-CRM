@@ -1,134 +1,95 @@
-import useSWR, { useSWRConfig } from 'swr';
-import { fetcher, ApiError } from '@/src/lib/swr-fetcher';
+import { useSettingsContext } from '@/src/contexts/SettingsContext';
 import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
-import { DEFAULT_SCOPES } from '@/src/config/constants';
-
-const profileFetcher = fetcher as (url: string) => Promise<CompanyProfile>;
-const paymentFetcher = fetcher as (url: string) => Promise<PaymentInfo>;
-const invoicingFetcher = fetcher as (url: string) => Promise<InvoicingSettings>;
-const scopesFetcher = fetcher as (url: string) => Promise<string[]>;
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 
 export function useCompanyProfile() {
-  const { data, error, isLoading, mutate } = useSWR<CompanyProfile>(
-    '/api/settings/company',
-    profileFetcher
-  );
-  return { data: data ?? null, isLoading, isError: !!error, error, mutate };
+  const { companyProfile, loading } = useSettingsContext();
+  return {
+    data: companyProfile as CompanyProfile | null,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
+  };
 }
 
 export function usePaymentInfo() {
-  const { data, error, isLoading, mutate } = useSWR<PaymentInfo>(
-    '/api/settings/payment',
-    paymentFetcher
-  );
-  return { data: data ?? null, isLoading, isError: !!error, error, mutate };
+  const { paymentInfo, loading } = useSettingsContext();
+  return {
+    data: paymentInfo as PaymentInfo | null,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
+  };
 }
 
 export function useInvoicingSettings() {
-  const { data, error, isLoading, mutate } = useSWR<InvoicingSettings>(
-    '/api/settings/invoicing',
-    invoicingFetcher
-  );
-  return { data: data ?? DEFAULT_INVOICING_SETTINGS, isLoading, isError: !!error, error, mutate };
+  const { invoicingSettings, loading } = useSettingsContext();
+  return {
+    data: invoicingSettings,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
+  };
 }
 
 export function useScopeOfWork() {
-  const { data, error, isLoading, mutate } = useSWR<string[]>(
-    '/api/settings/scopes',
-    scopesFetcher
-  );
-  return { data: data ?? DEFAULT_SCOPES, isLoading, isError: !!error, error, mutate };
+  const { scopeOfWork, loading } = useSettingsContext();
+  return {
+    data: scopeOfWork,
+    isLoading: loading,
+    isError: false,
+    error: null,
+    mutate: async () => {},
+  };
+}
+
+export function useAppPreferences() {
+  const { appPreferences, loading } = useSettingsContext();
+  return {
+    data: { ...DEFAULT_APP_PREFERENCES, ...appPreferences } as AppPreferences,
+    isLoading: loading,
+    isError: false,
+    mutate: async () => {},
+  };
 }
 
 export function useSettingsMutations() {
-  const { mutate } = useSWRConfig();
-
-  async function saveCompanyProfile(profile: CompanyProfile): Promise<void> {
-    const res = await fetch('/api/settings/company', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(profile),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save company profile', res.status);
-    }
-    await mutate('/api/settings/company');
-  }
-
-  async function savePaymentInfo(payment: PaymentInfo): Promise<void> {
-    const res = await fetch('/api/settings/payment', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payment),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save payment info', res.status);
-    }
-    await mutate('/api/settings/payment');
-  }
-
-  async function saveScopeOfWork(items: string[]): Promise<void> {
-    const res = await fetch('/api/settings/scopes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save scope of work', res.status);
-    }
-    await mutate('/api/settings/scopes');
-  }
-
-  async function saveAppPreferences(prefs: AppPreferences): Promise<void> {
-    const res = await fetch('/api/settings/preferences', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(prefs),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save preferences', res.status);
-    }
-    await mutate('/api/settings/preferences');
-  }
-
-  async function saveInvoicingSettings(invoicing: InvoicingSettings): Promise<void> {
-    const res = await fetch('/api/settings/invoicing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(invoicing),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save invoicing settings', res.status);
-    }
-    await mutate('/api/settings/invoicing');
-    // Also invalidate preferences cache since getAppPreferences merges from invoicing
-    await mutate('/api/settings/preferences');
-  }
-
-  return {
+  const {
     saveCompanyProfile,
     savePaymentInfo,
     saveScopeOfWork,
     saveAppPreferences,
     saveInvoicingSettings,
-  };
-}
+  } = useSettingsContext();
 
-export function useAppPreferences() {
-  const { data, error, isLoading, mutate } = useSWR<AppPreferences>(
-    '/api/settings/preferences',
-    fetcher as (url: string) => Promise<AppPreferences>
-  );
+  async function saveCompanyProfileWrapped(profile: CompanyProfile): Promise<void> {
+    await saveCompanyProfile(profile);
+  }
+
+  async function savePaymentInfoWrapped(payment: PaymentInfo): Promise<void> {
+    await savePaymentInfo(payment);
+  }
+
+  async function saveScopeOfWorkWrapped(items: string[]): Promise<void> {
+    await saveScopeOfWork(items);
+  }
+
+  async function saveAppPreferencesWrapped(prefs: AppPreferences): Promise<void> {
+    await saveAppPreferences(prefs);
+  }
+
+  async function saveInvoicingSettingsWrapped(invoicing: InvoicingSettings): Promise<void> {
+    await saveInvoicingSettings(invoicing);
+  }
+
   return {
-    data: data ? { ...DEFAULT_APP_PREFERENCES, ...data } : DEFAULT_APP_PREFERENCES,
-    isLoading,
-    isError: !!error,
-    mutate,
+    saveCompanyProfile: saveCompanyProfileWrapped,
+    savePaymentInfo: savePaymentInfoWrapped,
+    saveScopeOfWork: saveScopeOfWorkWrapped,
+    saveAppPreferences: saveAppPreferencesWrapped,
+    saveInvoicingSettings: saveInvoicingSettingsWrapped,
   };
 }

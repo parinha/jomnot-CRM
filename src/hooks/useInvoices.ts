@@ -1,7 +1,6 @@
-import { useSWRConfig } from 'swr';
-import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Invoice, InvoiceStatus } from '@/src/types';
 import { useInvoicesContext } from '@/src/contexts/InvoicesContext';
+import { upsertClientDoc, deleteClientDoc, patchClientDoc } from '@/src/lib/firestoreService';
 
 export function useInvoices() {
   const { invoices, loading } = useInvoicesContext();
@@ -27,41 +26,16 @@ export function useInvoice(id: string | null) {
 }
 
 export function useInvoiceMutations() {
-  const { mutate } = useSWRConfig();
-
   async function upsert(invoice: Invoice): Promise<void> {
-    const res = await fetch('/api/invoices', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(invoice),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save invoice', res.status);
-    }
-    await mutate('/api/invoices');
+    await upsertClientDoc('invoices', invoice.id, invoice);
   }
 
   async function remove(id: string): Promise<void> {
-    const res = await fetch(`/api/invoices/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to delete invoice', res.status);
-    }
-    await mutate('/api/invoices');
+    await deleteClientDoc('invoices', id);
   }
 
   async function updateStatus(id: string, status: InvoiceStatus): Promise<void> {
-    const res = await fetch(`/api/invoices/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to update invoice status', res.status);
-    }
-    await mutate('/api/invoices');
+    await patchClientDoc('invoices', id, { status });
   }
 
   return { upsert, remove, updateStatus };

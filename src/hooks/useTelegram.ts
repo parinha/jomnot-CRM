@@ -1,4 +1,11 @@
-import { ApiError } from '@/src/lib/swr-fetcher';
+class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
 
 export function useSendProjectsTelegram() {
   async function sendAll(): Promise<{ ok: boolean; error?: string }> {

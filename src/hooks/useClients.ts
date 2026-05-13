@@ -1,7 +1,6 @@
-import { useSWRConfig } from 'swr';
-import { ApiError } from '@/src/lib/swr-fetcher';
 import type { Client } from '@/src/types';
 import { useClientsContext } from '@/src/contexts/ClientsContext';
+import { upsertClientDoc, deleteClientDoc } from '@/src/lib/firestoreService';
 
 export function useClients() {
   const { clients, loading } = useClientsContext();
@@ -15,28 +14,12 @@ export function useClients() {
 }
 
 export function useClientMutations() {
-  const { mutate } = useSWRConfig();
-
   async function upsert(client: Client): Promise<void> {
-    const res = await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(client),
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to save client', res.status);
-    }
-    await mutate('/api/clients');
+    await upsertClientDoc('clients', client.id, client);
   }
 
   async function remove(id: string): Promise<void> {
-    const res = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(body.error ?? 'Failed to delete client', res.status);
-    }
-    await mutate('/api/clients');
+    await deleteClientDoc('clients', id);
   }
 
   return { upsert, remove };

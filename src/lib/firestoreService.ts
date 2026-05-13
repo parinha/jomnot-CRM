@@ -7,6 +7,7 @@ import {
   getDocs,
   writeBatch,
   setDoc,
+  updateDoc,
   deleteDoc as fsDeleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase-client';
@@ -41,6 +42,35 @@ export async function upsertClientDoc<T extends object>(
 
 export async function deleteClientDoc(collectionName: string, docId: string): Promise<void> {
   await fsDeleteDoc(doc(db, collectionName, docId));
+}
+
+export async function patchClientDoc(
+  collectionName: string,
+  docId: string,
+  fields: Record<string, unknown>
+): Promise<void> {
+  await updateDoc(doc(db, collectionName, docId), {
+    ...fields,
+    updatedAt: new Date().toISOString(),
+  });
+}
+
+export async function setDocPath(docPath: string, data: Record<string, unknown>): Promise<void> {
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: new Date().toISOString() }).filter(
+      ([, v]) => v !== undefined
+    )
+  );
+  await setDoc(doc(db, docPath), clean);
+}
+
+export async function mergeDocPath(docPath: string, data: Record<string, unknown>): Promise<void> {
+  const clean = Object.fromEntries(
+    Object.entries({ ...data, updatedAt: new Date().toISOString() }).filter(
+      ([, v]) => v !== undefined
+    )
+  );
+  await setDoc(doc(db, docPath), clean, { merge: true });
 }
 
 export async function replaceAll<T extends HasId>(

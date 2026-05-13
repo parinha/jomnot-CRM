@@ -1,14 +1,11 @@
 'use client';
 
-import { createContext, useContext } from 'react';
-import type { AppPreferences } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { fmtCurrency, fmtShortCurrency, fmtDate } from '@/src/lib/formatters';
-
-export const AppPreferencesContext = createContext<AppPreferences>(DEFAULT_APP_PREFERENCES);
+import { useSettingsContext } from './SettingsContext';
+import type { AppPreferences } from '@/src/types';
 
 export function useAppPreferences(): AppPreferences {
-  return useContext(AppPreferencesContext);
+  return useSettingsContext().appPreferences;
 }
 
 export function useCurrency() {
