@@ -7,7 +7,7 @@ import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import { useProjects } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import { calcEarned, calcNet, calcSubtotal, calcBalance } from '@/src/lib/calculations';
+import { calcEarned, calcSubtotal, calcBalance } from '@/src/lib/calculations';
 import { fmtUSD, fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
@@ -77,12 +77,12 @@ export default function ClientsScreen() {
       })
     : clients;
 
-  const [sortCol, setSortCol] = useState<CliSortCol>(() =>
+  const [sortCol] = useState<CliSortCol>(() =>
     typeof window !== 'undefined'
       ? ((localStorage.getItem(STORAGE_KEYS.tableCliCol) as CliSortCol) ?? 'name')
       : 'name'
   );
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() =>
+  const [sortDir] = useState<'asc' | 'desc'>(() =>
     typeof window !== 'undefined'
       ? ((localStorage.getItem(STORAGE_KEYS.tableCliDir) as 'asc' | 'desc') ?? 'asc')
       : 'asc'
@@ -102,15 +102,6 @@ export default function ClientsScreen() {
     localStorage.setItem(STORAGE_KEYS.tableCliPage, '1');
   }
 
-  function handleSort(col: string) {
-    const nextDir = sortCol === col && sortDir === 'asc' ? 'desc' : 'asc';
-    setSortCol(col as CliSortCol);
-    setSortDir(nextDir);
-    setPage(1);
-    localStorage.setItem(STORAGE_KEYS.tableCliCol, col);
-    localStorage.setItem(STORAGE_KEYS.tableCliDir, nextDir);
-    localStorage.setItem(STORAGE_KEYS.tableCliPage, '1');
-  }
   function goToPage(p: number) {
     setPage(p);
     localStorage.setItem(STORAGE_KEYS.tableCliPage, String(p));
@@ -149,6 +140,8 @@ export default function ClientsScreen() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [formError, setFormError] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [viewClientId, setViewClientId] = useState<string | null>(null);
+  const [previewInvId, setPreviewInvId] = useState<string | null>(null);
 
   // Strip ?new=1 from URL after using it for initial state — no setState here
   useEffect(() => {
@@ -178,6 +171,7 @@ export default function ClientsScreen() {
     setFormError('');
     setModalOpen(true);
   }
+
   function closeModal() {
     setModalOpen(false);
     setEditingClient(null);
@@ -200,16 +194,13 @@ export default function ClientsScreen() {
       await upsert(client);
     });
   }
+
   function handleDelete(id: string) {
     setDeleteId(null);
     startTransition(async () => {
       await remove(id);
     });
   }
-
-  const [previewInvId, setPreviewInvId] = useState<string | null>(null);
-  const [invoicesClientId, setInvoicesClientId] = useState<string | null>(null);
-  const [projectsClientId, setProjectsClientId] = useState<string | null>(null);
 
   if (isLoading) return <TablePageSkeleton />;
 
@@ -275,14 +266,14 @@ export default function ClientsScreen() {
         </div>
       ) : (
         <>
-          {/* Client cards */}
           <div className="flex flex-col gap-3">
             {pagedClients.map((client) => {
               const stats = statsMap.get(client.id);
               return (
-                <div
+                <button
                   key={client.id}
-                  className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
+                  onClick={() => setViewClientId(client.id)}
+                  className="w-full text-left bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4 active:bg-white/[0.08] transition"
                 >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
@@ -296,55 +287,36 @@ export default function ClientsScreen() {
                         <p className="text-xs text-white/35 mt-0.5">{client.phone}</p>
                       )}
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button
-                        onClick={() => openEdit(client)}
-                        className="h-9 w-9 rounded-xl border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition"
+                    <span
+                      role="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openEdit(client);
+                      }}
+                      className="shrink-0 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
+                    >
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
                       >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => setDeleteId(client.id)}
-                        className="h-9 w-9 rounded-xl border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500/15 transition"
-                      >
-                        <svg
-                          className="w-4 h-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                          />
-                        </svg>
-                      </button>
-                    </div>
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </span>
                   </div>
-                  {stats?.count || stats?.earned || stats?.remaining ? (
+                  {stats?.count || stats?.earned || (stats?.remaining ?? 0) > 0 ? (
                     <div className="flex gap-2">
                       {stats?.count ? (
-                        <button
-                          onClick={() => setInvoicesClientId(client.id)}
-                          className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center hover:bg-white/10 transition"
-                        >
+                        <div className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center">
                           <p className="font-bold text-white text-sm">{stats.count}</p>
                           <p className="text-white/40 text-xs mt-0.5">Invoices</p>
-                        </button>
+                        </div>
                       ) : null}
                       {stats?.earned ? (
                         <div className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center">
@@ -352,17 +324,17 @@ export default function ClientsScreen() {
                           <p className="text-white/40 text-xs mt-0.5">Earned</p>
                         </div>
                       ) : null}
-                      {stats?.remaining > 0 ? (
+                      {(stats?.remaining ?? 0) > 0 ? (
                         <div className="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center">
                           <p className="font-bold text-amber-400 text-sm amt">
-                            {fmt(stats.remaining)}
+                            {fmt(stats!.remaining)}
                           </p>
                           <p className="text-amber-400/60 text-xs mt-0.5">Owed</p>
                         </div>
                       ) : null}
                     </div>
                   ) : null}
-                </div>
+                </button>
               );
             })}
           </div>
@@ -376,6 +348,231 @@ export default function ClientsScreen() {
         pageSize={PAGE_SIZE}
         onPageChange={goToPage}
       />
+
+      {/* Client detail sheet */}
+      {viewClientId &&
+        (() => {
+          const c = clients.find((cl) => cl.id === viewClientId);
+          if (!c) return null;
+          const clientInvs = invoices.filter((inv) => inv.clientId === c.id);
+          const clientProjs = projects.filter((p) => p.clientId === c.id);
+          const stats = statsMap.get(c.id);
+
+          return (
+            <ModalShell onClose={() => setViewClientId(null)}>
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+                <div>
+                  <h2 className="text-base font-bold text-white">{c.name}</h2>
+                  {c.contactPerson && (
+                    <p className="text-xs text-white/40 mt-0.5">{c.contactPerson}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => setViewClientId(null)}
+                  className="p-1.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition shrink-0"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+                {/* Stats */}
+                {stats?.count || stats?.earned || (stats?.remaining ?? 0) > 0 ? (
+                  <div className="flex gap-2">
+                    {stats?.count ? (
+                      <div className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center">
+                        <p className="font-bold text-white text-sm">{stats.count}</p>
+                        <p className="text-white/40 text-xs mt-0.5">Invoices</p>
+                      </div>
+                    ) : null}
+                    {stats?.earned ? (
+                      <div className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center">
+                        <p className="font-bold text-white text-sm amt">{fmt(stats.earned)}</p>
+                        <p className="text-white/40 text-xs mt-0.5">Earned</p>
+                      </div>
+                    ) : null}
+                    {(stats?.remaining ?? 0) > 0 ? (
+                      <div className="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center">
+                        <p className="font-bold text-amber-400 text-sm amt">
+                          {fmt(stats!.remaining)}
+                        </p>
+                        <p className="text-amber-400/60 text-xs mt-0.5">Owed</p>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {/* Contact info */}
+                {(c.phone || c.email || c.address || c.vat_tin || c.note) && (
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    {c.phone && (
+                      <div>
+                        <p className="text-white/40 uppercase tracking-wider mb-0.5">Phone</p>
+                        <p className="text-white">{c.phone}</p>
+                      </div>
+                    )}
+                    {c.email && (
+                      <div>
+                        <p className="text-white/40 uppercase tracking-wider mb-0.5">Email</p>
+                        <p className="text-white break-all">{c.email}</p>
+                      </div>
+                    )}
+                    {c.vat_tin && (
+                      <div>
+                        <p className="text-white/40 uppercase tracking-wider mb-0.5">VAT / TIN</p>
+                        <p className="text-white">{c.vat_tin}</p>
+                      </div>
+                    )}
+                    {c.address && (
+                      <div className="col-span-2">
+                        <p className="text-white/40 uppercase tracking-wider mb-0.5">Address</p>
+                        <p className="text-white">{c.address}</p>
+                      </div>
+                    )}
+                    {c.note && (
+                      <div className="col-span-2">
+                        <p className="text-white/40 uppercase tracking-wider mb-0.5">Note</p>
+                        <p className="text-white/60 whitespace-pre-wrap">{c.note}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Invoices */}
+                <div>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+                    Invoices
+                  </p>
+                  {clientInvs.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {clientInvs.map((inv) => {
+                        const sc = STATUS_CONFIG[inv.status ?? 'draft'];
+                        const sub = calcSubtotal(inv);
+                        return (
+                          <button
+                            key={inv.id}
+                            onClick={() => {
+                              setViewClientId(null);
+                              setPreviewInvId(inv.id);
+                            }}
+                            className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.09] transition text-left"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-white">{inv.number}</p>
+                              <p className="text-xs text-white/40">{fmtDate(inv.date)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-semibold text-white/70 amt">
+                                {fmt(sub)}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                              >
+                                {sc.label}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-white/30 italic">No invoices for this client</p>
+                  )}
+                </div>
+
+                {/* Projects */}
+                <div>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+                    Projects
+                  </p>
+                  {clientProjs.length > 0 ? (
+                    <div className="flex flex-col gap-2">
+                      {clientProjs.map((p) => {
+                        const sc = PROJECT_STATUS_CONFIG[p.status] ?? {
+                          label: 'Unknown',
+                          cls: 'bg-zinc-700 text-zinc-300',
+                        };
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08]"
+                          >
+                            <p className="text-sm text-white/80 truncate">{p.name}</p>
+                            <span
+                              className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                            >
+                              {sc.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-white/30 italic">No projects for this client</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    setViewClientId(null);
+                    openEdit(c);
+                  }}
+                  className="h-11 w-full flex items-center justify-center gap-2 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                  Edit Client
+                </button>
+                <button
+                  onClick={() => {
+                    setViewClientId(null);
+                    setDeleteId(c.id);
+                  }}
+                  className="h-10 w-full flex items-center justify-center gap-2 rounded-xl border border-red-400/25 text-red-400/80 text-sm hover:bg-red-500/10 hover:text-red-400 transition"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Delete Client
+                </button>
+              </div>
+            </ModalShell>
+          );
+        })()}
 
       {/* Add / Edit modal */}
       {modalOpen && (
@@ -498,305 +695,7 @@ export default function ClientsScreen() {
         />
       )}
 
-      {/* Client projects popup */}
-      {projectsClientId &&
-        (() => {
-          const client = clients.find((c) => c.id === projectsClientId);
-          const clientProjects = projects.filter((p) => p.clientId === projectsClientId);
-          return (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setProjectsClientId(null);
-              }}
-            >
-              <div className="w-full max-w-3xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
-                  <div>
-                    <h2 className="text-lg font-bold text-white">{client?.name}</h2>
-                    <p className="text-sm text-white/45 mt-0.5">
-                      {clientProjects.length} project{clientProjects.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setProjectsClientId(null)}
-                    className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {clientProjects.length === 0 ? (
-                    <p className="text-sm text-white/35 text-center py-10">
-                      No projects for this client.
-                    </p>
-                  ) : (
-                    <>
-                      <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
-                          <tr>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                              Project
-                            </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 ">
-                              Status
-                            </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                              Progress
-                            </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                              Deliver
-                            </th>
-                            <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
-                              Net Value
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {clientProjects.map((p, i) => {
-                            const sc = PROJECT_STATUS_CONFIG[p.status] ?? {
-                              label: 'Unknown',
-                              cls: 'bg-zinc-700 text-zinc-300',
-                            };
-                            const doneCount = p.items.filter((it) => it.status === 'done').length;
-                            const totalItems = p.items.length;
-                            const pct =
-                              totalItems > 0 ? Math.round((doneCount / totalItems) * 100) : 0;
-                            // Net from linked invoices; fall back to budget
-                            const linkedInvNet = p.invoiceIds
-                              .map((id) => invoices.find((inv) => inv.id === id))
-                              .filter(Boolean)
-                              .reduce((s, inv) => s + calcNet(inv!), 0);
-                            const netValue = linkedInvNet > 0 ? linkedInvNet : (p.budget ?? 0);
-                            return (
-                              <tr
-                                key={p.id}
-                                className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                              >
-                                <td className="px-4 py-3 font-semibold text-white">{p.name}</td>
-                                <td className="px-4 py-3">
-                                  <span
-                                    className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                                  >
-                                    {sc.label}
-                                  </span>
-                                </td>
-                                <td className="px-4 py-3">
-                                  {totalItems > 0 ? (
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                                        <div
-                                          className="h-full rounded-full bg-[#FFC206]"
-                                          style={{ width: `${pct}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-xs text-white/50">
-                                        {doneCount}/{totalItems}
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="text-white/25 text-xs">—</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-white/60 text-xs">
-                                  {p.deliverDate ? (
-                                    fmtDate(p.deliverDate)
-                                  ) : (
-                                    <span className="text-white/25">—</span>
-                                  )}
-                                </td>
-                                <td className="px-4 py-3 text-right">
-                                  {netValue > 0 ? (
-                                    <span className="font-semibold text-white amt">
-                                      {fmt(netValue)}
-                                    </span>
-                                  ) : (
-                                    <span className="text-white/25 text-xs">—</span>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                      {/* Totals footer */}
-                      {clientProjects.length > 0 &&
-                        (() => {
-                          const totalNet = clientProjects.reduce((s, p) => {
-                            const linked = p.invoiceIds
-                              .map((id) => invoices.find((inv) => inv.id === id))
-                              .filter(Boolean)
-                              .reduce((sum, inv) => sum + calcNet(inv!), 0);
-                            return s + (linked > 0 ? linked : (p.budget ?? 0));
-                          }, 0);
-                          const earned = invoices
-                            .filter(
-                              (inv) =>
-                                inv.clientId === projectsClientId &&
-                                (inv.status === 'paid' || inv.status === 'partial')
-                            )
-                            .reduce((s, inv) => s + calcEarned(inv), 0);
-                          return (
-                            <div className="border-t border-white/[0.08] px-4 py-3 flex justify-between text-xs text-white/50">
-                              <span>
-                                {clientProjects.length} project
-                                {clientProjects.length !== 1 ? 's' : ''}
-                              </span>
-                              <div className="flex gap-4">
-                                <span>
-                                  Earned:{' '}
-                                  <span className="text-emerald-400 font-semibold amt">
-                                    {fmt(earned)}
-                                  </span>
-                                </span>
-                                <span>
-                                  Total Net:{' '}
-                                  <span className="text-white font-semibold amt">
-                                    {fmt(totalNet)}
-                                  </span>
-                                </span>
-                              </div>
-                            </div>
-                          );
-                        })()}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* Client invoices popup */}
-      {invoicesClientId &&
-        (() => {
-          const client = clients.find((c) => c.id === invoicesClientId);
-          const clientInvs = invoices.filter((inv) => inv.clientId === invoicesClientId);
-          return (
-            <div
-              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
-              onMouseDown={(e) => {
-                if (e.target === e.currentTarget) setInvoicesClientId(null);
-              }}
-            >
-              <div className="w-full max-w-3xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[85vh]">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
-                  <div>
-                    <h2 className="text-lg font-bold text-white">{client?.name}</h2>
-                    <p className="text-sm text-white/45 mt-0.5">
-                      {clientInvs.length} invoice{clientInvs.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setInvoicesClientId(null)}
-                    className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="flex-1 overflow-y-auto">
-                  {clientInvs.length === 0 ? (
-                    <p className="text-sm text-white/35 text-center py-10">
-                      No invoices for this client.
-                    </p>
-                  ) : (
-                    <table className="w-full text-sm">
-                      <thead className="sticky top-0 bg-slate-800/90 border-b border-white/[0.08]">
-                        <tr>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                            Invoice #
-                          </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                            Date
-                          </th>
-                          <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
-                            Amount
-                          </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
-                            Status
-                          </th>
-                          <th className="px-4 py-3" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {clientInvs.map((inv, i) => {
-                          const sub = calcSubtotal(inv);
-                          const sc = STATUS_CONFIG[inv.status ?? 'draft'];
-                          return (
-                            <tr
-                              key={inv.id}
-                              className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                            >
-                              <td className="px-4 py-3">
-                                <button
-                                  onClick={() => setPreviewInvId(inv.id)}
-                                  className="font-semibold text-white hover:text-[#FFC206] transition text-left"
-                                >
-                                  {inv.number}
-                                </button>
-                              </td>
-                              <td className="px-4 py-3 text-white/50">{fmtDate(inv.date)}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-white amt">
-                                {fmt(sub)}
-                              </td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                                >
-                                  {sc.label}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3">
-                                <a
-                                  href={`/invoices/${inv.id}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition inline-flex"
-                                  title="PDF"
-                                >
-                                  <svg
-                                    className="w-4 h-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={2}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                                    />
-                                  </svg>
-                                </a>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
+      {/* Invoice preview */}
       {previewInvId &&
         (() => {
           const inv = invoices.find((i) => i.id === previewInvId) ?? null;

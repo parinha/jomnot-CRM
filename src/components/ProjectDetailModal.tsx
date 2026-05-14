@@ -5,7 +5,6 @@ import ModalShell from '@/src/components/ModalShell';
 import { useProjects } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 
 interface Props {
   projectId: string;
@@ -16,8 +15,6 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
   const { data: projects } = useProjects();
   const { data: clients } = useClients();
   const { data: invoices } = useInvoices();
-  const prefs = useAppPreferences();
-
   const project = projects.find((p) => p.id === projectId);
   const client = project ? clients.find((c) => c.id === project.clientId) : null;
   const linkedInvs = project
@@ -25,9 +22,6 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
     : [];
 
   const sc = project ? PROJECT_STATUS_CONFIG[project.status] : null;
-  const currentPhase = project?.kanbanPhase
-    ? prefs.kanbanPhases.find((p) => p.id === project.kanbanPhase)
-    : prefs.kanbanPhases[0];
 
   const delivs = project?.items ?? [];
   const delivDone = delivs.filter((it) => it.status === 'done').length;
@@ -75,15 +69,6 @@ export default function ProjectDetailModal({ projectId, onClose }: Props) {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 flex flex-col gap-4">
-            {currentPhase && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-white/45">Kanban phase:</span>
-                <span className="text-xs font-semibold text-white/75 px-2 py-0.5 bg-white/[0.07] rounded-full">
-                  {currentPhase.label}
-                </span>
-              </div>
-            )}
-
             {delivs.length > 0 && (
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">

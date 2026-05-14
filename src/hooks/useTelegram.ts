@@ -1,25 +1,30 @@
-class ApiError extends Error {
-  status: number;
-  constructor(message: string, status: number) {
-    super(message);
-    this.name = 'ApiError';
-    this.status = status;
-  }
-}
+'use client';
+
+import { useProjects } from './useProjects';
+import { usePaymentInfo } from './useSettings';
+import { useAppPreferences } from './useAppPreferences';
+import { buildProjectsSummaryMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
 
 export function useSendProjectsTelegram() {
+  const { data: projects } = useProjects();
+  const { data: paymentInfo } = usePaymentInfo();
+  const prefs = useAppPreferences();
+
   async function sendAll(): Promise<{ ok: boolean; error?: string }> {
-    try {
-      const res = await fetch('/api/telegram/send-all', { method: 'POST' });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new ApiError(body.error ?? 'Failed to send Telegram message', res.status);
-      }
-      return { ok: true };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      return { ok: false, error: message };
+    const token = paymentInfo?.telegramBotToken?.trim();
+    const chatId = paymentInfo?.projectTelegramChatId?.trim();
+    if (!token || !chatId) {
+      return {
+        ok: false,
+        error: 'Add your Telegram Bot Token and Project Chat ID in Settings first.',
+      };
     }
+    const text = buildProjectsSummaryMessage(
+      projects,
+      prefs.kanbanPhases,
+      paymentInfo?.telegramTemplate
+    );
+    return sendTelegramMessage(token, chatId, text, paymentInfo?.projectTelegramTopicId?.trim());
   }
 
   return { sendAll };

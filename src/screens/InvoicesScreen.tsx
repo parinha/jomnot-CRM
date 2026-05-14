@@ -9,11 +9,9 @@ import {
   type Invoice,
   type LineItem,
   type InvoiceStatus,
-  type Client,
   type Project,
   type CompanyProfile,
   type PaymentInfo,
-  type ProjectItemStatus,
 } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
@@ -26,7 +24,6 @@ import {
 } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { calcSubtotal, calcTaxAmount, calcNet, taxConfigFromPrefs } from '@/src/lib/calculations';
-import { fmtDate } from '@/src/lib/formatters';
 import { useAppPreferences, useCurrency, useDateFmt } from '@/src/hooks/useAppPreferences';
 import { uid } from '@/src/lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
@@ -242,6 +239,7 @@ export default function InvoicesScreen() {
       openNew();
       router.replace('/invoices');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
   function openEdit(inv: Invoice) {
     setEditingId(inv.id);
@@ -417,47 +415,8 @@ export default function InvoicesScreen() {
 
   // ── Modals ─────────────────────────────────────────────────────────────────
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [linkProjectInvId, setLinkProjectInvId] = useState<string | null>(null);
   const [viewProjectId, setViewProjectId] = useState<string | null>(null);
   const [viewInvId, setViewInvId] = useState<string | null>(null);
-
-  // Link/create project state
-  const [cpMode, setCpMode] = useState<'create' | 'link'>('create');
-  const [cpName, setCpName] = useState('');
-  const [cpItems, setCpItems] = useState<
-    { id: string; description: string; status: ProjectItemStatus }[]
-  >([]);
-  const [cpExcluded, setCpExcluded] = useState<Set<string>>(new Set());
-  const [cpLinkId, setCpLinkId] = useState('');
-
-  function openLinkProject(inv: Invoice) {
-    const client = clients.find((c) => c.id === inv.clientId);
-    const clientProjects = projects.filter(
-      (p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id)
-    );
-    setCpMode(clientProjects.length > 0 ? 'link' : 'create');
-    setCpName(inv.projectName || client?.name || '');
-    setCpItems(
-      inv.items
-        .filter((it) => it.description.trim())
-        .flatMap((it) => {
-          const lines = it.description
-            .split('\n')
-            .map((s) => s.trim())
-            .filter(Boolean);
-          // Skip first line (project title), use individual scope lines
-          const scopeLines = lines.length > 1 ? lines.slice(1) : lines;
-          return scopeLines.map((line) => ({
-            id: uid(),
-            description: line,
-            status: 'todo' as ProjectItemStatus,
-          }));
-        })
-    );
-    setCpExcluded(new Set());
-    setCpLinkId(clientProjects[0]?.id ?? '');
-    setLinkProjectInvId(inv.id);
-  }
 
   function handleDelete(id: string) {
     startTransition(async () => {
@@ -471,12 +430,12 @@ export default function InvoicesScreen() {
   const [statusFilter, setStatusFilter] = useState<InvoiceStatus | 'all' | 'active'>('all');
 
   type InvSortCol = 'number' | 'date' | 'amount';
-  const [sortCol, setSortCol] = useState<InvSortCol>(() =>
+  const [sortCol] = useState<InvSortCol>(() =>
     typeof window !== 'undefined'
       ? ((localStorage.getItem(STORAGE_KEYS.tableInvCol) as InvSortCol) ?? 'number')
       : 'number'
   );
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>(() =>
+  const [sortDir] = useState<'asc' | 'desc'>(() =>
     typeof window !== 'undefined'
       ? ((localStorage.getItem(STORAGE_KEYS.tableInvDir) as 'asc' | 'desc') ?? 'asc')
       : 'asc'
@@ -499,15 +458,6 @@ export default function InvoicesScreen() {
     localStorage.setItem(STORAGE_KEYS.tableInvPage, '1');
   }
 
-  function handleSort(col: string) {
-    const nextDir = sortCol === col && sortDir === 'asc' ? 'desc' : 'asc';
-    setSortCol(col as InvSortCol);
-    setSortDir(nextDir);
-    setPage(1);
-    localStorage.setItem(STORAGE_KEYS.tableInvCol, col);
-    localStorage.setItem(STORAGE_KEYS.tableInvDir, nextDir);
-    localStorage.setItem(STORAGE_KEYS.tableInvPage, '1');
-  }
   function goToPage(p: number) {
     setPage(p);
     localStorage.setItem(STORAGE_KEYS.tableInvPage, String(p));
@@ -1776,218 +1726,6 @@ export default function InvoicesScreen() {
                     className="w-full h-10 px-4 rounded-xl border border-white/20 text-sm text-white/60 hover:bg-white/10 transition"
                   >
                     Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* ── Link / Create project ───────────────────────────────────────────────── */}
-      {linkProjectInvId &&
-        (() => {
-          const inv = invoices.find((i) => i.id === linkProjectInvId);
-          const client = inv ? clients.find((c) => c.id === inv.clientId) : null;
-          const clientProjects = inv
-            ? projects.filter((p) => p.clientId === inv.clientId && !p.invoiceIds.includes(inv.id))
-            : [];
-          return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-                onClick={() => setLinkProjectInvId(null)}
-              />
-              <div className="relative z-10 w-full max-w-lg bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-                {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
-                  <div>
-                    <h2 className="text-lg font-bold text-white">Link project</h2>
-                    {inv && (
-                      <p className="text-xs text-white/40 mt-0.5">
-                        {inv.number} · {client?.name ?? '—'}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setLinkProjectInvId(null)}
-                    className="p-1.5 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
-                  >
-                    <svg
-                      className="w-5 h-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Tabs */}
-                {clientProjects.length > 0 && (
-                  <div className="flex border-b border-white/[0.08] shrink-0">
-                    {(['link', 'create'] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setCpMode(m)}
-                        className={`flex-1 py-3 text-sm font-semibold border-b-2 transition ${cpMode === m ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/50 hover:text-white'}`}
-                      >
-                        {m === 'link' ? 'Link existing' : 'Create new'}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Body */}
-                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-4">
-                  {cpMode === 'link' && clientProjects.length > 0 ? (
-                    <>
-                      <p className="text-sm text-white/50">
-                        Pick an existing project to attach this invoice to.
-                      </p>
-                      <div className="flex flex-col gap-2">
-                        {clientProjects.map((p) => {
-                          const done = p.items.filter((it) => it.status === 'done').length;
-                          const total = p.items.length;
-                          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                          return (
-                            <label
-                              key={p.id}
-                              className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition ${cpLinkId === p.id ? 'border-[#FFC206] bg-[#FFC206]/10' : 'border-white/10 hover:border-white/25 bg-white/[0.04]'}`}
-                            >
-                              <input
-                                type="radio"
-                                name="linkProject"
-                                value={p.id}
-                                checked={cpLinkId === p.id}
-                                onChange={() => setCpLinkId(p.id)}
-                                className="accent-[#FFC206]"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-white">{p.name}</p>
-                                {total > 0 && (
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                      <div
-                                        className={`h-full rounded-full ${pct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                                        style={{ width: `${pct}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-xs text-white/35 shrink-0">{pct}%</span>
-                                  </div>
-                                )}
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-col gap-1.5">
-                        <label className="text-sm font-medium text-white/70">Project name</label>
-                        <input
-                          type="text"
-                          value={cpName}
-                          onChange={(e) => setCpName(e.target.value)}
-                          placeholder={client?.name ?? 'Project name…'}
-                          className={inputCls}
-                        />
-                        {client && !cpName && (
-                          <button
-                            onClick={() => setCpName(client.name)}
-                            className="self-start text-xs text-[#FFC206] hover:underline"
-                          >
-                            Use &quot;{client.name}&quot;
-                          </button>
-                        )}
-                      </div>
-                      {cpItems.length > 0 && (
-                        <div className="flex flex-col gap-1.5">
-                          <label className="text-sm font-medium text-white/70">
-                            Scope items from invoice
-                          </label>
-                          <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] p-3 max-h-48 overflow-y-auto">
-                            {cpItems.map((item) => (
-                              <label
-                                key={item.id}
-                                className="flex items-center gap-2.5 cursor-pointer"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={!cpExcluded.has(item.id)}
-                                  onChange={() =>
-                                    setCpExcluded((prev) => {
-                                      const next = new Set(prev);
-                                      if (next.has(item.id)) next.delete(item.id);
-                                      else next.add(item.id);
-                                      return next;
-                                    })
-                                  }
-                                  className="rounded accent-[#FFC206]"
-                                />
-                                <span
-                                  className={`text-sm ${cpExcluded.has(item.id) ? 'line-through text-white/25' : 'text-white/80'}`}
-                                >
-                                  {item.description}
-                                </span>
-                              </label>
-                            ))}
-                          </div>
-                          <p className="text-xs text-white/35">
-                            Uncheck items to exclude from project.
-                          </p>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                {/* Footer */}
-                <div className="flex gap-3 px-6 py-4 border-t border-white/[0.08] justify-end shrink-0">
-                  <button
-                    onClick={() => setLinkProjectInvId(null)}
-                    className="h-11 px-5 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (!inv) return;
-                      startTransition(async () => {
-                        if (cpMode === 'link' && cpLinkId) {
-                          const p = projects.find((p) => p.id === cpLinkId);
-                          if (p)
-                            await upsertProject({ ...p, invoiceIds: [...p.invoiceIds, inv.id] });
-                        } else {
-                          const name = cpName.trim() || (client?.name ?? 'New Project');
-                          await upsertProject({
-                            id: uid(),
-                            name,
-                            clientId: inv.clientId,
-                            invoiceIds: [inv.id],
-                            items: cpItems.filter((it) => !cpExcluded.has(it.id)),
-                            status: 'confirmed',
-                            createdAt: new Date().toISOString(),
-                            filmingDate: undefined,
-                            deliverDate: undefined,
-                            confirmedMonth: undefined,
-                            budget: undefined,
-                            note: undefined,
-                          });
-                        }
-                        setLinkProjectInvId(null);
-                        setCpName('');
-                        setCpItems([]);
-                        setCpExcluded(new Set());
-                        setCpLinkId('');
-                      });
-                    }}
-                    disabled={isPending}
-                    className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition disabled:opacity-60"
-                  >
-                    {cpMode === 'link' ? 'Link project' : 'Create project'}
                   </button>
                 </div>
               </div>

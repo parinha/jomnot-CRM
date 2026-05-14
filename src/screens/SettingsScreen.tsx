@@ -13,7 +13,7 @@ import type {
   TelegramKanbanTemplate,
   Project,
 } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
+import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { buildProjectsSummaryMessage } from '@/src/lib/telegram-messages';
 import { uid } from '@/src/lib/id';
 import {
@@ -1270,82 +1270,6 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
           onClick={addScope}
           disabled={!newValue.trim()}
           className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
-        >
-          Add
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Holiday list ───────────────────────────────────────────────────────────────
-
-function HolidayList({
-  holidays,
-  onChange,
-}: {
-  holidays: { date: string; name: string }[];
-  onChange: (h: { date: string; name: string }[]) => void;
-}) {
-  const [newDate, setNewDate] = useState('');
-  const [newName, setNewName] = useState('');
-
-  const inputCls =
-    'h-10 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition backdrop-blur-sm';
-
-  function addHoliday() {
-    if (!newDate || !newName.trim()) return;
-    onChange([...holidays, { date: newDate, name: newName.trim() }]);
-    setNewDate('');
-    setNewName('');
-  }
-
-  function removeHoliday(i: number) {
-    onChange(holidays.filter((_, idx) => idx !== i));
-  }
-
-  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
-
-  return (
-    <div className="flex flex-col gap-2">
-      {sorted.length === 0 && (
-        <p className="text-xs text-white/30 italic py-2">
-          No holidays configured. Add your first one below.
-        </p>
-      )}
-      {sorted.map((h, i) => (
-        <div key={i} className="flex items-center gap-2 text-sm">
-          <span className="text-white/50 font-mono text-xs w-24 shrink-0">{h.date}</span>
-          <span className="flex-1 text-white/80 truncate">{h.name}</span>
-          <button
-            onClick={() => removeHoliday(holidays.indexOf(h))}
-            className="shrink-0 text-red-400/60 hover:text-red-400 text-xs px-2 py-1 rounded-lg hover:bg-red-500/10 transition"
-          >
-            Remove
-          </button>
-        </div>
-      ))}
-      <div className="flex items-center gap-2 mt-2 pt-3 border-t border-white/[0.08]">
-        <input
-          type="date"
-          value={newDate}
-          onChange={(e) => setNewDate(e.target.value)}
-          className={`${inputCls} w-36 shrink-0`}
-        />
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addHoliday();
-          }}
-          placeholder="Holiday name"
-          className={`${inputCls} flex-1`}
-        />
-        <button
-          onClick={addHoliday}
-          disabled={!newDate || !newName.trim()}
-          className="h-10 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
         >
           Add
         </button>

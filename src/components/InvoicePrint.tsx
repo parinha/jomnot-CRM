@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/src/types';
-import { fmtUSD, fmtCurrency } from '@/src/lib/formatters';
+import { fmtCurrency } from '@/src/lib/formatters';
 import { WHT_RATE } from '@/src/lib/calculations';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -400,6 +400,7 @@ export function Sheet({
         >
           <div style={{ maxWidth: '55%' }}>
             {company.logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={company.logo}
                 alt="Logo"
@@ -755,6 +756,7 @@ export function Sheet({
             </p>
             <div style={{ height: '56px', display: 'flex', alignItems: 'flex-end' }}>
               {company.signatorySignature ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={company.signatorySignature}
                   alt="Signature"
