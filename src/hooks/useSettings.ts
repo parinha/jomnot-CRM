@@ -1,6 +1,7 @@
 import { useSettingsContext } from '@/src/contexts/SettingsContext';
 import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
 import { DEFAULT_APP_PREFERENCES } from '@/src/types';
+import { setDocPath, mergeDocPath } from '@/src/lib/client/firestore';
 
 export function useCompanyProfile() {
   const { companyProfile, loading } = useSettingsContext();
@@ -57,39 +58,49 @@ export function useAppPreferences() {
 }
 
 export function useSettingsMutations() {
-  const {
-    saveCompanyProfile,
-    savePaymentInfo,
-    saveScopeOfWork,
-    saveAppPreferences,
-    saveInvoicingSettings,
-  } = useSettingsContext();
-
-  async function saveCompanyProfileWrapped(profile: CompanyProfile): Promise<void> {
-    await saveCompanyProfile(profile);
+  async function saveCompanyProfile(profile: CompanyProfile): Promise<void> {
+    await setDocPath('settings/company', profile as unknown as Record<string, unknown>);
   }
 
-  async function savePaymentInfoWrapped(payment: PaymentInfo): Promise<void> {
-    await savePaymentInfo(payment);
+  async function savePaymentInfo(payment: PaymentInfo): Promise<void> {
+    const telegramFields: Record<string, unknown> = {
+      telegramBotToken: payment.telegramBotToken,
+      telegramChatId: payment.telegramChatId,
+      telegramTopicId: payment.telegramTopicId,
+      projectTelegramChatId: payment.projectTelegramChatId,
+      projectTelegramTopicId: payment.projectTelegramTopicId,
+      kanbanUpdateEnabled: payment.kanbanUpdateEnabled,
+      kanbanUpdateTimes: payment.kanbanUpdateTimes,
+      kanbanUpdateDays: payment.kanbanUpdateDays,
+      kanbanUpdateTimezone: payment.kanbanUpdateTimezone,
+      telegramTemplate: payment.telegramTemplate,
+    };
+    await mergeDocPath(
+      'settings/preferences',
+      Object.fromEntries(Object.entries(telegramFields).filter(([, v]) => v !== undefined))
+    );
   }
 
-  async function saveScopeOfWorkWrapped(items: string[]): Promise<void> {
-    await saveScopeOfWork(items);
+  async function saveInvoicingSettings(invoicing: InvoicingSettings): Promise<void> {
+    await setDocPath('settings/invoicing', invoicing as unknown as Record<string, unknown>);
   }
 
-  async function saveAppPreferencesWrapped(prefs: AppPreferences): Promise<void> {
-    await saveAppPreferences(prefs);
+  async function saveScopeOfWork(items: string[]): Promise<void> {
+    await setDocPath('settings/scopes', { items });
   }
 
-  async function saveInvoicingSettingsWrapped(invoicing: InvoicingSettings): Promise<void> {
-    await saveInvoicingSettings(invoicing);
+  async function saveAppPreferences(prefs: AppPreferences): Promise<void> {
+    await mergeDocPath('settings/preferences', {
+      kanbanPhases: prefs.kanbanPhases,
+      holidays: prefs.holidays,
+    });
   }
 
   return {
-    saveCompanyProfile: saveCompanyProfileWrapped,
-    savePaymentInfo: savePaymentInfoWrapped,
-    saveScopeOfWork: saveScopeOfWorkWrapped,
-    saveAppPreferences: saveAppPreferencesWrapped,
-    saveInvoicingSettings: saveInvoicingSettingsWrapped,
+    saveCompanyProfile,
+    savePaymentInfo,
+    saveInvoicingSettings,
+    saveScopeOfWork,
+    saveAppPreferences,
   };
 }

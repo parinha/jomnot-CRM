@@ -123,3 +123,33 @@ select {
     padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px) + 1.5rem);
   }
 }
+
+/* ── Screen entrance animation ─────────────────────────────────────────────── */
+@keyframes screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.screen-in {
+  animation: screen-in 0.18s ease-out both;
+}
+
+/* ── Bottom sheet slide-up ──────────────────────────────────────────────────── */
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-sheet-up {
+  animation: sheet-up 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}

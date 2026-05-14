@@ -3,8 +3,8 @@
 import type { Invoice, Client } from '@/src/types';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import { calcTaxAmount, calcNet } from '@/src/features/invoices/lib/calculations';
-import { useCurrency } from '@/src/contexts/AppPreferencesContext';
-import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { useCurrency } from '@/src/hooks/useAppPreferences';
+import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 import { taxConfigFromPrefs } from '@/src/features/invoices/lib/calculations';
 
 export default function InvoicePreviewModal({

@@ -1,6 +1,6 @@
 import type { Client } from '@/src/types';
 import { useClientsContext } from '@/src/contexts/ClientsContext';
-import { upsertClientDoc, deleteClientDoc } from '@/src/lib/firestoreService';
+import { upsertDoc, deleteDoc } from '@/src/lib/client/firestore';
 
 export function useClients() {
   const { clients, loading } = useClientsContext();
@@ -15,11 +15,11 @@ export function useClients() {
 
 export function useClientMutations() {
   async function upsert(client: Client): Promise<void> {
-    await upsertClientDoc('clients', client.id, client);
+    await upsertDoc('clients', client.id, client);
   }
 
   async function remove(id: string): Promise<void> {
-    await deleteClientDoc('clients', id);
+    await deleteDoc('clients', id);
   }
 
   return { upsert, remove };

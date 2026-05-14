@@ -1,6 +1,6 @@
 import type { Project, ProjectItem } from '@/src/types';
 import { useProjectsContext } from '@/src/contexts/ProjectsContext';
-import { deleteClientDoc, patchClientDoc } from '@/src/lib/firestoreService';
+import { deleteDoc, patchDoc } from '@/src/lib/client/firestore';
 
 export function useProjects() {
   const { projects, loading } = useProjectsContext();
@@ -28,18 +28,15 @@ export function useProjectMutations() {
   }
 
   async function remove(id: string): Promise<void> {
-    await deleteClientDoc('projects', id);
+    await deleteDoc('projects', id);
   }
 
   async function updateItems(projectId: string, items: ProjectItem[]): Promise<void> {
-    await patchClientDoc('projects', projectId, { items: items as unknown[] } as Record<
-      string,
-      unknown
-    >);
+    await patchDoc('projects', projectId, { items: items as unknown[] } as Record<string, unknown>);
   }
 
   async function updateKanbanPhase(projectId: string, kanbanPhase: string): Promise<void> {
-    await patchClientDoc('projects', projectId, { kanbanPhase });
+    await patchDoc('projects', projectId, { kanbanPhase });
   }
 
   return { upsert, remove, updateItems, updateKanbanPhase };

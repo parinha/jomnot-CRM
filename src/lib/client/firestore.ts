@@ -6,11 +6,11 @@ import {
   getDoc,
   getDocs,
   writeBatch,
-  setDoc,
+  setDoc as fsSetDoc,
   updateDoc,
   deleteDoc as fsDeleteDoc,
 } from 'firebase/firestore';
-import { db } from './firebase-client';
+import { db } from '../firebase-client';
 
 type HasId = { id: string };
 
@@ -29,7 +29,7 @@ export async function fetchDocPath<T>(docPath: string): Promise<T | null> {
   return snap.exists() ? (snap.data() as T) : null;
 }
 
-export async function upsertClientDoc<T extends object>(
+export async function upsertDoc<T extends object>(
   collectionName: string,
   docId: string,
   data: T
@@ -37,14 +37,14 @@ export async function upsertClientDoc<T extends object>(
   const clean = Object.fromEntries(
     Object.entries(data as Record<string, unknown>).filter(([, v]) => v !== undefined)
   );
-  await setDoc(doc(db, collectionName, docId), clean);
+  await fsSetDoc(doc(db, collectionName, docId), clean);
 }
 
-export async function deleteClientDoc(collectionName: string, docId: string): Promise<void> {
+export async function deleteDoc(collectionName: string, docId: string): Promise<void> {
   await fsDeleteDoc(doc(db, collectionName, docId));
 }
 
-export async function patchClientDoc(
+export async function patchDoc(
   collectionName: string,
   docId: string,
   fields: Record<string, unknown>
@@ -61,7 +61,7 @@ export async function setDocPath(docPath: string, data: Record<string, unknown>)
       ([, v]) => v !== undefined
     )
   );
-  await setDoc(doc(db, docPath), clean);
+  await fsSetDoc(doc(db, docPath), clean);
 }
 
 export async function mergeDocPath(docPath: string, data: Record<string, unknown>): Promise<void> {
@@ -70,7 +70,7 @@ export async function mergeDocPath(docPath: string, data: Record<string, unknown
       ([, v]) => v !== undefined
     )
   );
-  await setDoc(doc(db, docPath), clean, { merge: true });
+  await fsSetDoc(doc(db, docPath), clean, { merge: true });
 }
 
 export async function replaceAll<T extends HasId>(

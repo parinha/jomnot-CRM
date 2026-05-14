@@ -1,7 +1,5 @@
-'use client';
-
 import { fmtCurrency, fmtShortCurrency, fmtDate } from '@/src/lib/formatters';
-import { useSettingsContext } from './SettingsContext';
+import { useSettingsContext } from '@/src/contexts/SettingsContext';
 import type { AppPreferences } from '@/src/types';
 
 export function useAppPreferences(): AppPreferences {

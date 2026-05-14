@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useTransition } from 'react';
+import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProgressPopover from '@/src/features/projects/components/ProgressPopover';
-import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 import type {
   Project,
   ProjectItem,
@@ -262,7 +263,7 @@ export default function ProjectsScreen() {
     const token = paymentInfo?.telegramBotToken?.trim();
     const chatId = paymentInfo?.projectTelegramChatId?.trim();
     if (!token || !chatId) {
-      alert('Add your Telegram Bot Token and Project Chat ID in Settings first.');
+      toast.error('Add your Telegram Bot Token and Project Chat ID in Settings first.');
       return;
     }
     setSendingTelegram(project.id);
@@ -328,10 +329,10 @@ export default function ProjectsScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(`Telegram error: ${err.description ?? res.statusText}`);
+        toast.error(`Telegram error: ${err.description ?? res.statusText}`);
       }
     } catch (e) {
-      alert(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
+      toast.error(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
     } finally {
       setSendingTelegram(null);
     }
@@ -1439,7 +1440,76 @@ export default function ProjectsScreen() {
         </div>
       ) : (
         <>
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden mb-4">
+            {activePaged.map((project) => {
+              const client = clients.find((c) => c.id === project.clientId);
+              const tl = getTimelineBar(project.deliverDate);
+              const delivItems = project.items ?? [];
+              const delivDone = delivItems.filter((it) => it.status === 'done').length;
+              const sc = PROJECT_STATUS_CONFIG[project.status];
+              return (
+                <div
+                  key={project.id}
+                  className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <button
+                        onClick={() => openEdit(project)}
+                        className="font-semibold text-white text-left hover:text-[#FFC206] transition truncate block max-w-full"
+                      >
+                        {project.name}
+                      </button>
+                      <p className="text-xs text-white/40 mt-0.5 truncate">
+                        {client?.name ?? 'No client'}
+                      </p>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                    >
+                      {sc.label}
+                    </span>
+                  </div>
+                  {delivItems.length > 0 && (
+                    <div className="mb-2">
+                      <div className="flex items-center justify-between text-xs text-white/40 mb-1">
+                        <span>
+                          {delivDone}/{delivItems.length} deliverables
+                        </span>
+                        <span>{Math.round((delivDone / delivItems.length) * 100)}%</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-[#FFC206] transition-all"
+                          style={{ width: `${Math.round((delivDone / delivItems.length) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    {tl ? (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
+                      >
+                        {tl.badgeLabel}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-white/25">No deadline</span>
+                    )}
+                    {project.budget ? (
+                      <span className="text-xs text-white/40 amt">
+                        ${project.budget.toLocaleString()}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04]">

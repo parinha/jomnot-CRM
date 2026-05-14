@@ -9,7 +9,7 @@ import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import ProgressPopover from '@/src/features/projects/components/ProgressPopover';
-import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 
 const PALETTE = [
   {

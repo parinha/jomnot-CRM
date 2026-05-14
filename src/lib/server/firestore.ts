@@ -1,9 +1,9 @@
 /**
- * Shared Firestore write helpers used by API route handlers.
- * No 'use server' directive — these run inside Route Handlers.
+ * Firestore (Admin SDK) write helpers for API route handlers.
+ * Never import this from client components or hooks.
  */
 
-import { adminDb } from './firebase-admin';
+import { adminDb } from '../firebase-admin';
 
 const now = () => new Date().toISOString();
 
@@ -45,8 +45,8 @@ export async function patchDoc(collection: string, id: string, fields: PlainObje
     .update({ ...fields, updatedAt: now() });
 }
 
-/** Overwrite a single-document path (e.g. settings/company). */
-export async function setDoc(docPath: string, data: PlainObject): Promise<void> {
+/** Overwrite a document at an explicit path (e.g. settings/company). */
+export async function setDocPath(docPath: string, data: PlainObject): Promise<void> {
   const clean = Object.fromEntries(
     Object.entries({ ...data, updatedAt: now() }).filter(([, v]) => v !== undefined)
   );
@@ -54,7 +54,7 @@ export async function setDoc(docPath: string, data: PlainObject): Promise<void> 
 }
 
 /** Merge specific fields into a document without touching other fields. */
-export async function mergeDoc(docPath: string, data: PlainObject): Promise<void> {
+export async function mergeDocPath(docPath: string, data: PlainObject): Promise<void> {
   const clean = Object.fromEntries(
     Object.entries({ ...data, updatedAt: now() }).filter(([, v]) => v !== undefined)
   );

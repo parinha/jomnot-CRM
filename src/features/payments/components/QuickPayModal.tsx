@@ -10,7 +10,7 @@ import {
   taxConfigFromPrefs,
 } from '@/src/features/invoices/lib/calculations';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
-import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences, useCurrency } from '@/src/hooks/useAppPreferences';
 
 interface Props {
   onClose: () => void;

@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase-client';
-import { setDocPath, mergeDocPath } from '@/src/lib/firestoreService';
 import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
 import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
@@ -54,11 +53,6 @@ interface SettingsCtx {
   scopeOfWork: string[];
   appPreferences: AppPreferences;
   loading: boolean;
-  saveCompanyProfile(p: CompanyProfile): Promise<void>;
-  savePaymentInfo(p: PaymentInfo): Promise<void>;
-  saveInvoicingSettings(s: InvoicingSettings): Promise<void>;
-  saveScopeOfWork(items: string[]): Promise<void>;
-  saveAppPreferences(p: AppPreferences): Promise<void>;
 }
 
 const Ctx = createContext<SettingsCtx | null>(null);
@@ -134,44 +128,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   const appPreferences = buildAppPreferences(prefsRaw, invoicingSettings);
 
-  async function saveCompanyProfile(p: CompanyProfile): Promise<void> {
-    await setDocPath('settings/company', p as unknown as Record<string, unknown>);
-  }
-
-  async function savePaymentInfo(p: PaymentInfo): Promise<void> {
-    const telegramFields: Record<string, unknown> = {
-      telegramBotToken: p.telegramBotToken,
-      telegramChatId: p.telegramChatId,
-      telegramTopicId: p.telegramTopicId,
-      projectTelegramChatId: p.projectTelegramChatId,
-      projectTelegramTopicId: p.projectTelegramTopicId,
-      kanbanUpdateEnabled: p.kanbanUpdateEnabled,
-      kanbanUpdateTimes: p.kanbanUpdateTimes,
-      kanbanUpdateDays: p.kanbanUpdateDays,
-      kanbanUpdateTimezone: p.kanbanUpdateTimezone,
-      telegramTemplate: p.telegramTemplate,
-    };
-    await mergeDocPath(
-      'settings/preferences',
-      Object.fromEntries(Object.entries(telegramFields).filter(([, v]) => v !== undefined))
-    );
-  }
-
-  async function saveInvoicingSettings(s: InvoicingSettings): Promise<void> {
-    await setDocPath('settings/invoicing', s as unknown as Record<string, unknown>);
-  }
-
-  async function saveScopeOfWork(items: string[]): Promise<void> {
-    await setDocPath('settings/scopes', { items });
-  }
-
-  async function saveAppPreferences(p: AppPreferences): Promise<void> {
-    await mergeDocPath('settings/preferences', {
-      kanbanPhases: p.kanbanPhases,
-      holidays: p.holidays,
-    });
-  }
-
   return (
     <Ctx.Provider
       value={{
@@ -181,11 +137,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         scopeOfWork,
         appPreferences,
         loading,
-        saveCompanyProfile,
-        savePaymentInfo,
-        saveInvoicingSettings,
-        saveScopeOfWork,
-        saveAppPreferences,
       }}
     >
       {children}

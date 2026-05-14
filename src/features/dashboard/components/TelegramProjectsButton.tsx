@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { useSendProjectsTelegram } from '@/src/hooks/useTelegram';
 
 export default function TelegramProjectsButton({ compact }: { compact?: boolean }) {
@@ -17,7 +18,7 @@ export default function TelegramProjectsButton({ compact }: { compact?: boolean 
       setStatus('ok');
       setTimeout(() => setStatus('idle'), 3000);
     } else {
-      alert(result.error ?? 'Failed to send.');
+      toast.error(result.error ?? 'Failed to send.');
       setStatus('err');
     }
   }

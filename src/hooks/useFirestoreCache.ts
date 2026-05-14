@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { onSnapshot, collection } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase-client';
-import { fetchAll } from '@/src/lib/firestoreService';
+import { fetchAll } from '@/src/lib/client/firestore';
 
 type HasId = { id: string };
 

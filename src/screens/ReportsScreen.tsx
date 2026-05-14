@@ -14,7 +14,7 @@ import {
   calcNet,
   taxConfigFromPrefs,
 } from '@/src/features/invoices/lib/calculations';
-import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences, useCurrency } from '@/src/hooks/useAppPreferences';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────
 

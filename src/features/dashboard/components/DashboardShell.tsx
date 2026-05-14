@@ -123,6 +123,30 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [quickPay, setQuickPay] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const swipeStartX = useRef<number | null>(null);
+  const swipeStartY = useRef<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    if (e.touches[0].clientX < 24) {
+      swipeStartX.current = e.touches[0].clientX;
+      swipeStartY.current = e.touches[0].clientY;
+    }
+  }
+
+  function handleTouchMove(e: React.TouchEvent) {
+    if (swipeStartX.current === null) return;
+    const dx = e.touches[0].clientX - swipeStartX.current;
+    const dy = Math.abs(e.touches[0].clientY - (swipeStartY.current ?? 0));
+    if (dx > 60 && dy < 40) {
+      setDrawerOpen(true);
+      swipeStartX.current = null;
+    }
+  }
+
+  function handleTouchEnd() {
+    swipeStartX.current = null;
+    swipeStartY.current = null;
+  }
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -158,7 +182,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   useEffect(() => {
     function handlePopState() {
       if (!window.location.pathname.startsWith('/dashboard')) {
-        router.replace('/dashboard/timeline');
+        router.replace('/dashboard/invoices');
       }
     }
     window.addEventListener('popstate', handlePopState);
@@ -254,6 +278,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   return (
     <div
       className="h-dvh flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       data-amounts-hidden={!amountsVisible}
     >
       {/* Ambient background glow */}

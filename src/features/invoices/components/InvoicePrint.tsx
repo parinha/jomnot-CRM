@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, createElement } from 'react';
+import Link from 'next/link';
+import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/src/types';
 import { fmtUSD, fmtCurrency } from '@/src/lib/formatters';
@@ -104,7 +106,7 @@ export default function InvoicePrint({
     const token = payment.telegramBotToken?.trim();
     const chatId = payment.telegramChatId?.trim();
     if (!token || !chatId) {
-      alert('Add your Telegram Bot Token and Chat ID in Settings first.');
+      toast.error('Add your Telegram Bot Token and Chat ID in Settings first.');
       return;
     }
     setSendingTelegram(true);
@@ -129,14 +131,14 @@ export default function InvoicePrint({
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(`Telegram error: ${err.description ?? res.statusText}`);
+        toast.error(`Telegram error: ${err.description ?? res.statusText}`);
         setTelegramStatus('err');
       } else {
         setTelegramStatus('ok');
         setTimeout(() => setTelegramStatus('idle'), 3000);
       }
     } catch (e) {
-      alert(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
+      toast.error(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
       setTelegramStatus('err');
     } finally {
       setSendingTelegram(false);
@@ -149,7 +151,7 @@ export default function InvoicePrint({
       <div className="no-print fixed top-0 inset-x-0 z-10 bg-zinc-800 text-white">
         <div className="flex items-center justify-between px-3 sm:px-6 py-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <a
+            <Link
               href="/dashboard/invoices"
               className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 active:bg-white/30 transition shrink-0"
               title="Back to invoices"
@@ -168,7 +170,7 @@ export default function InvoicePrint({
                 />
               </svg>
               <span className="hidden sm:inline">Home</span>
-            </a>
+            </Link>
             <span className="font-medium truncate text-sm">{invoice.number}</span>
           </div>
 

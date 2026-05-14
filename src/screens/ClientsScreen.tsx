@@ -281,7 +281,100 @@ export default function ClientsScreen() {
         </div>
       ) : (
         <>
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {pagedClients.map((client) => {
+              const stats = statsMap.get(client.id);
+              return (
+                <div
+                  key={client.id}
+                  className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
+                >
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-white truncate">{client.name}</p>
+                      {client.contactPerson && (
+                        <p className="text-xs text-white/50 mt-0.5 truncate">
+                          {client.contactPerson}
+                        </p>
+                      )}
+                      {client.phone && (
+                        <p className="text-xs text-white/35 mt-0.5">{client.phone}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => openEdit(client)}
+                        className="h-9 w-9 rounded-xl border border-white/20 flex items-center justify-center text-white/60 hover:bg-white/10 hover:text-white transition"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => setDeleteId(client.id)}
+                        className="h-9 w-9 rounded-xl border border-red-500/30 flex items-center justify-center text-red-400 hover:bg-red-500/15 transition"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  {stats?.count || stats?.earned || stats?.remaining ? (
+                    <div className="flex gap-2">
+                      {stats?.count ? (
+                        <button
+                          onClick={() => setInvoicesClientId(client.id)}
+                          className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center hover:bg-white/10 transition"
+                        >
+                          <p className="font-bold text-white text-sm">{stats.count}</p>
+                          <p className="text-white/40 text-xs mt-0.5">Invoices</p>
+                        </button>
+                      ) : null}
+                      {stats?.earned ? (
+                        <div className="flex-1 bg-white/[0.06] rounded-xl p-2.5 text-center">
+                          <p className="font-bold text-white text-sm amt">{fmt(stats.earned)}</p>
+                          <p className="text-white/40 text-xs mt-0.5">Earned</p>
+                        </div>
+                      ) : null}
+                      {stats?.remaining > 0 ? (
+                        <div className="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5 text-center">
+                          <p className="font-bold text-amber-400 text-sm amt">
+                            {fmt(stats.remaining)}
+                          </p>
+                          <p className="text-amber-400/60 text-xs mt-0.5">Owed</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04]">

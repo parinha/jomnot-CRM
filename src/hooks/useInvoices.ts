@@ -1,6 +1,6 @@
 import type { Invoice, InvoiceStatus } from '@/src/types';
 import { useInvoicesContext } from '@/src/contexts/InvoicesContext';
-import { upsertClientDoc, deleteClientDoc, patchClientDoc } from '@/src/lib/firestoreService';
+import { upsertDoc, deleteDoc, patchDoc } from '@/src/lib/client/firestore';
 
 export function useInvoices() {
   const { invoices, loading } = useInvoicesContext();
@@ -27,15 +27,15 @@ export function useInvoice(id: string | null) {
 
 export function useInvoiceMutations() {
   async function upsert(invoice: Invoice): Promise<void> {
-    await upsertClientDoc('invoices', invoice.id, invoice);
+    await upsertDoc('invoices', invoice.id, invoice);
   }
 
   async function remove(id: string): Promise<void> {
-    await deleteClientDoc('invoices', id);
+    await deleteDoc('invoices', id);
   }
 
   async function updateStatus(id: string, status: InvoiceStatus): Promise<void> {
-    await patchClientDoc('invoices', id, { status });
+    await patchDoc('invoices', id, { status });
   }
 
   return { upsert, remove, updateStatus };

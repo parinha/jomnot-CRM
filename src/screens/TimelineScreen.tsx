@@ -7,7 +7,7 @@ import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import ProgressPopover from '@/src/features/projects/components/ProgressPopover';
-import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 
 // ── Layout constants ───────────────────────────────────────────────────────────
 const DAY_W_MAP = { day: 48, week: 18, month: 7 } as const;

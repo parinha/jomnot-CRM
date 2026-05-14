@@ -88,7 +88,7 @@ export const DEFAULT_INVOICING_SETTINGS: InvoicingSettings = {
 
 // Workspace tab: kanban phases and calendar config
 export interface AppPreferences {
-  currencyCode: string; // kept for AppPreferencesContext backward compat (merged from invoicing)
+  currencyCode: string; // kept for useAppPreferences backward compat (merged from invoicing)
   currencySymbol: string;
   dateFormat: 'DD/Mon/YYYY' | 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
   kanbanPhases: KanbanPhase[];

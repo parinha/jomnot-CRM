@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, createElement, useTransition } from 'react';
+import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Sheet } from '@/src/features/invoices/components/InvoicePrint';
@@ -31,7 +32,7 @@ import {
   taxConfigFromPrefs,
 } from '@/src/features/invoices/lib/calculations';
 import { fmtDate } from '@/src/lib/formatters';
-import { useAppPreferences, useCurrency, useDateFmt } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences, useCurrency, useDateFmt } from '@/src/hooks/useAppPreferences';
 import { uid } from '@/src/lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
@@ -166,7 +167,7 @@ export default function InvoicesScreen() {
     const token = paymentInfo?.telegramBotToken?.trim();
     const chatId = paymentInfo?.telegramChatId?.trim();
     if (!token || !chatId) {
-      alert('Add your Telegram Bot Token and Chat ID in Settings first.');
+      toast.error('Add your Telegram Bot Token and Chat ID in Settings first.');
       return;
     }
     setSendingTelegram(inv.id);
@@ -194,10 +195,10 @@ export default function InvoicesScreen() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(`Telegram error: ${err.description ?? res.statusText}`);
+        toast.error(`Telegram error: ${err.description ?? res.statusText}`);
       }
     } catch (e) {
-      alert(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
+      toast.error(`Failed to send: ${e instanceof Error ? e.message : 'unknown error'}`);
     } finally {
       setSendingTelegram(null);
     }
@@ -709,7 +710,40 @@ export default function InvoicesScreen() {
         </div>
       ) : (
         <>
-          <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
+          {/* Mobile cards */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {pagedInvoices.map((inv) => {
+              const client = clients.find((c) => c.id === inv.clientId);
+              const sub = calcSubtotal(inv);
+              const status = (inv.status ?? 'draft') as InvoiceStatus;
+              const sc = STATUS_CONFIG[status];
+              return (
+                <div
+                  key={inv.id}
+                  className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
+                >
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-white">{inv.number}</p>
+                      <p className="text-xs text-white/50 mt-0.5 truncate">{client?.name ?? '—'}</p>
+                    </div>
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                    >
+                      {sc.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-white/35">{fmtDt(inv.date)}</p>
+                    <p className="font-semibold text-white amt">{fmt(sub)}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">

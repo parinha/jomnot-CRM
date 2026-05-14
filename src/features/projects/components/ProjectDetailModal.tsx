@@ -4,7 +4,7 @@ import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { useProjects } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useAppPreferences } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 
 interface Props {
   projectId: string;

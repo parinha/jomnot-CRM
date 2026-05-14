@@ -67,7 +67,7 @@ export const getScopeOfWork = cache(async function getScopeOfWork(): Promise<str
 
 // Returns full AppPreferences (with currency/tax/dateFormat) by merging from:
 //   settings/preferences (kanbanPhases, holidays) + settings/invoicing (currency, date, tax)
-// This keeps AppPreferencesContext working without changes across the app.
+// This keeps useAppPreferences working without changes across the app.
 export const getAppPreferences = cache(async function getAppPreferences(): Promise<AppPreferences> {
   try {
     const [prefsSnap, invSnap] = await Promise.all([

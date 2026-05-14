@@ -16,7 +16,7 @@ import {
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import ModalShell from '@/src/components/ModalShell';
 import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
-import { useAppPreferences, useCurrency } from '@/src/contexts/AppPreferencesContext';
+import { useAppPreferences, useCurrency } from '@/src/hooks/useAppPreferences';
 
 // ── Payment action buttons ────────────────────────────────────────────────────
 
@@ -162,6 +162,81 @@ function InvoiceRow({
         <PaymentActions inv={inv} onAction={onAction} />
       </td>
     </tr>
+  );
+}
+
+// ── Mobile payment card ───────────────────────────────────────────────────────
+
+function PaymentCard({
+  inv,
+  clients,
+  showReceived,
+  showBalance,
+  onAction,
+  onPreview,
+}: {
+  inv: Invoice;
+  clients: Client[];
+  showReceived?: boolean;
+  showBalance?: boolean;
+  onAction: (id: string, from: InvoiceStatus, to: InvoiceStatus) => void;
+  onPreview: (id: string) => void;
+}) {
+  const prefs = useAppPreferences();
+  const { fmtAmount: fmt } = useCurrency();
+  const taxConfig = taxConfigFromPrefs(prefs);
+  const client = clients.find((c) => c.id === inv.clientId);
+  const sub = calcSubtotal(inv);
+  const net = calcNet(inv, taxConfig);
+  const received = calcEarned(inv, taxConfig);
+  const balance = calcBalance(inv, taxConfig);
+  const sc = STATUS_CONFIG[inv.status ?? 'draft'];
+
+  return (
+    <div className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <button
+            onClick={() => onPreview(inv.id)}
+            className="font-bold text-white hover:text-[#FFC206] transition text-left"
+          >
+            {inv.number}
+          </button>
+          <p className="text-xs text-white/50 mt-0.5 truncate">{client?.name ?? '—'}</p>
+          <p className="text-xs text-white/30 mt-0.5">{inv.date}</p>
+        </div>
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
+            {sc.label}
+          </span>
+          <PaymentActions inv={inv} onAction={onAction} />
+        </div>
+      </div>
+      <div className="flex gap-2 mt-2">
+        <div className="flex-1 bg-white/[0.06] rounded-xl p-2 text-center">
+          <p className="text-xs text-white font-semibold amt">{fmt(sub)}</p>
+          <p className="text-[10px] text-white/35 mt-0.5">Total</p>
+        </div>
+        {showReceived && (
+          <div className="flex-1 bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-2 text-center">
+            <p className="text-xs text-emerald-400 font-semibold amt">{fmt(received)}</p>
+            <p className="text-[10px] text-emerald-400/50 mt-0.5">Received</p>
+          </div>
+        )}
+        {showBalance && (
+          <div className="flex-1 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2 text-center">
+            <p className="text-xs text-amber-400 font-semibold amt">{fmt(balance)}</p>
+            <p className="text-[10px] text-amber-400/50 mt-0.5">Balance</p>
+          </div>
+        )}
+        {!showReceived && !showBalance && net !== sub && (
+          <div className="flex-1 bg-white/[0.06] rounded-xl p-2 text-center">
+            <p className="text-xs text-white/70 font-semibold amt">{fmt(net)}</p>
+            <p className="text-[10px] text-white/35 mt-0.5">Net</p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -332,7 +407,20 @@ export default function PaymentsScreen() {
 
       {partial.length > 0 && (
         <Section title="Awaiting final payment" count={partial.length} accent="text-amber-400">
-          <div className={glassTable}>
+          <div className="flex flex-col gap-3 md:hidden">
+            {partial.map((inv) => (
+              <PaymentCard
+                key={inv.id}
+                inv={inv}
+                clients={clients}
+                showReceived
+                showBalance
+                onAction={handleAction}
+                onPreview={setPreviewInvId}
+              />
+            ))}
+          </div>
+          <div className={`hidden md:block ${glassTable}`}>
             <table className="w-full text-sm">
               {tableHead([
                 'Invoice',
@@ -368,7 +456,18 @@ export default function PaymentsScreen() {
           count={unpaid.length}
           accent={unpaid.some((i) => i.status === 'overdue') ? 'text-red-400' : 'text-blue-400'}
         >
-          <div className={glassTable}>
+          <div className="flex flex-col gap-3 md:hidden">
+            {unpaid.map((inv) => (
+              <PaymentCard
+                key={inv.id}
+                inv={inv}
+                clients={clients}
+                onAction={handleAction}
+                onPreview={setPreviewInvId}
+              />
+            ))}
+          </div>
+          <div className={`hidden md:block ${glassTable}`}>
             <table className="w-full text-sm">
               {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Status', ''])}
               <tbody>
@@ -389,7 +488,19 @@ export default function PaymentsScreen() {
 
       {paid.length > 0 && (
         <Section title="Fully paid" count={paid.length} accent="text-green-400">
-          <div className={glassTable}>
+          <div className="flex flex-col gap-3 md:hidden">
+            {paid.map((inv) => (
+              <PaymentCard
+                key={inv.id}
+                inv={inv}
+                clients={clients}
+                showReceived
+                onAction={handleAction}
+                onPreview={setPreviewInvId}
+              />
+            ))}
+          </div>
+          <div className={`hidden md:block ${glassTable}`}>
             <table className="w-full text-sm">
               {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Received', 'Status', ''])}
               <tbody>
@@ -411,7 +522,18 @@ export default function PaymentsScreen() {
 
       {draft.length > 0 && (
         <Section title="Draft" count={draft.length} accent="text-white/45">
-          <div className={glassTable}>
+          <div className="flex flex-col gap-3 md:hidden">
+            {draft.map((inv) => (
+              <PaymentCard
+                key={inv.id}
+                inv={inv}
+                clients={clients}
+                onAction={handleAction}
+                onPreview={setPreviewInvId}
+              />
+            ))}
+          </div>
+          <div className={`hidden md:block ${glassTable}`}>
             <table className="w-full text-sm">
               {tableHead(['Invoice', 'Client', 'Date', 'Total', 'Status', ''])}
               <tbody>
