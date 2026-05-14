@@ -12,7 +12,6 @@ import { fmtUSD, fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
-import SortTh from '@/src/components/SortTh';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
@@ -276,8 +275,8 @@ export default function ClientsScreen() {
         </div>
       ) : (
         <>
-          {/* Mobile cards */}
-          <div className="flex flex-col gap-3 md:hidden">
+          {/* Client cards */}
+          <div className="flex flex-col gap-3">
             {pagedClients.map((client) => {
               const stats = statsMap.get(client.id);
               return (
@@ -366,138 +365,6 @@ export default function ClientsScreen() {
                 </div>
               );
             })}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                  <SortTh
-                    col="name"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5"
-                  >
-                    Name
-                  </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Contact</th>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
-                    Phone
-                  </th>
-
-                  <th className="text-center px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
-                    Projects
-                  </th>
-                  <SortTh
-                    col="invoices"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-center px-4 py-3.5"
-                  >
-                    Invoices
-                  </SortTh>
-                  <SortTh
-                    col="earned"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-right px-4 py-3.5"
-                  >
-                    Earned
-                  </SortTh>
-                  <th className="text-right px-4 py-3.5 font-medium text-white/45 hidden md:table-cell">
-                    Remaining
-                  </th>
-                  <th className="px-4 py-3.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {pagedClients.map((client, i) => {
-                  const stats = statsMap.get(client.id);
-                  return (
-                    <tr
-                      key={client.id}
-                      className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                    >
-                      <td className="px-4 py-3.5 font-semibold text-white">{client.name}</td>
-                      <td className="px-4 py-3.5">
-                        {client.contactPerson ? (
-                          <>
-                            <div className="text-white/80 text-sm">{client.contactPerson}</div>
-                            <div className="text-xs text-white/40">{client.email}</div>
-                          </>
-                        ) : (
-                          <span className="text-white/60">{client.email}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-white/60 hidden md:table-cell">
-                        {client.phone || '—'}
-                      </td>
-
-                      <td className="px-4 py-3.5 text-center hidden md:table-cell">
-                        {stats && stats.projectCount > 0 ? (
-                          <button
-                            onClick={() => setProjectsClientId(client.id)}
-                            className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/70 hover:bg-white/15 transition"
-                          >
-                            {stats.projectCount}
-                          </button>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-center">
-                        {stats && stats.count > 0 ? (
-                          <button
-                            onClick={() => setInvoicesClientId(client.id)}
-                            className="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-white/10 text-white/70 hover:bg-white/15 transition"
-                          >
-                            {stats.count}
-                          </button>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-semibold text-white">
-                        {stats && stats.count > 0 ? (
-                          <span className="amt">{fmt(stats.earned)}</span>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5 text-right hidden md:table-cell">
-                        {stats && stats.remaining > 0 ? (
-                          <span className="font-semibold text-amber-400 amt">
-                            {fmt(stats.remaining)}
-                          </span>
-                        ) : (
-                          <span className="text-white/25 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => openEdit(client)}
-                            className="h-9 px-4 rounded-xl border border-white/20 text-xs font-semibold text-white/70 hover:bg-white/10 hover:text-white transition"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(client.id)}
-                            className="h-9 px-4 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </>
       )}
@@ -679,13 +546,13 @@ export default function ClientsScreen() {
                             <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                               Project
                             </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 ">
                               Status
                             </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden md:table-cell">
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                               Progress
                             </th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden md:table-cell">
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                               Deliver
                             </th>
                             <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
@@ -715,14 +582,14 @@ export default function ClientsScreen() {
                                 className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
                               >
                                 <td className="px-4 py-3 font-semibold text-white">{p.name}</td>
-                                <td className="px-4 py-3 hidden sm:table-cell">
+                                <td className="px-4 py-3">
                                   <span
                                     className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
                                   >
                                     {sc.label}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 hidden md:table-cell">
+                                <td className="px-4 py-3">
                                   {totalItems > 0 ? (
                                     <div className="flex items-center gap-2">
                                       <div className="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">
@@ -739,7 +606,7 @@ export default function ClientsScreen() {
                                     <span className="text-white/25 text-xs">—</span>
                                   )}
                                 </td>
-                                <td className="px-4 py-3 text-white/60 text-xs hidden md:table-cell">
+                                <td className="px-4 py-3 text-white/60 text-xs">
                                   {p.deliverDate ? (
                                     fmtDate(p.deliverDate)
                                   ) : (
@@ -855,7 +722,7 @@ export default function ClientsScreen() {
                           <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Invoice #
                           </th>
-                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45 hidden sm:table-cell">
+                          <th className="text-left px-4 py-3 text-xs font-semibold text-white/45">
                             Date
                           </th>
                           <th className="text-right px-4 py-3 text-xs font-semibold text-white/45">
@@ -884,9 +751,7 @@ export default function ClientsScreen() {
                                   {inv.number}
                                 </button>
                               </td>
-                              <td className="px-4 py-3 text-white/50 hidden sm:table-cell">
-                                {fmtDate(inv.date)}
-                              </td>
+                              <td className="px-4 py-3 text-white/50">{fmtDate(inv.date)}</td>
                               <td className="px-4 py-3 text-right font-semibold text-white amt">
                                 {fmt(sub)}
                               </td>

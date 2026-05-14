@@ -31,7 +31,6 @@ import { useAppPreferences, useCurrency, useDateFmt } from '@/src/hooks/useAppPr
 import { uid } from '@/src/lib/id';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
-import SortTh from '@/src/components/SortTh';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
@@ -84,15 +83,6 @@ export default function InvoicesScreen() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const didAutoOpen = useRef(false);
-
-  // ── Summary stats ──────────────────────────────────────────────────────────
-  const paidInvoices = invoices.filter((inv) => inv.status === 'paid');
-  const awaitingBalance = invoices.filter((inv) => inv.status === 'partial');
-  const paidRevenue = paidInvoices.reduce((s, inv) => s + calcSubtotal(inv), 0);
-  const depositRevenue = awaitingBalance.reduce(
-    (s, inv) => s + calcSubtotal(inv) * ((inv.depositPercent ?? 0) / 100),
-    0
-  );
 
   // ── Telegram ───────────────────────────────────────────────────────────────
   const [sendingTelegram, setSendingTelegram] = useState<string | null>(null);
@@ -429,6 +419,7 @@ export default function InvoicesScreen() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [linkProjectInvId, setLinkProjectInvId] = useState<string | null>(null);
   const [viewProjectId, setViewProjectId] = useState<string | null>(null);
+  const [viewInvId, setViewInvId] = useState<string | null>(null);
 
   // Link/create project state
   const [cpMode, setCpMode] = useState<'create' | 'link'>('create');
@@ -584,38 +575,6 @@ export default function InvoicesScreen() {
         </button>
       </div>
 
-      {/* Summary widgets */}
-      {invoices.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <SummaryCard
-            label="Paid"
-            value={String(paidInvoices.length)}
-            sub={`${fmt(paidRevenue)} received`}
-            isAmountSub
-          />
-          <SummaryCard
-            label="Deposit Rcvd"
-            value={String(awaitingBalance.length)}
-            sub={`${fmt(depositRevenue)} collected`}
-            accent="amber"
-            isAmountSub
-          />
-          <SummaryCard
-            label="Active"
-            value={String(
-              invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length
-            )}
-            sub={`${invoices.filter((i) => i.status === 'overdue').length} late`}
-            accent={invoices.some((i) => i.status === 'overdue') ? 'red' : undefined}
-          />
-          <SummaryCard
-            label="Draft"
-            value={String(invoices.filter((i) => i.status === 'draft').length)}
-            sub="not yet sent"
-          />
-        </div>
-      )}
-
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-white/[0.08] overflow-x-auto">
         {(
@@ -705,320 +664,80 @@ export default function InvoicesScreen() {
         </div>
       ) : (
         <>
-          {/* Mobile cards */}
-          <div className="flex flex-col gap-3 md:hidden">
+          {/* Invoice cards */}
+          <div className="flex flex-col gap-3">
             {pagedInvoices.map((inv) => {
               const client = clients.find((c) => c.id === inv.clientId);
               const sub = calcSubtotal(inv);
               const status = (inv.status ?? 'draft') as InvoiceStatus;
               const sc = STATUS_CONFIG[status];
+              const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
               return (
-                <div
+                <button
                   key={inv.id}
-                  className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
+                  onClick={() => setViewInvId(inv.id)}
+                  className="w-full text-left bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4 active:bg-white/[0.08] transition"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
+                  {/* Top: number + status + edit */}
+                  <div className="flex items-start justify-between gap-2 mb-1">
                     <div className="min-w-0">
                       <p className="font-bold text-white">{inv.number}</p>
                       <p className="text-xs text-white/50 mt-0.5 truncate">{client?.name ?? '—'}</p>
                     </div>
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                    >
-                      {sc.label}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
+                        {sc.label}
+                      </span>
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEdit(inv);
+                        }}
+                        className="p-1.5 rounded-lg text-white/40 hover:bg-white/10 hover:text-white transition"
+                        title="Edit"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
+                  {/* Date + amount */}
+                  <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-white/35">{fmtDt(inv.date)}</p>
                     <p className="font-semibold text-white amt">{fmt(sub)}</p>
                   </div>
-                </div>
+                  {/* Project */}
+                  <div className="mt-3 pt-3 border-t border-white/[0.07]">
+                    {linkedProjects.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {linkedProjects.map((lp) => (
+                          <span
+                            key={lp.id}
+                            className="text-xs px-2 py-0.5 rounded-lg bg-blue-500/15 border border-blue-400/25 text-blue-300"
+                          >
+                            {lp.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-white/30 italic">No project linked yet</p>
+                    )}
+                  </div>
+                </button>
               );
             })}
-          </div>
-
-          {/* Desktop table */}
-          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.08] bg-white/[0.04] text-xs font-medium text-white/45">
-                  <SortTh
-                    col="number"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3"
-                  >
-                    Invoice #
-                  </SortTh>
-                  <th className="text-left px-4 py-3">Client</th>
-                  <SortTh
-                    col="date"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3 hidden sm:table-cell"
-                  >
-                    Date
-                  </SortTh>
-                  <SortTh
-                    col="amount"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-right px-4 py-3"
-                  >
-                    Amount
-                  </SortTh>
-                  <th className="text-left px-4 py-3 hidden md:table-cell w-40">Project</th>
-                  <th className="text-left px-4 py-3">Status</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody>
-                {pagedInvoices.map((inv, i) => {
-                  const client = clients.find((c) => c.id === inv.clientId);
-                  const sub = calcSubtotal(inv);
-                  const wht = calcTaxAmount(inv, taxConfig);
-                  const net = calcNet(inv, taxConfig);
-                  const invDeposit =
-                    inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
-                  const invBalance = invDeposit != null ? net - invDeposit : null;
-                  const status = (inv.status ?? 'draft') as InvoiceStatus;
-                  const sc = STATUS_CONFIG[status];
-                  const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
-                  const allItems = linkedProjects.flatMap((p) => p.items);
-
-                  return (
-                    <tr
-                      key={inv.id}
-                      className={`border-b border-white/[0.05] last:border-0 hover:bg-white/[0.04] transition ${i % 2 === 1 ? 'bg-white/[0.02]' : ''}`}
-                    >
-                      <td className="px-4 py-3.5 font-semibold text-white whitespace-nowrap">
-                        {inv.number}
-                      </td>
-                      <td className="px-4 py-3.5 text-white/60 max-w-[120px] truncate">
-                        {client?.name ?? '—'}
-                      </td>
-                      <td className="px-4 py-3.5 text-white/50 whitespace-nowrap hidden sm:table-cell">
-                        {fmtDt(inv.date)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right whitespace-nowrap">
-                        <span className="font-semibold text-white amt">{fmt(sub)}</span>
-                        {wht != null && (
-                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                            <span className="text-xs text-orange-400/80">
-                              {taxConfig.type === 'additive' ? '+' : '−'}
-                              <span className="amt">{fmt(wht)}</span>{' '}
-                              {taxConfig.enabled ? taxConfig.label : 'WHT'}
-                            </span>
-                            <span className="text-xs font-medium text-white/70">
-                              <span className="amt">{fmt(net)}</span> net
-                            </span>
-                          </div>
-                        )}
-                        {invBalance != null && (
-                          <div className="flex flex-col items-end gap-0.5 mt-0.5">
-                            <span className="text-xs text-white/35">
-                              <span className="amt">{fmt(invDeposit!)}</span> dep ·{' '}
-                              <span className="amt">{fmt(invBalance)}</span> bal
-                            </span>
-                          </div>
-                        )}
-                      </td>
-                      {/* Project column */}
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <div className="flex flex-col gap-1">
-                          {linkedProjects.map((lp) => {
-                            const lpDone = lp.items.filter((it) => it.status === 'done').length;
-                            const lpTotal = lp.items.length;
-                            const lpPct = lpTotal > 0 ? Math.round((lpDone / lpTotal) * 100) : 0;
-                            return (
-                              <button
-                                key={lp.id}
-                                onClick={() => setViewProjectId(lp.id)}
-                                className="text-left group"
-                                title={`${lp.name} — ${lpPct}%`}
-                              >
-                                <div className="flex items-center gap-1.5 mb-0.5">
-                                  <span className="text-xs text-white/60 group-hover:text-white transition truncate max-w-[96px]">
-                                    {lp.name}
-                                  </span>
-                                  {lpTotal > 0 && (
-                                    <span className="text-xs text-white/35 shrink-0">{lpPct}%</span>
-                                  )}
-                                </div>
-                                {lpTotal > 0 && (
-                                  <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all ${lpPct === 100 ? 'bg-green-400' : 'bg-[#FFC206]'}`}
-                                      style={{ width: `${Math.max(lpPct, lpPct > 0 ? 4 : 0)}%` }}
-                                    />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                          <button
-                            onClick={() => openLinkProject(inv)}
-                            className="flex items-center gap-1 text-xs text-white/35 hover:text-[#FFC206] transition group mt-0.5"
-                          >
-                            <svg
-                              className="w-3 h-3 group-hover:scale-110 transition-transform"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M12 4v16m8-8H4"
-                              />
-                            </svg>
-                            {linkedProjects.length > 0 ? 'Add project' : 'Link project'}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${sc.cls}`}
-                        >
-                          {sc.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {status === 'draft' && (
-                            <button
-                              onClick={() => {
-                                startTransition(async () => {
-                                  await upsertInvoice({ ...inv, status: 'sent' });
-                                });
-                                window.open(`/invoices/${inv.id}`, '_blank');
-                              }}
-                              className="h-10 px-4 rounded-xl bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs font-bold hover:bg-blue-500/25 transition whitespace-nowrap"
-                            >
-                              Mark Sent
-                            </button>
-                          )}
-                          {/* Mobile project button */}
-                          <button
-                            onClick={() => openLinkProject(inv)}
-                            className={`p-2.5 rounded-xl border transition ${linkedProjects.length > 0 ? 'border-blue-400/30 text-blue-300 bg-blue-500/15 hover:bg-blue-500/25' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
-                            title={
-                              linkedProjects.length > 0
-                                ? linkedProjects.map((p) => p.name).join(', ')
-                                : 'Link project'
-                            }
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => sendToTelegram(inv)}
-                            disabled={sendingTelegram === inv.id}
-                            className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
-                            title="Send to Telegram"
-                          >
-                            {sendingTelegram === inv.id ? (
-                              <svg
-                                className="w-3.5 h-3.5 animate-spin"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
-                                />
-                              </svg>
-                            ) : (
-                              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                              </svg>
-                            )}
-                          </button>
-                          <a
-                            href={`/invoices/${inv.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
-                            title="PDF"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                              />
-                            </svg>
-                          </a>
-                          <button
-                            onClick={() => openEdit(inv)}
-                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 transition"
-                            title="Edit"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(inv.id)}
-                            className="p-2.5 rounded-xl border border-red-400/30 text-red-400 hover:bg-red-500/15 transition"
-                            title="Delete"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
         </>
       )}
@@ -1030,6 +749,300 @@ export default function InvoicesScreen() {
         pageSize={PAGE_SIZE}
         onPageChange={goToPage}
       />
+
+      {/* ── Invoice detail sheet ────────────────────────────────────────────────── */}
+      {viewInvId &&
+        (() => {
+          const inv = invoices.find((i) => i.id === viewInvId);
+          if (!inv) return null;
+          const client = clients.find((c) => c.id === inv.clientId);
+          const linked = projects.filter((p) => p.invoiceIds.includes(inv.id));
+          const sc = STATUS_CONFIG[(inv.status ?? 'draft') as InvoiceStatus];
+          const sub = calcSubtotal(inv);
+          const wht = calcTaxAmount(inv, taxConfig);
+          const net = calcNet(inv, taxConfig);
+          const dep = inv.depositPercent != null ? net * (inv.depositPercent / 100) : null;
+          const bal = dep != null ? net - dep : null;
+
+          return (
+            <ModalShell onClose={() => setViewInvId(null)}>
+              {/* Header */}
+              <div className="flex items-start justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base font-bold text-white">{inv.number}</h2>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                    >
+                      {sc.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/40 mt-0.5">{client?.name ?? '—'}</p>
+                </div>
+                <button
+                  onClick={() => setViewInvId(null)}
+                  className="p-1.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition shrink-0"
+                >
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+                {/* Line items */}
+                <div className="flex flex-col gap-1">
+                  {inv.items.map((it) => (
+                    <div
+                      key={it.id}
+                      className="flex items-center justify-between py-2 border-b border-white/[0.05] last:border-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-white truncate">{it.description || '—'}</p>
+                        <p className="text-xs text-white/40">
+                          {it.qty} × <span className="amt">{fmt(it.unitPrice)}</span>
+                        </p>
+                      </div>
+                      <span className="text-sm font-semibold text-white shrink-0 ml-3 amt">
+                        {fmt(it.qty * it.unitPrice)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Totals */}
+                <div className="bg-white/[0.05] rounded-xl p-4 flex flex-col gap-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/60">Subtotal</span>
+                    <span className="font-medium text-white amt">{fmt(sub)}</span>
+                  </div>
+                  {wht != null && (
+                    <div className="flex justify-between text-sm text-amber-400/80">
+                      <span>
+                        {taxConfig.enabled ? taxConfig.label : 'WHT'} (
+                        {taxConfig.enabled ? taxConfig.rate : 15}%)
+                      </span>
+                      <span className="font-medium">
+                        {taxConfig.type === 'additive' ? '+' : '−'}
+                        <span className="amt">{fmt(wht)}</span>
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-bold text-white border-t border-white/10 pt-2 mt-1">
+                    <span>Net Total</span>
+                    <span className="amt">{fmt(net)}</span>
+                  </div>
+                  {dep != null && (
+                    <>
+                      <div className="flex justify-between text-sm text-green-400/80">
+                        <span>Deposit ({inv.depositPercent}%)</span>
+                        <span className="amt">{fmt(dep)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-semibold text-white/80">
+                        <span>Balance Due</span>
+                        <span className="amt">{fmt(bal ?? 0)}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Meta */}
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-white/40 uppercase tracking-wider mb-0.5">Date</p>
+                    <p className="text-white">{fmtDt(inv.date)}</p>
+                  </div>
+                  <div>
+                    <p className="text-white/40 uppercase tracking-wider mb-0.5">Terms</p>
+                    <p className="text-white">{inv.paymentTerms || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Linked projects */}
+                {linked.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1.5">
+                      Project
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {linked.map((lp) => (
+                        <button
+                          key={lp.id}
+                          onClick={() => {
+                            setViewInvId(null);
+                            setViewProjectId(lp.id);
+                          }}
+                          className="text-xs px-2 py-0.5 rounded-lg bg-blue-500/15 border border-blue-400/25 text-blue-300 hover:bg-blue-500/25 transition"
+                        >
+                          {lp.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status change */}
+                <div>
+                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
+                    Change Status
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(['draft', 'sent', 'partial', 'paid', 'overdue'] as InvoiceStatus[]).map(
+                      (s) => {
+                        const sconf = STATUS_CONFIG[s];
+                        const isActive = (inv.status ?? 'draft') === s;
+                        return (
+                          <button
+                            key={s}
+                            disabled={isActive}
+                            onClick={() => {
+                              startTransition(async () => {
+                                await upsertInvoice({ ...inv, status: s });
+                                setViewInvId(null);
+                              });
+                            }}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${isActive ? sconf.cls + ' ring-1 ring-white/20 cursor-default' : 'bg-white/[0.07] text-white/50 hover:bg-white/[0.13] active:bg-white/[0.18]'}`}
+                          >
+                            {sconf.label}
+                          </button>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Action footer */}
+              <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex flex-col gap-2">
+                {/* Row 1: Edit + PDF + Telegram */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setViewInvId(null);
+                      openEdit(inv);
+                    }}
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition"
+                  >
+                    <svg
+                      className="w-4 h-4 shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                    Edit
+                  </button>
+                  <a
+                    href={`/invoices/${inv.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-xl bg-[#FFC206]/15 border border-[#FFC206]/30 text-[#FFC206] text-sm font-semibold hover:bg-[#FFC206]/25 transition"
+                  >
+                    <svg
+                      className="w-4 h-4 shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
+                      />
+                    </svg>
+                    PDF
+                  </a>
+                  <button
+                    onClick={() => sendToTelegram(inv)}
+                    disabled={sendingTelegram === inv.id}
+                    className="h-11 px-3.5 flex items-center justify-center rounded-xl border border-sky-400/30 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 transition disabled:opacity-50"
+                    title="Send to Telegram"
+                  >
+                    {sendingTelegram === inv.id ? (
+                      <svg
+                        className="w-4 h-4 animate-spin"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
+                        />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                {/* Row 2: Mark Paid (if not already paid) */}
+                {inv.status !== 'paid' && (
+                  <button
+                    onClick={() => {
+                      startTransition(async () => {
+                        await upsertInvoice({ ...inv, status: 'paid' });
+                        setViewInvId(null);
+                      });
+                    }}
+                    className="h-11 w-full flex items-center justify-center gap-2 rounded-xl bg-green-500/15 border border-green-400/30 text-green-300 text-sm font-semibold hover:bg-green-500/25 transition"
+                  >
+                    <svg
+                      className="w-4 h-4 shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Mark as Paid
+                  </button>
+                )}
+                {/* Row 3: Delete */}
+                <button
+                  onClick={() => {
+                    setViewInvId(null);
+                    setDeleteId(inv.id);
+                  }}
+                  className="h-10 w-full flex items-center justify-center gap-2 rounded-xl border border-red-400/25 text-red-400/80 text-sm hover:bg-red-500/10 hover:text-red-400 transition"
+                >
+                  <svg
+                    className="w-4 h-4 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                  Delete Invoice
+                </button>
+              </div>
+            </ModalShell>
+          );
+        })()}
 
       {/* ── Invoice form panel ──────────────────────────────────────────────────── */}
       {panelOpen && (
@@ -1675,7 +1688,7 @@ export default function InvoicesScreen() {
               </button>
               <button
                 onClick={handleSaveAndPreview}
-                className="hidden sm:flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
+                className="flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
               >
                 <svg
                   className="w-4 h-4"
@@ -2006,34 +2019,6 @@ function PanelField({
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {children}
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  sub,
-  accent,
-  isAmountSub,
-}: {
-  label: string;
-  value: string;
-  sub: string;
-  accent?: 'amber' | 'red';
-  isAmountSub?: boolean;
-}) {
-  const subCls =
-    accent === 'red' ? 'text-red-400' : accent === 'amber' ? 'text-amber-400' : 'text-white/40';
-  const valCls =
-    accent === 'red' ? 'text-red-400' : accent === 'amber' ? 'text-amber-400' : 'text-white';
-  return (
-    <div className="bg-white/[0.06] backdrop-blur-xl border border-white/[0.1] rounded-2xl px-4 py-4">
-      <p className="text-xs font-semibold text-white/45 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-2xl font-bold leading-tight ${valCls}`}>{value}</p>
-      <p className={`text-xs mt-0.5 ${subCls}`}>
-        {isAmountSub ? <span className="amt">{sub}</span> : sub}
-      </p>
     </div>
   );
 }

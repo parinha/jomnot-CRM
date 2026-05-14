@@ -232,7 +232,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 {initial}
               </div>
             )}
-            <span className="text-sm font-semibold text-white truncate max-w-[100px] hidden sm:block">
+            <span className="text-sm font-semibold text-white truncate max-w-[120px]">
               {profile.name || 'Studio'}
             </span>
           </div>
@@ -268,11 +268,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               className="w-full h-10 pl-10 pr-10 rounded-xl border border-white/15 bg-white/10 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent backdrop-blur-sm transition"
               style={{ fontSize: '16px' }}
             />
-            {!query && (
-              <kbd className="absolute right-3 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded text-[10px] font-mono text-white/30 bg-white/10 border border-white/15 pointer-events-none hidden sm:block">
-                Space
-              </kbd>
-            )}
+
             {query && (
               <button
                 onClick={() => {
@@ -522,9 +518,9 @@ function MobileFAB() {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40 md:hidden" onClick={() => setOpen(false)} />}
+      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
       <div
-        className="fixed right-4 z-50 flex flex-col items-end gap-3 md:hidden"
+        className="fixed right-4 z-50 flex flex-col items-end gap-3"
         style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px) + 12px)' }}
       >
         {open && (
