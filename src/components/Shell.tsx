@@ -3,10 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import SidebarHeader from './SidebarHeader';
-import QuickPayModal from '@/src/components/QuickPayModal';
 import type { CompanyProfile, InvoiceStatus } from '@/src/types';
-import { useAuth } from '@/src/components/AuthProvider';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtCurrency } from '@/src/lib/formatters';
 import { calcSubtotal } from '@/src/lib/calculations';
@@ -33,48 +30,10 @@ const BOTTOM_TABS = [
     label: 'Projects',
     d: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
   },
-] as const;
-
-const DRAWER_SECTIONS = [
   {
-    label: 'Views',
-    items: [
-      {
-        href: '/timeline',
-        label: 'Timeline',
-        d: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-      },
-      {
-        href: '/kanban',
-        label: 'Kanban',
-        d: 'M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2',
-      },
-    ],
-  },
-  {
-    label: 'Work',
-    items: [
-      {
-        href: '/payments',
-        label: 'Payments',
-        d: 'M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z',
-      },
-      {
-        href: '/reports',
-        label: 'Reports',
-        d: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-      },
-    ],
-  },
-  {
-    label: 'Account',
-    items: [
-      {
-        href: '/settings',
-        label: 'Settings',
-        d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
-      },
-    ],
+    href: '/settings',
+    label: 'Settings',
+    d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
   },
 ] as const;
 
@@ -101,13 +60,6 @@ const FAB_ACTIONS = [
     iconD: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
     color: 'bg-amber-500/20 border-amber-400/40 text-amber-300',
   },
-  {
-    key: 'payment',
-    label: 'Accept Payment',
-    href: null,
-    iconD: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-    color: 'bg-green-500/20 border-green-400/40 text-green-300',
-  },
 ] as const;
 
 // ── Shell ────────────────────────────────────────────────────────────────────
@@ -118,35 +70,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const { data: projects } = useProjects();
   const { data: companyProfile } = useCompanyProfile();
   const { data: prefs } = useAppPreferences();
-  const { signOut } = useAuth();
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [quickPay, setQuickPay] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const swipeStartX = useRef<number | null>(null);
-  const swipeStartY = useRef<number | null>(null);
-
-  function handleTouchStart(e: React.TouchEvent) {
-    if (e.touches[0].clientX < 24) {
-      swipeStartX.current = e.touches[0].clientX;
-      swipeStartY.current = e.touches[0].clientY;
-    }
-  }
-
-  function handleTouchMove(e: React.TouchEvent) {
-    if (swipeStartX.current === null) return;
-    const dx = e.touches[0].clientX - swipeStartX.current;
-    const dy = Math.abs(e.touches[0].clientY - (swipeStartY.current ?? 0));
-    if (dx > 60 && dy < 40) {
-      setDrawerOpen(true);
-      swipeStartX.current = null;
-    }
-  }
-
-  function handleTouchEnd() {
-    swipeStartX.current = null;
-    swipeStartY.current = null;
-  }
 
   const handleRefresh = useCallback(async () => {
     if (refreshing) return;
@@ -278,9 +202,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   return (
     <div
       className="h-dvh flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       data-amounts-hidden={!amountsVisible}
     >
       {/* Ambient background glow */}
@@ -288,79 +209,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-slate-600/10 rounded-full blur-3xl" />
       </div>
-
-      {/* ── Drawer backdrop ──────────────────────────────────────────────── */}
-      {drawerOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
-          onClick={() => setDrawerOpen(false)}
-        />
-      )}
-
-      {/* ── Slide-in drawer ──────────────────────────────────────────────── */}
-      <aside
-        className={[
-          'fixed inset-y-0 left-0 z-50 flex flex-col w-72',
-          'bg-zinc-950/95 backdrop-blur-2xl border-r border-white/[0.08]',
-          'transition-transform duration-300 ease-out will-change-transform',
-          drawerOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full',
-        ].join(' ')}
-        style={{
-          paddingTop: 'env(safe-area-inset-top, 0px)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingLeft: 'env(safe-area-inset-left, 0px)',
-        }}
-      >
-        <SidebarHeader profile={profile} />
-
-        <nav className="flex-1 py-3 flex flex-col gap-4 overflow-y-auto px-3">
-          {DRAWER_SECTIONS.map((section) => (
-            <div key={section.label}>
-              <p className="px-3 mb-1 text-[10px] font-semibold text-white/30 uppercase tracking-wider">
-                {section.label}
-              </p>
-              <div className="flex flex-col gap-0.5">
-                {section.items.map((item) => (
-                  <DrawerNavItem
-                    key={item.href}
-                    href={item.href}
-                    label={item.label}
-                    d={item.d}
-                    pathname={pathname}
-                    onClick={() => setDrawerOpen(false)}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        <div className="py-3 border-t border-white/[0.06] px-3">
-          <button
-            onClick={async () => {
-              setDrawerOpen(false);
-              await signOut();
-              router.replace('/login');
-            }}
-            className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-white/50 hover:bg-white/[0.06] hover:text-white/80 active:bg-white/10 transition w-full text-left"
-          >
-            <svg
-              className="w-4 h-4 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              />
-            </svg>
-            Sign out
-          </button>
-        </div>
-      </aside>
 
       {/* ── Topbar ───────────────────────────────────────────────────────── */}
       <header
@@ -374,23 +222,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
           }}
         >
-          {/* Hamburger — opens drawer */}
-          <button
-            onClick={() => setDrawerOpen(true)}
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/[0.08] active:bg-white/[0.12] transition shrink-0"
-            aria-label="Open menu"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-
           {/* Company identity */}
           <div className="flex items-center gap-2 shrink-0">
             {profile.logo ? (
@@ -660,25 +491,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 </svg>
               )}
             </button>
-            <button
-              onClick={() => setQuickPay(true)}
-              className="flex items-center gap-2 h-9 px-3 rounded-xl bg-green-500/20 border border-green-400/30 text-green-300 text-sm font-medium hover:bg-green-500/30 active:bg-green-500/40 transition"
-            >
-              <svg
-                className="w-4 h-4 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              <span className="hidden sm:inline">Record Payment</span>
-            </button>
           </div>
         </div>
       </header>
@@ -688,74 +500,24 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         {children}
       </main>
 
-      {/* QuickPayModal */}
-      {quickPay && (
-        <QuickPayModal invoices={invoices} clients={clients} onClose={() => setQuickPay(false)} />
-      )}
-
       {/* Mobile FAB */}
-      <MobileFAB onQuickPay={() => setQuickPay(true)} />
+      <MobileFAB />
 
       {/* ── Bottom tab bar ───────────────────────────────────────────────── */}
-      <BottomTabBar pathname={pathname} onMenuClick={() => setDrawerOpen(true)} />
+      <BottomTabBar pathname={pathname} />
     </div>
-  );
-}
-
-// ── Drawer nav item ───────────────────────────────────────────────────────────
-
-function DrawerNavItem({
-  href,
-  label,
-  d,
-  pathname,
-  onClick,
-}: {
-  href: string;
-  label: string;
-  d: string;
-  pathname: string | null;
-  onClick?: () => void;
-}) {
-  const active = pathname === href;
-  return (
-    <Link
-      href={href}
-      onClick={onClick}
-      className={[
-        'flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-150',
-        active
-          ? 'bg-[#FFC206]/15 text-[#FFC206] border border-[#FFC206]/20'
-          : 'text-white/55 hover:bg-white/[0.06] hover:text-white/90 active:bg-white/10',
-      ].join(' ')}
-    >
-      <svg
-        className={['w-4 h-4 shrink-0', active ? 'text-[#FFC206]' : 'text-white/40'].join(' ')}
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={2}
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-      </svg>
-      {label}
-    </Link>
   );
 }
 
 // ── Mobile floating action button ────────────────────────────────────────────
 
-function MobileFAB({ onQuickPay }: { onQuickPay: () => void }) {
+function MobileFAB() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
-  function handleAction(href: string | null) {
+  function handleAction(href: string) {
     setOpen(false);
-    if (href) {
-      router.push(href);
-    } else {
-      onQuickPay();
-    }
+    router.push(href);
   }
 
   return (
@@ -809,13 +571,7 @@ function MobileFAB({ onQuickPay }: { onQuickPay: () => void }) {
 
 // ── Bottom tab bar ────────────────────────────────────────────────────────────
 
-function BottomTabBar({
-  pathname,
-  onMenuClick,
-}: {
-  pathname: string | null;
-  onMenuClick: () => void;
-}) {
+function BottomTabBar({ pathname }: { pathname: string | null }) {
   return (
     <nav
       className="fixed bottom-0 inset-x-0 z-30 bg-black/80 backdrop-blur-2xl border-t border-white/[0.08]"
@@ -846,23 +602,6 @@ function BottomTabBar({
             </Link>
           );
         })}
-
-        {/* Menu tab — opens drawer */}
-        <button
-          onClick={onMenuClick}
-          className="flex-1 flex flex-col items-center justify-center gap-0.5 text-white/40 active:text-white/70 transition-colors"
-        >
-          <svg
-            className="w-5 h-5 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.75}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-          <span className="text-[9px] font-semibold leading-none tracking-wide">Menu</span>
-        </button>
       </div>
     </nav>
   );

@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
-import ProgressPopover from '@/src/components/ProgressPopover';
 import ModalShell from '@/src/components/ModalShell';
 import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 import type {
@@ -205,13 +204,6 @@ export default function ProjectsScreen() {
   const [holdUnconfPage, setHoldUnconfPage] = useState(1);
   const [completedPage, setCompletedPage] = useState(1);
   const [unsetPage, setUnsetPage] = useState(1);
-  const [progressPopover, setProgressPopover] = useState<string | null>(null);
-
-  function openPopover(e: React.MouseEvent, projectId: string) {
-    e.stopPropagation();
-    setProgressPopover((prev) => (prev === projectId ? null : projectId));
-  }
-
   function toggleItemInline(project: Project, itemId: string) {
     const updated: Project = {
       ...project,
@@ -222,11 +214,6 @@ export default function ProjectsScreen() {
     startTransition(async () => {
       await upsertProject(updated);
     });
-  }
-
-  // Modal is rendered once at the top of the JSX return; these per-row calls are no-ops
-  function renderProgressPopover(_proj: Project) {
-    return null;
   }
 
   function handleSort(col: string) {
@@ -684,18 +671,8 @@ export default function ProjectsScreen() {
 
   const clientInvoices = form.clientId ? invoices.filter((i) => i.clientId === form.clientId) : [];
 
-  const popoverProject = progressPopover ? projects.find((p) => p.id === progressPopover) : null;
-
   return (
     <>
-      {popoverProject && (
-        <ProgressPopover
-          project={popoverProject}
-          onClose={() => setProgressPopover(null)}
-          onToggleItem={(itemId) => toggleItemInline(popoverProject, itemId)}
-        />
-      )}
-
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

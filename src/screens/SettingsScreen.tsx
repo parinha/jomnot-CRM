@@ -2,6 +2,7 @@
 
 import { useState, useRef, useTransition, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useAuth } from '@/src/components/AuthProvider';
 import { useSendProjectsTelegram } from '@/src/hooks/useTelegram';
 import type {
   AppPreferences,
@@ -164,6 +165,7 @@ function SettingsForm({
 }) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
   const router = useRouter();
+  const { signOut } = useAuth();
 
   function switchTab(tab: Tab) {
     setActiveTab(tab);
@@ -1061,6 +1063,32 @@ function SettingsForm({
           </section>
         </div>
       )}
+
+      {/* Sign out */}
+      <div className="pt-2 pb-4">
+        <button
+          onClick={async () => {
+            await signOut();
+            router.replace('/login');
+          }}
+          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/80 hover:bg-red-500/10 hover:text-red-400 active:bg-red-500/15 transition w-full"
+        >
+          <svg
+            className="w-4 h-4 shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+          Sign out
+        </button>
+      </div>
     </div>
   );
 }
