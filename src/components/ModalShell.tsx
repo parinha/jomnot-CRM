@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface ModalShellProps {
   onClose: () => void;
@@ -11,6 +12,8 @@ interface ModalShellProps {
 export default function ModalShell({ onClose, maxWidth = 'max-w-md', children }: ModalShellProps) {
   const [dragY, setDragY] = useState(0);
   const startY = useRef<number | null>(null);
+
+  if (typeof document === 'undefined') return null;
 
   function onTouchStart(e: React.TouchEvent) {
     startY.current = e.touches[0].clientY;
@@ -31,26 +34,27 @@ export default function ModalShell({ onClose, maxWidth = 'max-w-md', children }:
     startY.current = null;
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 bg-black/60 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 bg-black/60"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className={`w-full ${maxWidth} bg-white rounded-t-2xl md:rounded-2xl shadow-2xl animate-sheet-up md:[animation:none]`}
+        className={`w-full ${maxWidth} bg-zinc-900 border border-white/[0.08] rounded-t-2xl md:rounded-2xl shadow-2xl flex flex-col max-h-[92vh] animate-sheet-up md:[animation:none]`}
         style={dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
         {/* drag handle — mobile only */}
-        <div className="flex justify-center pt-3 md:hidden">
-          <div className="w-10 h-1 rounded-full bg-zinc-200" />
+        <div className="flex justify-center pt-3 pb-1 shrink-0 md:hidden">
+          <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -6,7 +6,7 @@ import type { Project, ProjectStatus } from '@/src/types';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { useProjects, useProjectMutations } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import ProgressPopover from '@/src/features/projects/components/ProgressPopover';
+import ProgressPopover from '@/src/components/ProgressPopover';
 import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 
 // ── Layout constants ───────────────────────────────────────────────────────────

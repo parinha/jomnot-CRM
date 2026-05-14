@@ -1,4 +1,4 @@
-import { getProjects } from '@/src/features/projects/api/getProjects';
+import { getProjects } from '@/src/lib/server/projects';
 import { upsertDoc } from '@/src/lib/server/firestore';
 import { adminDb } from '@/src/lib/firebase-admin';
 import { buildNewProjectMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';

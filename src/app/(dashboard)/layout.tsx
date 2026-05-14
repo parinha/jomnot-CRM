@@ -1,6 +1,6 @@
-import { AuthProvider } from '@/src/features/auth/components/AuthProvider';
-import AuthGuard from '@/src/features/auth/components/AuthGuard';
-import DashboardShell from '@/src/features/dashboard/components/DashboardShell';
+import { AuthProvider } from '@/src/components/AuthProvider';
+import AuthGuard from '@/src/components/AuthGuard';
+import DashboardShell from '@/src/components/Shell';
 import { InvoicesProvider } from '@/src/contexts/InvoicesContext';
 import { ClientsProvider } from '@/src/contexts/ClientsContext';
 import { ProjectsProvider } from '@/src/contexts/ProjectsContext';

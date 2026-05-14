@@ -1,14 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import InvoicePrint from '@/src/features/invoices/components/InvoicePrint';
-import { getInvoice } from '@/src/features/invoices/api/getInvoices';
-import { getClients } from '@/src/features/clients/api/getClients';
+import InvoicePrint from '@/src/components/InvoicePrint';
+import { getInvoice } from '@/src/lib/server/invoices';
+import { getClients } from '@/src/lib/server/clients';
 import {
   getCompanyProfile,
   getPaymentInfo,
   getInvoicingSettings,
   getAppPreferences,
-} from '@/src/features/settings/api/getSettings';
+} from '@/src/lib/server/settings';
 
 export default async function InvoicePrintPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

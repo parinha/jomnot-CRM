@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import type { Invoice, Client, CompanyProfile, PaymentInfo } from '@/src/types';
 import { fmtUSD, fmtCurrency } from '@/src/lib/formatters';
-import { WHT_RATE } from '@/src/features/invoices/lib/calculations';
+import { WHT_RATE } from '@/src/lib/calculations';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const DARK = '#1a1a1a';

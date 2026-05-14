@@ -7,12 +7,7 @@ import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import { useProjects } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import {
-  calcEarned,
-  calcNet,
-  calcSubtotal,
-  calcBalance,
-} from '@/src/features/invoices/lib/calculations';
+import { calcEarned, calcNet, calcSubtotal, calcBalance } from '@/src/lib/calculations';
 import { fmtUSD, fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
@@ -21,7 +16,7 @@ import SortTh from '@/src/components/SortTh';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
-import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
+import InvoicePreviewModal from '@/src/components/InvoicePreviewModal';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import { useClientMutations } from '@/src/hooks/useClients';
 
@@ -38,7 +33,7 @@ const EMPTY_FORM: Omit<Client, 'id'> = {
 type CliSortCol = 'name' | 'invoices' | 'earned';
 
 const inputCls =
-  'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
+  'h-11 rounded-xl border border-white/20 bg-white/[0.06] px-4 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
 
 function formatKhmerLocal(raw: string): string {
   const digits = raw.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
@@ -518,97 +513,111 @@ export default function ClientsScreen() {
       {/* Add / Edit modal */}
       {modalOpen && (
         <ModalShell onClose={closeModal}>
-          <div className="p-6">
-            <h2 className="text-lg font-bold text-zinc-900 mb-5">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+            <h2 className="text-base font-bold text-white">
               {editingClient ? 'Edit client' : 'Add client'}
             </h2>
-            <div className="flex flex-col gap-4">
-              {[
-                { label: 'Company Name *', key: 'name', placeholder: 'ANYMIND CO., LTD' },
-                { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
-                { label: 'Email', key: 'email', placeholder: 'billing@example.com' },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                    {label}
-                  </label>
-                  <input
-                    type="text"
-                    value={(form as Record<string, string>)[key] ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
-
-              {/* Phone with +855 prefix */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                  Phone *
+            <button
+              onClick={closeModal}
+              className="p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="overflow-y-auto px-5 py-5 flex flex-col gap-4">
+            {[
+              { label: 'Company Name *', key: 'name', placeholder: 'ANYMIND CO., LTD' },
+              { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
+              { label: 'Email', key: 'email', placeholder: 'billing@example.com' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                  {label}
                 </label>
-                <div className="flex h-11 rounded-xl border border-zinc-200 focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition bg-white overflow-hidden">
-                  <span className="flex items-center px-3 text-sm font-medium text-zinc-500 bg-zinc-50 border-r border-zinc-200 shrink-0 select-none">
-                    +855
-                  </span>
-                  <input
-                    type="tel"
-                    value={phoneToLocal(form.phone)}
-                    onChange={(e) => {
-                      const formatted = formatKhmerLocal(e.target.value);
-                      setForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
-                    }}
-                    placeholder="12 123 1234"
-                    className="flex-1 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none bg-transparent"
-                  />
-                </div>
+                <input
+                  type="text"
+                  value={(form as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className={inputCls}
+                />
               </div>
+            ))}
 
-              {[
-                { label: 'VAT TIN', key: 'vat_tin', placeholder: 'K008-100069509' },
-                { label: 'Address', key: 'address', placeholder: '123 Street, City, Country' },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                    {label}
-                  </label>
-                  <input
-                    type="text"
-                    value={(form as Record<string, string>)[key] ?? ''}
-                    onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
-                  Note
-                </label>
-                <textarea
-                  value={form.note ?? ''}
-                  onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
-                  placeholder="Internal notes…"
-                  rows={3}
-                  className={`${inputCls} h-auto py-3 resize-none`}
+            {/* Phone with +855 prefix */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                Phone *
+              </label>
+              <div className="flex h-11 rounded-xl border border-white/20 bg-white/[0.06] focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition overflow-hidden">
+                <span className="flex items-center px-3 text-sm font-medium text-white/40 border-r border-white/20 shrink-0 select-none">
+                  +855
+                </span>
+                <input
+                  type="tel"
+                  value={phoneToLocal(form.phone)}
+                  onChange={(e) => {
+                    const formatted = formatKhmerLocal(e.target.value);
+                    setForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
+                  }}
+                  placeholder="12 123 1234"
+                  className="flex-1 px-3 text-sm text-white placeholder:text-white/30 focus:outline-none bg-transparent"
                 />
               </div>
             </div>
-            {formError && <p className="mt-3 text-sm text-red-600">{formError}</p>}
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={closeModal}
-                className="flex-1 h-11 rounded-xl border border-zinc-200 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="flex-1 h-11 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition"
-              >
-                {editingClient ? 'Save changes' : 'Add client'}
-              </button>
+
+            {[
+              { label: 'VAT TIN', key: 'vat_tin', placeholder: 'K008-100069509' },
+              { label: 'Address', key: 'address', placeholder: '123 Street, City, Country' },
+            ].map(({ label, key, placeholder }) => (
+              <div key={key} className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                  {label}
+                </label>
+                <input
+                  type="text"
+                  value={(form as Record<string, string>)[key] ?? ''}
+                  onChange={(e) => setForm((p) => ({ ...p, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className={inputCls}
+                />
+              </div>
+            ))}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                Note
+              </label>
+              <textarea
+                value={form.note ?? ''}
+                onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
+                placeholder="Internal notes…"
+                rows={3}
+                className={`${inputCls} h-auto py-3 resize-none`}
+              />
             </div>
+          </div>
+          {formError && <p className="px-5 pb-2 text-sm text-red-400 shrink-0">{formError}</p>}
+          <div className="flex gap-3 px-5 py-4 border-t border-white/[0.08] shrink-0">
+            <button
+              onClick={closeModal}
+              className="flex-1 h-11 rounded-xl border border-white/20 text-sm font-medium text-white/70 hover:bg-white/10 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="flex-1 h-11 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition"
+            >
+              {editingClient ? 'Save changes' : 'Add client'}
+            </button>
           </div>
         </ModalShell>
       )}

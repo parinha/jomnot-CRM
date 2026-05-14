@@ -1,7 +1,7 @@
 import { adminDb } from '@/src/lib/firebase-admin';
 import { buildProjectsSummaryMessage, sendTelegramMessage } from '@/src/lib/telegram-messages';
 import type { Project } from '@/src/types';
-import { getPaymentInfo, getAppPreferences } from '@/src/features/settings/api/getSettings';
+import { getPaymentInfo, getAppPreferences } from '@/src/lib/server/settings';
 
 export const dynamic = 'force-dynamic';
 

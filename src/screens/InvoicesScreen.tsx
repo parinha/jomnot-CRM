@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, createElement, useTransition } from 'react
 import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Sheet } from '@/src/features/invoices/components/InvoicePrint';
+import { Sheet } from '@/src/components/InvoicePrint';
 import {
   type Invoice,
   type LineItem,
@@ -25,12 +25,7 @@ import {
   useScopeOfWork,
 } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
-import {
-  calcSubtotal,
-  calcTaxAmount,
-  calcNet,
-  taxConfigFromPrefs,
-} from '@/src/features/invoices/lib/calculations';
+import { calcSubtotal, calcTaxAmount, calcNet, taxConfigFromPrefs } from '@/src/lib/calculations';
 import { fmtDate } from '@/src/lib/formatters';
 import { useAppPreferences, useCurrency, useDateFmt } from '@/src/hooks/useAppPreferences';
 import { uid } from '@/src/lib/id';
@@ -40,7 +35,7 @@ import SortTh from '@/src/components/SortTh';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
-import ProjectDetailModal from '@/src/features/projects/components/ProjectDetailModal';
+import ProjectDetailModal from '@/src/components/ProjectDetailModal';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 import { useProjectMutations } from '@/src/hooks/useProjects';
@@ -1038,699 +1033,680 @@ export default function InvoicesScreen() {
 
       {/* ── Invoice form panel ──────────────────────────────────────────────────── */}
       {panelOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={closePanel} />
-          <div
-            className="fixed inset-y-0 right-0 z-50 w-full md:max-w-2xl bg-slate-900/95 backdrop-blur-2xl border-l border-white/[0.1] shadow-2xl flex flex-col"
-            style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
-              <h2 className="text-lg font-bold text-white">
-                {editingId ? 'Edit invoice' : 'New invoice'}
-              </h2>
-              <button
-                onClick={closePanel}
-                className="text-white/40 hover:text-white transition p-1"
+        <ModalShell onClose={closePanel} maxWidth="max-w-2xl">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+            <h2 className="text-lg font-bold text-white">
+              {editingId ? 'Edit invoice' : 'New invoice'}
+            </h2>
+            <button onClick={closePanel} className="text-white/40 hover:text-white transition p-1">
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-6">
-              <div className="grid grid-cols-2 gap-4">
-                <PanelField label="Invoice Number" required>
-                  <input
-                    value={form.number}
-                    onChange={(e) => setField('number', e.target.value)}
-                    className={inputCls}
-                    placeholder="INV-2025-001"
-                  />
-                </PanelField>
-                <PanelField label="Date" required>
-                  <input
-                    type="date"
-                    value={form.date}
-                    onChange={(e) => setField('date', e.target.value)}
-                    className={inputCls}
-                  />
-                </PanelField>
-              </div>
-
-              {/* Client */}
-              <PanelField label="Client" required>
-                <div ref={clientComboRef} className="relative">
-                  {(() => {
-                    const selected = clients.find((c) => c.id === form.clientId);
-                    const q = clientSearch.toLowerCase().trim();
-                    const filtered = q
-                      ? clients.filter((c) =>
-                          [
-                            c.name,
-                            c.contactPerson ?? '',
-                            c.phone,
-                            c.email,
-                            c.address,
-                            c.note ?? '',
-                          ].some((f) => f.toLowerCase().includes(q))
-                        )
-                      : clients;
-                    return (
-                      <>
-                        <input
-                          value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
-                          onChange={(e) => {
-                            setClientSearch(e.target.value);
-                            setClientDropOpen(true);
-                            if (!e.target.value) {
-                              setField('clientId', '');
-                              setSelectedProjectIds([]);
-                            }
-                          }}
-                          onFocus={() => {
-                            setClientSearch('');
-                            setClientDropOpen(true);
-                          }}
-                          onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
-                          placeholder="Search clients…"
-                          className={inputCls}
-                        />
-                        {clientDropOpen && (
-                          <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                            {filtered.length === 0 ? (
-                              <div className="px-3 py-2 text-sm text-white/40">
-                                No clients found
-                              </div>
-                            ) : (
-                              filtered.map((c) => (
-                                <button
-                                  key={c.id}
-                                  type="button"
-                                  onMouseDown={() => {
-                                    if (c.id !== form.clientId) setSelectedProjectIds([]);
-                                    setField('clientId', c.id);
-                                    setClientSearch('');
-                                    setClientDropOpen(false);
-                                  }}
-                                  className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
-                                >
-                                  <div className="text-sm font-medium text-white">{c.name}</div>
-                                  {(c.contactPerson || c.email || c.phone) && (
-                                    <div className="text-xs text-white/40 truncate">
-                                      {[c.contactPerson, c.email, c.phone]
-                                        .filter(Boolean)
-                                        .join(' · ')}
-                                    </div>
-                                  )}
-                                </button>
-                              ))
-                            )}
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
-                </div>
-              </PanelField>
-
-              <PanelField label="Linked Projects">
-                <div ref={projectComboRef} className="relative flex flex-col gap-2">
-                  {selectedProjectIds.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedProjectIds.map((pid) => {
-                        const lp = projects.find((p) => p.id === pid);
-                        if (!lp) return null;
-                        return (
-                          <span
-                            key={pid}
-                            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-400/25 text-xs text-blue-300"
-                          >
-                            {lp.name}
-                            <button
-                              type="button"
-                              onClick={() => removeSelectedProject(pid)}
-                              className="ml-0.5 text-blue-300/60 hover:text-blue-200 transition"
-                            >
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="10"
-                                height="10"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2.5"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M18 6L6 18M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <input
-                    value={projectSearch}
-                    onChange={(e) => {
-                      setProjectSearch(e.target.value);
-                      setProjectDropOpen(true);
-                    }}
-                    onFocus={() => {
-                      if (form.clientId) setProjectDropOpen(true);
-                    }}
-                    onBlur={() => setTimeout(() => setProjectDropOpen(false), 150)}
-                    placeholder={
-                      form.clientId ? 'Search and add projects…' : 'Select a client first'
-                    }
-                    disabled={!form.clientId}
-                    className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
-                  />
-                  {projectDropOpen &&
-                    form.clientId &&
-                    (() => {
-                      const q = projectSearch.toLowerCase().trim();
-                      const available = projects.filter(
-                        (p) =>
-                          p.clientId === form.clientId &&
-                          p.status !== 'unconfirmed' &&
-                          !selectedProjectIds.includes(p.id)
-                      );
-                      const filtered = q
-                        ? available.filter((p) => p.name.toLowerCase().includes(q))
-                        : available;
-                      if (filtered.length === 0) return null;
-                      return (
-                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                          {filtered.map((p) => (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onMouseDown={() => selectProject(p)}
-                              className="w-full text-left px-3 py-2 hover:bg-white/10 transition"
-                            >
-                              <div className="flex items-center justify-between gap-2">
-                                <div className="text-sm font-medium text-white truncate">
-                                  {p.name}
-                                </div>
-                                {p.budget ? (
-                                  <div className="text-xs text-[#FFC206] shrink-0">
-                                    ${p.budget.toLocaleString()}
-                                  </div>
-                                ) : null}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                </div>
-              </PanelField>
-
-              <PanelField label="Project / Campaign Name" required>
+          <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-6">
+            <div className="grid grid-cols-2 gap-4">
+              <PanelField label="Invoice Number" required>
                 <input
-                  value={form.projectName ?? ''}
-                  onChange={(e) => setField('projectName', e.target.value)}
-                  placeholder="Campaign or event name…"
+                  value={form.number}
+                  onChange={(e) => setField('number', e.target.value)}
+                  className={inputCls}
+                  placeholder="INV-2025-001"
+                />
+              </PanelField>
+              <PanelField label="Date" required>
+                <input
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setField('date', e.target.value)}
                   className={inputCls}
                 />
               </PanelField>
+            </div>
 
-              <PanelField label="Payment Terms">
-                <select
-                  value={form.paymentTerms}
-                  onChange={(e) => setField('paymentTerms', e.target.value)}
-                  className={inputCls}
-                >
-                  {PAYMENT_TERMS.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
-              </PanelField>
+            {/* Client */}
+            <PanelField label="Client" required>
+              <div ref={clientComboRef} className="relative">
+                {(() => {
+                  const selected = clients.find((c) => c.id === form.clientId);
+                  const q = clientSearch.toLowerCase().trim();
+                  const filtered = q
+                    ? clients.filter((c) =>
+                        [
+                          c.name,
+                          c.contactPerson ?? '',
+                          c.phone,
+                          c.email,
+                          c.address,
+                          c.note ?? '',
+                        ].some((f) => f.toLowerCase().includes(q))
+                      )
+                    : clients;
+                  return (
+                    <>
+                      <input
+                        value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
+                        onChange={(e) => {
+                          setClientSearch(e.target.value);
+                          setClientDropOpen(true);
+                          if (!e.target.value) {
+                            setField('clientId', '');
+                            setSelectedProjectIds([]);
+                          }
+                        }}
+                        onFocus={() => {
+                          setClientSearch('');
+                          setClientDropOpen(true);
+                        }}
+                        onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
+                        placeholder="Search clients…"
+                        className={inputCls}
+                      />
+                      {clientDropOpen && (
+                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                          {filtered.length === 0 ? (
+                            <div className="px-3 py-2 text-sm text-white/40">No clients found</div>
+                          ) : (
+                            filtered.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onMouseDown={() => {
+                                  if (c.id !== form.clientId) setSelectedProjectIds([]);
+                                  setField('clientId', c.id);
+                                  setClientSearch('');
+                                  setClientDropOpen(false);
+                                }}
+                                className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
+                              >
+                                <div className="text-sm font-medium text-white">{c.name}</div>
+                                {(c.contactPerson || c.email || c.phone) && (
+                                  <div className="text-xs text-white/40 truncate">
+                                    {[c.contactPerson, c.email, c.phone]
+                                      .filter(Boolean)
+                                      .join(' · ')}
+                                  </div>
+                                )}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            </PanelField>
 
-              <PanelField label="Status">
-                <div className="flex gap-2 flex-wrap">
-                  {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => {
-                    const active = form.status === s;
-                    const sc = STATUS_CONFIG[s];
-                    return (
-                      <button
-                        key={s}
-                        onClick={() => setField('status', s)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? `${sc.cls} border-current` : 'border-white/15 text-white/40 hover:bg-white/10'}`}
-                      >
-                        {sc.label}
-                      </button>
+            <PanelField label="Linked Projects">
+              <div ref={projectComboRef} className="relative flex flex-col gap-2">
+                {selectedProjectIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedProjectIds.map((pid) => {
+                      const lp = projects.find((p) => p.id === pid);
+                      if (!lp) return null;
+                      return (
+                        <span
+                          key={pid}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-400/25 text-xs text-blue-300"
+                        >
+                          {lp.name}
+                          <button
+                            type="button"
+                            onClick={() => removeSelectedProject(pid)}
+                            className="ml-0.5 text-blue-300/60 hover:text-blue-200 transition"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="10"
+                              height="10"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
+                              <path d="M18 6L6 18M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+                <input
+                  value={projectSearch}
+                  onChange={(e) => {
+                    setProjectSearch(e.target.value);
+                    setProjectDropOpen(true);
+                  }}
+                  onFocus={() => {
+                    if (form.clientId) setProjectDropOpen(true);
+                  }}
+                  onBlur={() => setTimeout(() => setProjectDropOpen(false), 150)}
+                  placeholder={form.clientId ? 'Search and add projects…' : 'Select a client first'}
+                  disabled={!form.clientId}
+                  className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
+                />
+                {projectDropOpen &&
+                  form.clientId &&
+                  (() => {
+                    const q = projectSearch.toLowerCase().trim();
+                    const available = projects.filter(
+                      (p) =>
+                        p.clientId === form.clientId &&
+                        p.status !== 'unconfirmed' &&
+                        !selectedProjectIds.includes(p.id)
                     );
-                  })}
-                </div>
-              </PanelField>
+                    const filtered = q
+                      ? available.filter((p) => p.name.toLowerCase().includes(q))
+                      : available;
+                    if (filtered.length === 0) return null;
+                    return (
+                      <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                        {filtered.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onMouseDown={() => selectProject(p)}
+                            className="w-full text-left px-3 py-2 hover:bg-white/10 transition"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-medium text-white truncate">
+                                {p.name}
+                              </div>
+                              {p.budget ? (
+                                <div className="text-xs text-[#FFC206] shrink-0">
+                                  ${p.budget.toLocaleString()}
+                                </div>
+                              ) : null}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+              </div>
+            </PanelField>
 
-              {/* Line items */}
-              {(() => {
-                const lineItemsReady =
-                  !!form.number.trim() &&
-                  !!form.date &&
-                  !!form.projectName?.trim() &&
-                  !!form.clientId;
-                return (
-                  <div className="relative">
-                    {!lineItemsReady && (
-                      <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
+            <PanelField label="Project / Campaign Name" required>
+              <input
+                value={form.projectName ?? ''}
+                onChange={(e) => setField('projectName', e.target.value)}
+                placeholder="Campaign or event name…"
+                className={inputCls}
+              />
+            </PanelField>
+
+            <PanelField label="Payment Terms">
+              <select
+                value={form.paymentTerms}
+                onChange={(e) => setField('paymentTerms', e.target.value)}
+                className={inputCls}
+              >
+                {PAYMENT_TERMS.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </PanelField>
+
+            <PanelField label="Status">
+              <div className="flex gap-2 flex-wrap">
+                {(Object.keys(STATUS_CONFIG) as InvoiceStatus[]).map((s) => {
+                  const active = form.status === s;
+                  const sc = STATUS_CONFIG[s];
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => setField('status', s)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? `${sc.cls} border-current` : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                    >
+                      {sc.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </PanelField>
+
+            {/* Line items */}
+            {(() => {
+              const lineItemsReady =
+                !!form.number.trim() &&
+                !!form.date &&
+                !!form.projectName?.trim() &&
+                !!form.clientId;
+              return (
+                <div className="relative">
+                  {!lineItemsReady && (
+                    <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
+                      <svg
+                        className="w-5 h-5 text-white/30"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                        />
+                      </svg>
+                      <p className="text-xs text-white/40 text-center px-4">
+                        Fill in Invoice Number, Date, Project Name &amp; Client first
+                      </p>
+                    </div>
+                  )}
+                  <div
+                    className={!lineItemsReady ? 'pointer-events-none select-none opacity-30' : ''}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-medium text-white/70">Line Items</span>
+                      <button
+                        onClick={addItem}
+                        className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
+                      >
                         <svg
-                          className="w-5 h-5 text-white/30"
+                          className="w-3.5 h-3.5"
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
                           strokeWidth={2}
                         >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                          />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                         </svg>
-                        <p className="text-xs text-white/40 text-center px-4">
-                          Fill in Invoice Number, Date, Project Name &amp; Client first
-                        </p>
+                        Add row
+                      </button>
+                    </div>
+                    <div className="rounded-xl border border-white/[0.1] overflow-hidden">
+                      <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
+                        <div className="bg-slate-800/80 px-3 py-2">Description</div>
+                        <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
+                        <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
+                        <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
+                        <div className="bg-slate-800/80" />
                       </div>
-                    )}
-                    <div
-                      className={
-                        !lineItemsReady ? 'pointer-events-none select-none opacity-30' : ''
-                      }
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium text-white/70">Line Items</span>
-                        <button
-                          onClick={addItem}
-                          className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
+                      {form.items.map((item) => {
+                        const nlIdx = item.description.indexOf('\n');
+                        const title =
+                          nlIdx === -1 ? item.description : item.description.slice(0, nlIdx);
+                        const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1);
+                        const scopeLines = scope
+                          .split('\n')
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        const setTitle = (t: string) =>
+                          updateItem(item.id, { description: t + (scope ? '\n' + scope : '') });
+                        const addScopeLine = (line: string) => {
+                          const trimmed = line.trim();
+                          if (!trimmed || scopeLines.includes(trimmed)) return;
+                          const next = [...scopeLines, trimmed].join('\n');
+                          updateItem(item.id, { description: title + '\n' + next });
+                        };
+                        const removeScopeLine = (line: string) => {
+                          const next = scopeLines.filter((s) => s !== line).join('\n');
+                          updateItem(item.id, { description: title + (next ? '\n' + next : '') });
+                        };
+                        const customVal = customScope[item.id] ?? '';
+                        return (
+                          <div
+                            key={item.id}
+                            className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                          </svg>
-                          Add row
-                        </button>
-                      </div>
-                      <div className="rounded-xl border border-white/[0.1] overflow-hidden">
-                        <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
-                          <div className="bg-slate-800/80 px-3 py-2">Description</div>
-                          <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
-                          <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
-                          <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
-                          <div className="bg-slate-800/80" />
-                        </div>
-                        {form.items.map((item) => {
-                          const nlIdx = item.description.indexOf('\n');
-                          const title =
-                            nlIdx === -1 ? item.description : item.description.slice(0, nlIdx);
-                          const scope = nlIdx === -1 ? '' : item.description.slice(nlIdx + 1);
-                          const scopeLines = scope
-                            .split('\n')
-                            .map((s) => s.trim())
-                            .filter(Boolean);
-                          const setTitle = (t: string) =>
-                            updateItem(item.id, { description: t + (scope ? '\n' + scope : '') });
-                          const addScopeLine = (line: string) => {
-                            const trimmed = line.trim();
-                            if (!trimmed || scopeLines.includes(trimmed)) return;
-                            const next = [...scopeLines, trimmed].join('\n');
-                            updateItem(item.id, { description: title + '\n' + next });
-                          };
-                          const removeScopeLine = (line: string) => {
-                            const next = scopeLines.filter((s) => s !== line).join('\n');
-                            updateItem(item.id, { description: title + (next ? '\n' + next : '') });
-                          };
-                          const customVal = customScope[item.id] ?? '';
-                          return (
-                            <div
-                              key={item.id}
-                              className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
-                            >
-                              <div className="bg-slate-900/60 flex flex-col gap-0">
-                                {/* Title */}
-                                <input
-                                  value={title}
-                                  onChange={(e) => setTitle(e.target.value)}
-                                  placeholder={form.projectName || 'Project / event title…'}
-                                  className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
-                                />
-                                {/* Scope chips area */}
-                                <div className="px-3 pb-2.5 border-t border-white/[0.06]">
-                                  {/* Added scope chips */}
-                                  {scopeLines.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
-                                      {scopeLines.map((line) => (
-                                        <span
-                                          key={line}
-                                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
-                                        >
-                                          {line}
-                                          <button
-                                            type="button"
-                                            onClick={() => removeScopeLine(line)}
-                                            className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
-                                          >
-                                            <svg
-                                              className="w-2.5 h-2.5"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                              strokeWidth={2.5}
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M6 18L18 6M6 6l12 12"
-                                              />
-                                            </svg>
-                                          </button>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  )}
-                                  {/* Suggestion chips */}
-                                  {scopeOfWork.length > 0 && (
-                                    <div className="flex flex-wrap gap-1.5 pt-1.5">
-                                      {scopeOfWork
-                                        .filter((s) => !scopeLines.includes(s))
-                                        .map((sug) => (
-                                          <button
-                                            key={sug}
-                                            type="button"
-                                            onClick={() => addScopeLine(sug)}
-                                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
-                                          >
-                                            <svg
-                                              className="w-2.5 h-2.5"
-                                              fill="none"
-                                              viewBox="0 0 24 24"
-                                              stroke="currentColor"
-                                              strokeWidth={2.5}
-                                            >
-                                              <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                d="M12 4v16m8-8H4"
-                                              />
-                                            </svg>
-                                            {sug}
-                                          </button>
-                                        ))}
-                                    </div>
-                                  )}
-                                  {/* Custom scope input */}
-                                  <div className="flex items-center gap-1.5 mt-2">
-                                    <input
-                                      value={customVal}
-                                      onChange={(e) =>
-                                        setCustomScope((prev) => ({
-                                          ...prev,
-                                          [item.id]: e.target.value,
-                                        }))
-                                      }
-                                      onKeyDown={(e) => {
-                                        if (e.key === 'Enter') {
-                                          e.preventDefault();
-                                          addScopeLine(customVal);
-                                          setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                        }
-                                      }}
-                                      placeholder="Custom scope… (Enter to add)"
-                                      className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
-                                    />
-                                    {customVal.trim() && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          addScopeLine(customVal);
-                                          setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                        }}
-                                        className="text-xs text-white/40 hover:text-white transition px-1"
+                            <div className="bg-slate-900/60 flex flex-col gap-0">
+                              {/* Title */}
+                              <input
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder={form.projectName || 'Project / event title…'}
+                                className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
+                              />
+                              {/* Scope chips area */}
+                              <div className="px-3 pb-2.5 border-t border-white/[0.06]">
+                                {/* Added scope chips */}
+                                {scopeLines.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
+                                    {scopeLines.map((line) => (
+                                      <span
+                                        key={line}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
                                       >
-                                        Add
-                                      </button>
-                                    )}
+                                        {line}
+                                        <button
+                                          type="button"
+                                          onClick={() => removeScopeLine(line)}
+                                          className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
+                                        >
+                                          <svg
+                                            className="w-2.5 h-2.5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2.5}
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M6 18L18 6M6 6l12 12"
+                                            />
+                                          </svg>
+                                        </button>
+                                      </span>
+                                    ))}
                                   </div>
+                                )}
+                                {/* Suggestion chips */}
+                                {scopeOfWork.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5 pt-1.5">
+                                    {scopeOfWork
+                                      .filter((s) => !scopeLines.includes(s))
+                                      .map((sug) => (
+                                        <button
+                                          key={sug}
+                                          type="button"
+                                          onClick={() => addScopeLine(sug)}
+                                          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
+                                        >
+                                          <svg
+                                            className="w-2.5 h-2.5"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                            stroke="currentColor"
+                                            strokeWidth={2.5}
+                                          >
+                                            <path
+                                              strokeLinecap="round"
+                                              strokeLinejoin="round"
+                                              d="M12 4v16m8-8H4"
+                                            />
+                                          </svg>
+                                          {sug}
+                                        </button>
+                                      ))}
+                                  </div>
+                                )}
+                                {/* Custom scope input */}
+                                <div className="flex items-center gap-1.5 mt-2">
+                                  <input
+                                    value={customVal}
+                                    onChange={(e) =>
+                                      setCustomScope((prev) => ({
+                                        ...prev,
+                                        [item.id]: e.target.value,
+                                      }))
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        addScopeLine(customVal);
+                                        setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                      }
+                                    }}
+                                    placeholder="Custom scope… (Enter to add)"
+                                    className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
+                                  />
+                                  {customVal.trim() && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        addScopeLine(customVal);
+                                        setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                      }}
+                                      className="text-xs text-white/40 hover:text-white transition px-1"
+                                    >
+                                      Add
+                                    </button>
+                                  )}
                                 </div>
                               </div>
-                              <input
-                                type="number"
-                                min={0}
-                                value={item.qty === 0 ? '' : item.qty}
-                                onChange={(e) =>
-                                  updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
-                                }
-                                className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
-                              />
-                              <input
-                                type="number"
-                                min={0}
-                                value={item.unitPrice === 0 ? '' : item.unitPrice}
-                                onChange={(e) =>
-                                  updateItem(item.id, {
-                                    unitPrice: parseFloat(e.target.value) || 0,
-                                  })
-                                }
-                                className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
-                              />
-                              <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
-                                {fmt(item.qty * item.unitPrice)}
-                              </div>
-                              <button
-                                onClick={() => removeItem(item.id)}
-                                disabled={form.items.length === 1}
-                                className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
+                            </div>
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.qty === 0 ? '' : item.qty}
+                              onChange={(e) =>
+                                updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
+                              }
+                              className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
+                            />
+                            <input
+                              type="number"
+                              min={0}
+                              value={item.unitPrice === 0 ? '' : item.unitPrice}
+                              onChange={(e) =>
+                                updateItem(item.id, {
+                                  unitPrice: parseFloat(e.target.value) || 0,
+                                })
+                              }
+                              className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
+                            />
+                            <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
+                              {fmt(item.qty * item.unitPrice)}
+                            </div>
+                            <button
+                              onClick={() => removeItem(item.id)}
+                              disabled={form.items.length === 1}
+                              className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
                               >
-                                <svg
-                                  className="w-3.5 h-3.5"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={2}
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
-                          );
-                        })}
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
+                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
+                        <span className="font-semibold text-white/70">Grand Total</span>
+                        <span className="font-bold text-white w-28 text-right">
+                          {fmt(subtotal)}
+                        </span>
                       </div>
-                      <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
-                        <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
-                          <span className="font-semibold text-white/70">Grand Total</span>
-                          <span className="font-bold text-white w-28 text-right">
-                            {fmt(subtotal)}
-                          </span>
-                        </div>
-                        {form.withWHT && taxConfig.enabled && (
-                          <>
-                            <div className="flex gap-8 text-orange-400">
-                              <span>
-                                {taxConfig.type === 'deductive' ? 'Less' : 'Add'} {taxConfig.label}{' '}
-                                {taxConfig.rate}%
-                              </span>
-                              <span className="font-medium w-28 text-right">
-                                ({fmt(whtAmount)})
-                              </span>
-                            </div>
-                            <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                              <span className="font-semibold text-white/70">Total (USD)</span>
-                              <span className="font-bold text-white w-28 text-right">
-                                {fmt(netTotal)}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                        {form.depositPercent != null && (
-                          <>
-                            <div className="flex gap-8 text-green-400">
-                              <span>Deposit ({form.depositPercent}%)</span>
-                              <span className="font-medium w-28 text-right">
-                                − {fmt(depositAmount)}
-                              </span>
-                            </div>
-                            <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                              <span className="font-semibold text-white/70">Balance Due</span>
-                              <span className="font-bold text-white w-28 text-right">
-                                {fmt(balanceDue)}
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                      {form.withWHT && taxConfig.enabled && (
+                        <>
+                          <div className="flex gap-8 text-orange-400">
+                            <span>
+                              {taxConfig.type === 'deductive' ? 'Less' : 'Add'} {taxConfig.label}{' '}
+                              {taxConfig.rate}%
+                            </span>
+                            <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
+                          </div>
+                          <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                            <span className="font-semibold text-white/70">Total (USD)</span>
+                            <span className="font-bold text-white w-28 text-right">
+                              {fmt(netTotal)}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      {form.depositPercent != null && (
+                        <>
+                          <div className="flex gap-8 text-green-400">
+                            <span>Deposit ({form.depositPercent}%)</span>
+                            <span className="font-medium w-28 text-right">
+                              − {fmt(depositAmount)}
+                            </span>
+                          </div>
+                          <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
+                            <span className="font-semibold text-white/70">Balance Due</span>
+                            <span className="font-bold text-white w-28 text-right">
+                              {fmt(balanceDue)}
+                            </span>
+                          </div>
+                        </>
+                      )}
                     </div>
                   </div>
-                );
-              })()}
-
-              {/* Tax toggle — only shown if tax is configured in workspace preferences */}
-              {taxConfig.enabled && (
-                <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-orange-300">
-                      {taxConfig.label} ({taxConfig.rate}%)
-                    </p>
-                    <p className="text-xs text-orange-400/70 mt-0.5">
-                      {taxConfig.type === 'deductive'
-                        ? `Gross-up unit prices so the client withholds ${taxConfig.rate}% and you receive the deal amount.`
-                        : `Add ${taxConfig.rate}% ${taxConfig.label} on top of the invoice total.`}
-                    </p>
-                    {form.withWHT && (
-                      <p className="text-xs text-orange-300 mt-2 font-medium">
-                        Subtotal: {fmt(subtotal)} · {taxConfig.label}: ({fmt(whtAmount)}) · Net:{' '}
-                        {fmt(netTotal)}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={toggleWHT}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.withWHT ? 'bg-orange-500' : 'bg-zinc-300'}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.withWHT ? 'translate-x-6' : 'translate-x-1'}`}
-                    />
-                  </button>
                 </div>
-              )}
+              );
+            })()}
 
-              {/* Deposit toggle */}
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+            {/* Tax toggle — only shown if tax is configured in workspace preferences */}
+            {taxConfig.enabled && (
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-green-300">Deposit / Partial Payment</p>
-                  <p className="text-xs text-green-400/70 mt-0.5">
-                    Require a deposit upfront; client pays the balance on delivery.
+                  <p className="text-sm font-semibold text-orange-300">
+                    {taxConfig.label} ({taxConfig.rate}%)
                   </p>
-                  {form.depositPercent != null && (
-                    <div className="flex items-center gap-2 mt-3">
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        value={form.depositPercent}
-                        onChange={(e) =>
-                          setField(
-                            'depositPercent',
-                            Math.min(99, Math.max(1, parseInt(e.target.value) || 50))
-                          )
-                        }
-                        className="w-16 h-8 rounded-xl border border-green-400/30 px-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-400 bg-white/10 text-center"
-                      />
-                      <span className="text-sm text-green-300">
-                        % deposit = {fmt(depositAmount)}
-                      </span>
-                    </div>
+                  <p className="text-xs text-orange-400/70 mt-0.5">
+                    {taxConfig.type === 'deductive'
+                      ? `Gross-up unit prices so the client withholds ${taxConfig.rate}% and you receive the deal amount.`
+                      : `Add ${taxConfig.rate}% ${taxConfig.label} on top of the invoice total.`}
+                  </p>
+                  {form.withWHT && (
+                    <p className="text-xs text-orange-300 mt-2 font-medium">
+                      Subtotal: {fmt(subtotal)} · {taxConfig.label}: ({fmt(whtAmount)}) · Net:{' '}
+                      {fmt(netTotal)}
+                    </p>
                   )}
                 </div>
                 <button
-                  onClick={() =>
-                    setField('depositPercent', form.depositPercent != null ? undefined : 50)
-                  }
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.depositPercent != null ? 'bg-green-500' : 'bg-zinc-300'}`}
+                  onClick={toggleWHT}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.withWHT ? 'bg-orange-500' : 'bg-zinc-300'}`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.depositPercent != null ? 'translate-x-6' : 'translate-x-1'}`}
+                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.withWHT ? 'translate-x-6' : 'translate-x-1'}`}
                   />
                 </button>
               </div>
+            )}
 
-              {/* VAT TIN toggle — only shown when the selected client has a VAT TIN */}
-              {clients.find((c) => c.id === form.clientId)?.vat_tin && (
-                <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold text-blue-300">Show VAT TIN on Invoice</p>
-                    <p className="text-xs text-blue-400/70 mt-0.5">
-                      Display the client&apos;s VAT TIN number in the Bill To section.
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setField('showVatTin', form.showVatTin ? undefined : true)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.showVatTin ? 'bg-blue-500' : 'bg-zinc-300'}`}
-                  >
-                    <span
-                      className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.showVatTin ? 'translate-x-6' : 'translate-x-1'}`}
+            {/* Deposit toggle */}
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-300">Deposit / Partial Payment</p>
+                <p className="text-xs text-green-400/70 mt-0.5">
+                  Require a deposit upfront; client pays the balance on delivery.
+                </p>
+                {form.depositPercent != null && (
+                  <div className="flex items-center gap-2 mt-3">
+                    <input
+                      type="number"
+                      min={1}
+                      max={99}
+                      value={form.depositPercent}
+                      onChange={(e) =>
+                        setField(
+                          'depositPercent',
+                          Math.min(99, Math.max(1, parseInt(e.target.value) || 50))
+                        )
+                      }
+                      className="w-16 h-8 rounded-xl border border-green-400/30 px-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-400 bg-white/10 text-center"
                     />
-                  </button>
-                </div>
-              )}
-
-              <PanelField label="Notes">
-                <textarea
-                  rows={3}
-                  value={form.notes}
-                  onChange={(e) => setField('notes', e.target.value)}
-                  className={`${inputCls} h-auto py-2 resize-none`}
-                  placeholder="Payment instructions, additional notes…"
+                    <span className="text-sm text-green-300">% deposit = {fmt(depositAmount)}</span>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() =>
+                  setField('depositPercent', form.depositPercent != null ? undefined : 50)
+                }
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.depositPercent != null ? 'bg-green-500' : 'bg-zinc-300'}`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.depositPercent != null ? 'translate-x-6' : 'translate-x-1'}`}
                 />
-              </PanelField>
+              </button>
             </div>
 
-            <div
-              className="px-6 py-4 border-t border-white/[0.08] flex flex-col gap-3 shrink-0"
-              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
-            >
-              {formError && <p className="text-sm text-red-400">{formError}</p>}
-              <div className="flex items-center gap-2 justify-end">
+            {/* VAT TIN toggle — only shown when the selected client has a VAT TIN */}
+            {clients.find((c) => c.id === form.clientId)?.vat_tin && (
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-300">Show VAT TIN on Invoice</p>
+                  <p className="text-xs text-blue-400/70 mt-0.5">
+                    Display the client&apos;s VAT TIN number in the Bill To section.
+                  </p>
+                </div>
                 <button
-                  onClick={closePanel}
-                  className="h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
+                  onClick={() => setField('showVatTin', form.showVatTin ? undefined : true)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${form.showVatTin ? 'bg-blue-500' : 'bg-zinc-300'}`}
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveAndPreview}
-                  className="hidden sm:flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                    />
-                  </svg>
-                  Save & Preview
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={isPending}
-                  className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition disabled:opacity-60"
-                >
-                  {editingId ? 'Save changes' : 'Create invoice'}
+                  <span
+                    className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form.showVatTin ? 'translate-x-6' : 'translate-x-1'}`}
+                  />
                 </button>
               </div>
+            )}
+
+            <PanelField label="Notes">
+              <textarea
+                rows={3}
+                value={form.notes}
+                onChange={(e) => setField('notes', e.target.value)}
+                className={`${inputCls} h-auto py-2 resize-none`}
+                placeholder="Payment instructions, additional notes…"
+              />
+            </PanelField>
+          </div>
+
+          <div
+            className="px-6 py-4 border-t border-white/[0.08] flex flex-col gap-3 shrink-0"
+            style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+          >
+            {formError && <p className="text-sm text-red-400">{formError}</p>}
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={closePanel}
+                className="h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAndPreview}
+                className="hidden sm:flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                Save & Preview
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={isPending}
+                className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition disabled:opacity-60"
+              >
+                {editingId ? 'Save changes' : 'Create invoice'}
+              </button>
             </div>
           </div>
-        </>
+        </ModalShell>
       )}
 
       {/* ── Delete confirm ─────────────────────────────────────────────────────── */}
@@ -1851,7 +1827,7 @@ export default function InvoicesScreen() {
                 )}
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
+                <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-4">
                   {cpMode === 'link' && clientProjects.length > 0 ? (
                     <>
                       <p className="text-sm text-white/50">

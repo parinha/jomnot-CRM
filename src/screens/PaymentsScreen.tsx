@@ -12,10 +12,10 @@ import {
   calcEarned,
   calcBalance,
   taxConfigFromPrefs,
-} from '@/src/features/invoices/lib/calculations';
+} from '@/src/lib/calculations';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import ModalShell from '@/src/components/ModalShell';
-import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
+import InvoicePreviewModal from '@/src/components/InvoicePreviewModal';
 import { useAppPreferences, useCurrency } from '@/src/hooks/useAppPreferences';
 
 // ── Payment action buttons ────────────────────────────────────────────────────

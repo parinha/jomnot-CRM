@@ -13,7 +13,7 @@ import {
   calcSubtotal,
   calcNet,
   taxConfigFromPrefs,
-} from '@/src/features/invoices/lib/calculations';
+} from '@/src/lib/calculations';
 import { useAppPreferences, useCurrency } from '@/src/hooks/useAppPreferences';
 
 // ── Date helpers ───────────────────────────────────────────────────────────────

@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useSearchParams, useRouter } from 'next/navigation';
-import ProgressPopover from '@/src/features/projects/components/ProgressPopover';
+import ProgressPopover from '@/src/components/ProgressPopover';
+import ModalShell from '@/src/components/ModalShell';
 import { useAppPreferences } from '@/src/hooks/useAppPreferences';
 import type {
   Project,
@@ -22,13 +23,13 @@ import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
-import { calcNet } from '@/src/features/invoices/lib/calculations';
+import { calcNet } from '@/src/lib/calculations';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import SortTh from '@/src/components/SortTh';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
-import InvoicePreviewModal from '@/src/features/invoices/components/InvoicePreviewModal';
-import ProjectDetailModal from '@/src/features/projects/components/ProjectDetailModal';
+import InvoicePreviewModal from '@/src/components/InvoicePreviewModal';
+import ProjectDetailModal from '@/src/components/ProjectDetailModal';
 import { useProjectMutations } from '@/src/hooks/useProjects';
 import { useClientMutations } from '@/src/hooks/useClients';
 
@@ -718,1635 +719,705 @@ export default function ProjectsScreen() {
         </button>
       </div>
 
-      {/* ── Widgets ───────────────────────────────────────────────────────────── */}
+      {/* Search */}
+      <div className="mb-4">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search projects…" />
+      </div>
+
+      {/* Unified project list */}
       {(() => {
-        const fmtAmt = (n: number) =>
-          n === 0 ? '—' : `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
-        const projValue = (p: Project) => {
-          const invNet = p.invoiceIds
-            .map((id) => invoices.find((i) => i.id === id))
-            .filter(Boolean)
-            .reduce((sum, inv) => sum + calcNet(inv!), 0);
-          return invNet > 0 ? invNet : (p.budget ?? 0);
-        };
-
-        // ── Next month
-        const nmProjects = projects.filter((p) => p.confirmedMonth === nmYM);
-        const nmEst = nmProjects.reduce((s, p) => s + projValue(p), 0);
-
-        // ── Month labels
-        const cmLabel = _now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-        const pmLabel = new Date(pmY, pmM, 1).toLocaleString('en-US', {
-          month: 'long',
-          year: 'numeric',
+        const filtered = projects.filter(matchesSearch).sort((a, b) => {
+          if (!a.createdAt && !b.createdAt) return 0;
+          if (!a.createdAt) return 1;
+          if (!b.createdAt) return -1;
+          return b.createdAt.localeCompare(a.createdAt);
         });
-
-        // ── This month: confirmed + completed with billed month = this month
-        const cmProjects = projects.filter(
-          (p) => p.confirmedMonth === cmYM && (p.status === 'confirmed' || p.status === 'completed')
-        );
-        const cmEst = cmProjects.reduce((s, p) => s + projValue(p), 0);
-        const cmCompleted = cmProjects.filter((p) => p.status === 'completed');
-        const cmActive = cmProjects.filter((p) => p.status === 'confirmed');
-        const cmActual = cmCompleted.reduce((s, p) => s + projValue(p), 0);
-
-        // ── Last month (sign-off): confirmed + completed with billed month = last month
-        const pmProjects = projects.filter(
-          (p) => p.confirmedMonth === pmYM && (p.status === 'confirmed' || p.status === 'completed')
-        );
-        const pmEst = pmProjects.reduce((s, p) => s + projValue(p), 0);
-        const pmCompleted = pmProjects.filter((p) => p.status === 'completed');
-        const pmActual = pmCompleted.reduce((s, p) => s + projValue(p), 0);
-        const pmActive = pmProjects.filter((p) => p.status === 'confirmed');
-        const pmActiveTotal = pmActive.reduce((s, p) => s + projValue(p), 0);
-
-        // ── This month pending (unconfirmed + on-hold)
-        const cmPending = projects.filter(
-          (p) => p.confirmedMonth === cmYM && (p.status === 'unconfirmed' || p.status === 'on-hold')
-        );
-        const cmPendingTotal = cmPending.reduce((s, p) => s + projValue(p), 0);
-
-        // ── Active Projects: confirmed, billed this month or older (not next month)
-        const activeThisMonthProjects = projects.filter(
-          (p) => p.status === 'confirmed' && p.confirmedMonth === cmYM
-        );
-        const activeOlderProjects = projects.filter(
-          (p) => p.status === 'confirmed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
-        );
-        const activeThisMonthTotal = activeThisMonthProjects.reduce((s, p) => s + projValue(p), 0);
-        const activeOlderTotal = activeOlderProjects.reduce((s, p) => s + projValue(p), 0);
-        const activeAllTotal = activeThisMonthTotal + activeOlderTotal;
-
-        // ── Completed: same split as Active Projects but with completed status
-        const completedThisMonthProjects = projects.filter(
-          (p) => p.status === 'completed' && p.confirmedMonth === cmYM
-        );
-        const completedOlderProjects = projects.filter(
-          (p) => p.status === 'completed' && p.confirmedMonth !== cmYM && p.confirmedMonth !== nmYM
-        );
-        const completedThisMonthTotal = completedThisMonthProjects.reduce(
-          (s, p) => s + projValue(p),
-          0
-        );
-        const completedOlderTotal = completedOlderProjects.reduce((s, p) => s + projValue(p), 0);
-        const completedAllTotal = completedThisMonthTotal + completedOlderTotal;
-
+        if (filtered.length === 0) {
+          return (
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex flex-col items-center justify-center py-16">
+              <p className="text-sm text-white/30">
+                {search.trim() ? 'No projects match your search.' : 'No projects yet.'}
+              </p>
+              {search.trim() && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="mt-2 text-xs text-[#FFC206] hover:underline"
+                >
+                  Clear search
+                </button>
+              )}
+            </div>
+          );
+        }
         return (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
-            {/* Next Month */}
-            <div className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4">
-              <p className="text-xs text-white/40 uppercase tracking-wide font-semibold mb-1">
-                Upcoming Next Month
-              </p>
-              <p className="text-xl font-bold text-white/80 amt">{fmtAmt(nmEst)}</p>
-              <p className="text-xs text-white/40 mt-1">
-                {nmProjects.length} project{nmProjects.length !== 1 ? 's' : ''}
-              </p>
-            </div>
-
-            {/* This Month */}
-            <div className="rounded-2xl border border-[#FFC206]/20 bg-[#FFC206]/[0.05] backdrop-blur-xl p-4">
-              <p className="text-xs text-[#FFC206]/60 uppercase tracking-wide font-semibold mb-1">
-                Project Sign-off: {cmLabel}
-              </p>
-              <p className="text-xl font-bold text-[#FFC206] amt">{fmtAmt(cmEst)}</p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                <p className="text-xs text-white/40">
-                  {cmActive.length} active · {cmCompleted.length} completed
-                </p>
-                <p className="text-xs text-white/30">
-                  earned <span className="amt">{fmtAmt(cmActual)}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Last Month Sign-off */}
-            <div className="rounded-2xl border border-white/[0.09] bg-white/[0.05] backdrop-blur-xl p-4">
-              <p className="text-xs text-white/40 uppercase tracking-wide font-semibold mb-1">
-                Project Sign-off: {pmLabel}
-              </p>
-              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(pmEst)}</p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                <p className="text-xs text-white/40">
-                  {pmActive.length} active · {pmCompleted.length} completed
-                </p>
-                {pmCompleted.length > 0 && (
-                  <p className="text-xs text-emerald-400/50">
-                    earned <span className="amt">{fmtAmt(pmActual)}</span>
-                  </p>
-                )}
-                {pmActive.length > 0 && (
-                  <p className="text-xs text-red-400/50">
-                    still active <span className="amt">{fmtAmt(pmActiveTotal)}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Active Projects */}
-            <div className="rounded-2xl border border-sky-500/20 bg-sky-500/[0.05] backdrop-blur-xl p-4">
-              <p className="text-xs text-sky-400/60 uppercase tracking-wide font-semibold mb-1">
-                Active Projects
-              </p>
-              <p className="text-xl font-bold text-sky-400 amt">{fmtAmt(activeAllTotal)}</p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                <p className="text-xs text-white/40">
-                  {activeThisMonthProjects.length + activeOlderProjects.length} project
-                  {activeThisMonthProjects.length + activeOlderProjects.length !== 1 ? 's' : ''} ·
-                  this month <span className="amt">{fmtAmt(activeThisMonthTotal)}</span>
-                </p>
-                {activeOlderProjects.length > 0 && (
-                  <p className="text-xs text-red-400/50">
-                    older {activeOlderProjects.length}{' '}
-                    <span className="amt">{fmtAmt(activeOlderTotal)}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Completed */}
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] backdrop-blur-xl p-4">
-              <p className="text-xs text-emerald-400/60 uppercase tracking-wide font-semibold mb-1">
-                Completed
-              </p>
-              <p className="text-xl font-bold text-emerald-400 amt">{fmtAmt(completedAllTotal)}</p>
-              <div className="mt-1 flex flex-col gap-0.5">
-                <p className="text-xs text-white/40">
-                  {completedThisMonthProjects.length + completedOlderProjects.length} project
-                  {completedThisMonthProjects.length + completedOlderProjects.length !== 1
-                    ? 's'
-                    : ''}{' '}
-                  · this month <span className="amt">{fmtAmt(completedThisMonthTotal)}</span>
-                </p>
-                {completedOlderProjects.length > 0 && (
-                  <p className="text-xs text-white/30">
-                    older {completedOlderProjects.length}{' '}
-                    <span className="amt">{fmtAmt(completedOlderTotal)}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* This Month Pending */}
-            {cmPending.length > 0 && (
-              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.05] backdrop-blur-xl p-4">
-                <p className="text-xs text-amber-400/60 uppercase tracking-wide font-semibold mb-1">
-                  This Month Pending
-                </p>
-                <p className="text-xl font-bold text-amber-400 amt">{fmtAmt(cmPendingTotal)}</p>
-                <p className="text-xs text-white/40 mt-1">
-                  {cmPending.length} project{cmPending.length !== 1 ? 's' : ''} · on hold /
-                  unconfirmed
-                </p>
-              </div>
-            )}
-          </div>
-        );
-      })()}
-
-      {/* ── Global Search ─────────────────────────────────────────────────────── */}
-      <div className="mb-6">
-        <SearchInput
-          value={search}
-          onChange={(v) => {
-            setSearch(v);
-            setPage(1);
-          }}
-          placeholder="Search all projects by name, client, invoice…"
-        />
-      </div>
-
-      {/* ── UPCOMING + ON HOLD / UNCONFIRMED (2-column) ─────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
-        {/* LEFT: Upcoming */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Upcoming</h2>
-            <span className="text-xs text-white/30 font-medium">{nextMonthLabel}</span>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
-              {upcomingList.length}
-            </span>
-            {upcomingBudget && (
-              <span className="text-xs text-white/30 font-medium amt">({upcomingBudget})</span>
-            )}
-            <div className="flex-1 h-px bg-white/[0.07]" />
-          </div>
-
-          <div
-            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${upcomingPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
-          >
-            {/* Fixed-height body: 5 rows × 44px */}
-            <div
-              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
-              className={
-                upcomingPaged.some((p) => progressPopover === p.id)
-                  ? 'overflow-visible'
-                  : 'overflow-hidden'
-              }
-            >
-              {upcomingList.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-white/30">
-                    {search.trim()
-                      ? 'No upcoming projects match your search.'
-                      : `No upcoming projects for ${nextMonthLabel}.`}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {upcomingPaged.map((project) => {
-                    const client = clients.find((c) => c.id === project.clientId);
-                    const sc = getStatusCfg(project.status);
-                    const tl = getTimelineBar(project.deliverDate);
-                    return (
-                      <div
-                        key={project.id}
-                        style={{ height: SIDE_ROW_H }}
-                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
-                      >
-                        <div
-                          className="relative flex-1 min-w-0 flex flex-col justify-center gap-0.5"
-                          data-progress-trigger
-                        >
-                          <span
-                            className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
-                          >
-                            {sc.label}
-                          </span>
-                          <button
-                            onClick={(e) => openPopover(e, project.id)}
-                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
-                          >
-                            {project.name}
-                          </button>
-                          {renderProgressPopover(project)}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {project.deliverDate && (
-                            <span className="text-xs text-white/45 hidden sm:block">
-                              {fmtDate(project.deliverDate)}
-                            </span>
-                          )}
-                          {tl && (
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
-                            >
-                              {tl.badgeLabel}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => openEdit(project)}
-                          className="shrink-0 p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {Array.from({ length: SIDE_PAGE_SIZE - upcomingPaged.length }).map((_, i) => (
-                    <div
-                      key={`gu-${i}`}
-                      style={{ height: SIDE_ROW_H }}
-                      className="border-b border-white/[0.03]"
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {upcomingList.length > SIDE_PAGE_SIZE && (
-            <div className="mt-2">
-              <Pagination
-                page={safeUpcomingPage}
-                totalPages={upcomingTotalPages}
-                totalItems={upcomingList.length}
-                pageSize={SIDE_PAGE_SIZE}
-                onPageChange={setUpcomingPage}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: On Hold / Unconfirmed */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">
-              On Hold / Unconfirmed
-            </h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
-              {holdUnconfCombined.length}
-            </span>
-            {holdUnconfBudget && (
-              <span className="text-xs text-white/30 font-medium amt">({holdUnconfBudget})</span>
-            )}
-            <div className="flex-1 h-px bg-white/[0.07]" />
-          </div>
-
-          <div
-            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${holdUnconfPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
-          >
-            <div
-              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
-              className={
-                holdUnconfPaged.some((p) => progressPopover === p.id)
-                  ? 'overflow-visible'
-                  : 'overflow-hidden'
-              }
-            >
-              {holdUnconfCombined.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-white/30">
-                    {search.trim()
-                      ? 'No projects match your search.'
-                      : 'No on-hold or unconfirmed projects.'}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {holdUnconfPaged.map((project) => {
-                    const client = clients.find((c) => c.id === project.clientId);
-                    const sc = getStatusCfg(project.status);
-                    const tl = getTimelineBar(project.deliverDate);
-                    return (
-                      <div
-                        key={project.id}
-                        style={{ height: SIDE_ROW_H }}
-                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
-                      >
-                        <div
-                          className="relative flex-1 min-w-0 flex flex-col justify-center gap-0.5"
-                          data-progress-trigger
-                        >
-                          <span
-                            className={`px-1.5 py-px rounded text-[10px] font-semibold leading-none w-fit ${sc.cls}`}
-                          >
-                            {sc.label}
-                          </span>
-                          <button
-                            onClick={(e) => openPopover(e, project.id)}
-                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
-                          >
-                            {project.name}
-                          </button>
-                          {renderProgressPopover(project)}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {project.deliverDate && (
-                            <span className="text-xs text-white/45 hidden sm:block">
-                              {fmtDate(project.deliverDate)}
-                            </span>
-                          )}
-                          {tl && (
-                            <span
-                              className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
-                            >
-                              {tl.badgeLabel}
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => openEdit(project)}
-                          className="shrink-0 p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
-                          title="Edit"
-                        >
-                          <svg
-                            className="w-3.5 h-3.5"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    );
-                  })}
-                  {Array.from({ length: SIDE_PAGE_SIZE - holdUnconfPaged.length }).map((_, i) => (
-                    <div
-                      key={`ghc-${i}`}
-                      style={{ height: SIDE_ROW_H }}
-                      className="border-b border-white/[0.03]"
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {holdUnconfCombined.length > SIDE_PAGE_SIZE && (
-            <div className="mt-2">
-              <Pagination
-                page={safeHoldUnconfPage}
-                totalPages={holdUnconfTotalPages}
-                totalItems={holdUnconfCombined.length}
-                pageSize={SIDE_PAGE_SIZE}
-                onPageChange={setHoldUnconfPage}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT: Completed */}
-        <div className="flex flex-col">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">Completed</h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
-              {completedList.length}
-            </span>
-            {completedBudget && (
-              <span className="text-xs text-white/30 font-medium amt">({completedBudget})</span>
-            )}
-            <div className="flex-1 h-px bg-white/[0.07]" />
-          </div>
-
-          {/* Tab toggle: This Month / Last Month */}
-          <div className="flex gap-1 mb-2 border-b border-white/[0.08]">
-            {(['this-month', 'last-month'] as const).map((key) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setCompletedTab(key);
-                  setCompletedPage(1);
-                }}
-                className={`px-3 py-1.5 text-xs font-semibold border-b-2 transition -mb-px ${completedTab === key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
-              >
-                {key === 'this-month' ? 'This Month' : 'Last Month'}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className={`bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex-1 ${completedPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
-          >
-            <div
-              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
-              className={
-                completedPaged.some((p) => progressPopover === p.id)
-                  ? 'overflow-visible'
-                  : 'overflow-hidden'
-              }
-            >
-              {completedList.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-white/30">
-                    {search.trim()
-                      ? 'No completed projects match your search.'
-                      : `No completed projects ${completedTab === 'this-month' ? 'this month' : 'last month'}.`}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  {completedPaged.map((project) => {
-                    const client = clients.find((c) => c.id === project.clientId);
-                    const completedDate = project.completedAt
-                      ? toLocalDateStr(project.completedAt)
-                      : project.deliverDate;
-                    return (
-                      <div
-                        key={project.id}
-                        style={{ height: SIDE_ROW_H }}
-                        className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
-                      >
-                        <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300">
-                          Done
-                        </span>
-                        <div className="relative flex-1 min-w-0" data-progress-trigger>
-                          <button
-                            onClick={(e) => openPopover(e, project.id)}
-                            className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
-                          >
-                            {project.name}
-                          </button>
-                          {client && (
-                            <p className="text-xs text-white/40 truncate">{client.name}</p>
-                          )}
-                          {renderProgressPopover(project)}
-                        </div>
-                        <div className="shrink-0 flex items-center gap-2">
-                          {completedDate && (
-                            <span className="text-xs text-white/45 hidden sm:block">
-                              {fmtDate(completedDate)}
-                            </span>
-                          )}
-                          <button
-                            onClick={() => openEdit(project)}
-                            className="p-1.5 rounded-lg border border-white/15 text-white/40 hover:bg-white/10 hover:text-white transition"
-                            title="Edit"
-                          >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {Array.from({ length: SIDE_PAGE_SIZE - completedPaged.length }).map((_, i) => (
-                    <div
-                      key={`ghd-${i}`}
-                      style={{ height: SIDE_ROW_H }}
-                      className="border-b border-white/[0.03]"
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {completedList.length > SIDE_PAGE_SIZE && (
-            <div className="mt-2">
-              <Pagination
-                page={safeCompletedPage}
-                totalPages={completedTotalPages}
-                totalItems={completedList.length}
-                pageSize={SIDE_PAGE_SIZE}
-                onPageChange={setCompletedPage}
-              />
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── UNSET CONFIRM MONTH ─────────────────────────────────────────────── */}
-      {unsetConfirmedList.length > 0 && (
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-xs font-bold text-orange-400/80 uppercase tracking-widest">
-              No Billing Month
-            </h2>
-            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-500/15 text-orange-400">
-              {unsetConfirmedList.length}
-            </span>
-            <div className="flex-1 h-px bg-white/[0.07]" />
-          </div>
-
-          <div
-            className={`bg-white/[0.05] backdrop-blur-xl border border-orange-500/20 rounded-2xl ${unsetPaged.some((p) => progressPopover === p.id) ? 'overflow-visible' : 'overflow-hidden'}`}
-          >
-            <div
-              style={{ height: SIDE_ROW_H * SIDE_PAGE_SIZE }}
-              className={
-                unsetPaged.some((p) => progressPopover === p.id)
-                  ? 'overflow-visible'
-                  : 'overflow-hidden'
-              }
-            >
-              <>
-                {unsetPaged.map((project) => {
-                  const client = clients.find((c) => c.id === project.clientId);
-                  const sc = getStatusCfg(project.status);
-                  return (
-                    <div
-                      key={project.id}
-                      style={{ height: SIDE_ROW_H }}
-                      className={`flex items-center gap-3 px-4 border-b border-white/[0.06] hover:bg-white/[0.04] transition ${progressPopover === project.id ? 'overflow-visible' : 'overflow-hidden'}`}
-                    >
-                      <span
-                        className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
-                      >
-                        {sc.label}
-                      </span>
-                      <div className="relative flex-1 min-w-0" data-progress-trigger>
-                        <button
-                          onClick={(e) => openPopover(e, project.id)}
-                          className="font-semibold text-white hover:text-[#FFC206] transition text-left truncate block text-sm leading-tight"
-                        >
-                          {project.name}
-                        </button>
-                        {client && <p className="text-xs text-white/40 truncate">{client.name}</p>}
-                        {renderProgressPopover(project)}
-                      </div>
-                      <button
-                        onClick={() => openEdit(project)}
-                        className="shrink-0 p-1.5 rounded-lg border border-orange-500/30 text-orange-400/60 hover:bg-orange-500/10 hover:text-orange-400 transition"
-                        title="Set confirm month"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  );
-                })}
-                {Array.from({ length: SIDE_PAGE_SIZE - unsetPaged.length }).map((_, i) => (
-                  <div
-                    key={`gu-${i}`}
-                    style={{ height: SIDE_ROW_H }}
-                    className="border-b border-white/[0.03]"
-                  />
-                ))}
-              </>
-            </div>
-          </div>
-
-          {unsetConfirmedList.length > SIDE_PAGE_SIZE && (
-            <div className="mt-2">
-              <Pagination
-                page={safeUnsetPage}
-                totalPages={unsetTotalPages}
-                totalItems={unsetConfirmedList.length}
-                pageSize={SIDE_PAGE_SIZE}
-                onPageChange={setUnsetPage}
-              />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── ACTIVE PROJECTS ──────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h2 className="text-xs font-bold text-white/50 uppercase tracking-widest">
-          Active Projects
-        </h2>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-white/50 font-medium">This Month</span>
-          <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-white/[0.08] text-white/50">
-            {activeThisMonth.length}
-          </span>
-          {activeThisMonthBudget && (
-            <span className="text-xs text-white/30 font-medium amt">({activeThisMonthBudget})</span>
-          )}
-        </div>
-        {activeOld.length > 0 && (
-          <>
-            <span className="text-white/20 text-xs">|</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-red-400/60 font-medium">Old</span>
-              <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-red-500/10 text-red-400/70">
-                {activeOld.length}
-              </span>
-              {activeOldBudget && (
-                <span className="text-xs text-red-400/40 font-medium amt">({activeOldBudget})</span>
-              )}
-            </div>
-          </>
-        )}
-        <div className="flex-1 h-px bg-white/[0.07]" />
-      </div>
-
-      {activeBase.length === 0 ? (
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex flex-col items-center justify-center py-10 mb-8">
-          <p className="text-sm text-white/30">
-            {search.trim() ? 'No active projects match your search.' : 'No active projects.'}
-          </p>
-          {search.trim() && (
-            <button
-              onClick={() => setSearch('')}
-              className="mt-2 text-xs text-[#FFC206] hover:underline"
-            >
-              Clear search
-            </button>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Mobile cards */}
-          <div className="flex flex-col gap-3 md:hidden mb-4">
-            {activePaged.map((project) => {
+          <div className="flex flex-col gap-3">
+            {filtered.map((project) => {
               const client = clients.find((c) => c.id === project.clientId);
-              const tl = getTimelineBar(project.deliverDate);
-              const delivItems = project.items ?? [];
-              const delivDone = delivItems.filter((it) => it.status === 'done').length;
               const sc = PROJECT_STATUS_CONFIG[project.status];
               return (
                 <div
                   key={project.id}
                   className="bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4"
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="min-w-0">
-                      <button
-                        onClick={() => openEdit(project)}
-                        className="font-semibold text-white text-left hover:text-[#FFC206] transition truncate block max-w-full"
-                      >
-                        {project.name}
-                      </button>
-                      <p className="text-xs text-white/40 mt-0.5 truncate">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                        >
+                          {sc.label}
+                        </span>
+                        <span className="text-sm font-semibold text-white truncate">
+                          {project.name}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/40 truncate">
                         {client?.name ?? 'No client'}
                       </p>
+                      {project.items.length > 0 && (
+                        <div className="mt-2.5">
+                          <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1">
+                            SOW
+                          </p>
+                          <div className="flex flex-col gap-0.5">
+                            {project.items.map((item) => (
+                              <p key={item.id} className="text-xs text-white/50">
+                                · {item.description}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}
+                    <button
+                      onClick={() => openEdit(project)}
+                      className="shrink-0 p-2 rounded-xl text-white/40 hover:text-white hover:bg-white/10 transition"
                     >
-                      {sc.label}
-                    </span>
-                  </div>
-                  {delivItems.length > 0 && (
-                    <div className="mb-2">
-                      <div className="flex items-center justify-between text-xs text-white/40 mb-1">
-                        <span>
-                          {delivDone}/{delivItems.length} deliverables
-                        </span>
-                        <span>{Math.round((delivDone / delivItems.length) * 100)}%</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-[#FFC206] transition-all"
-                          style={{ width: `${Math.round((delivDone / delivItems.length) * 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center justify-between">
-                    {tl ? (
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-xs font-semibold ${tl.badgeCls}`}
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
                       >
-                        {tl.badgeLabel}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-white/25">No deadline</span>
-                    )}
-                    {project.budget ? (
-                      <span className="text-xs text-white/40 amt">
-                        ${project.budget.toLocaleString()}
-                      </span>
-                    ) : null}
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
-
-          {/* Desktop table */}
-          <div className="hidden md:block bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl overflow-hidden overflow-x-auto mb-4">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/[0.08] bg-white/[0.04]">
-                  <SortTh
-                    col="name"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5"
-                  >
-                    Project
-                  </SortTh>
-                  <th className="text-left px-4 py-3.5 font-medium text-white/45">Progress</th>
-                  <SortTh
-                    col="timeline"
-                    active={sortCol}
-                    dir={sortDir}
-                    onSort={handleSort}
-                    className="text-left px-4 py-3.5"
-                  >
-                    Timeline
-                  </SortTh>
-                  <th className="px-4 py-3.5" />
-                </tr>
-              </thead>
-              <tbody>
-                {activePaged.map((project, i) => {
-                  const client = clients.find((c) => c.id === project.clientId);
-                  const tl = getTimelineBar(project.deliverDate);
-                  const delivItems = project.items ?? [];
-                  const delivDone = delivItems.filter((it) => it.status === 'done').length;
-                  const isPopoverOpen = progressPopover === project.id;
-                  return (
-                    <tr
-                      key={project.id}
-                      className={`border-b border-white/[0.05] last:border-0 transition ${
-                        project.confirmedMonth !== cmYM
-                          ? 'bg-red-500/[0.06] hover:bg-red-500/[0.1]'
-                          : i % 2 === 1
-                            ? 'bg-white/[0.02] hover:bg-white/[0.04]'
-                            : 'hover:bg-white/[0.04]'
-                      }`}
-                    >
-                      <td className="px-4 py-3.5 min-w-[200px]">
-                        <div
-                          className="relative flex items-center gap-2 group"
-                          data-progress-trigger
-                        >
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={(e) => openPopover(e, project.id)}
-                                className="font-semibold text-base text-white hover:text-[#FFC206] transition text-left"
-                              >
-                                {project.name}
-                              </button>
-                              <button
-                                onClick={() => openDuplicate(project)}
-                                title="Duplicate project"
-                                className="opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-[#FFC206]"
-                              >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <rect x="9" y="9" width="13" height="13" rx="2" />
-                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                </svg>
-                              </button>
-                            </div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              {project.budget && (
-                                <span className="text-xs text-white/40 amt">
-                                  ${project.budget.toLocaleString()}
-                                </span>
-                              )}
-                              {client ? (
-                                <span className="text-xs text-white/35">{client.name}</span>
-                              ) : (
-                                <span className="px-1.5 py-px rounded text-[10px] font-semibold bg-white/[0.07] text-white/30">
-                                  Unset client
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {renderProgressPopover(project)}
-                        </div>
-                      </td>
-                      {/* Progress */}
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center gap-1.5" data-progress-trigger>
-                          {delivItems.length > 0 ? (
-                            <button
-                              onClick={(e) => openPopover(e, project.id)}
-                              className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${
-                                delivDone === delivItems.length
-                                  ? 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'
-                                  : 'bg-slate-500/20 text-slate-400 hover:bg-slate-500/30'
-                              }`}
-                            >
-                              {delivDone}/{delivItems.length} deliverables
-                            </button>
-                          ) : (
-                            <span className="text-xs text-white/20">—</span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Timeline */}
-                      <td className="px-4 py-3.5">
-                        {project.deliverDate ? (
-                          <div className="flex flex-col gap-0.5">
-                            {tl && (
-                              <span
-                                className={`px-2 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap w-fit ${tl.badgeCls}`}
-                              >
-                                {tl.badgeLabel}
-                              </span>
-                            )}
-                            <span className="text-xs text-white/40">
-                              {fmtDate(project.deliverDate)}
-                            </span>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => openEdit(project)}
-                            className="text-xs text-white/35 hover:text-[#FFC206] border border-white/10 hover:border-[#FFC206]/30 px-2.5 py-1 rounded-lg transition whitespace-nowrap"
-                          >
-                            Set Timeline
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEdit(project)}
-                            className="p-2.5 rounded-xl border border-white/15 text-white/50 hover:bg-white/10 hover:text-white transition"
-                            title="Edit"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => sendProjectToTelegram(project)}
-                            disabled={sendingTelegram === project.id}
-                            className="p-2.5 rounded-xl border border-white/15 text-sky-400 hover:bg-white/10 transition disabled:opacity-50"
-                            title="Send to Telegram"
-                          >
-                            {sendingTelegram === project.id ? (
-                              <svg
-                                className="w-4 h-4 animate-spin"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
-                                />
-                              </svg>
-                            ) : (
-                              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                              </svg>
-                            )}
-                          </button>
-                          <button
-                            onClick={() => setDeleteId(project.id)}
-                            className="p-2.5 rounded-xl border border-red-500/25 text-red-400 hover:bg-red-500/15 transition"
-                            title="Delete"
-                          >
-                            <svg
-                              className="w-4 h-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                              strokeWidth={2}
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="mb-8">
-            <Pagination
-              page={safeActivePage}
-              totalPages={activeTotalPages}
-              totalItems={activeSorted.length}
-              pageSize={ACTIVE_PAGE_SIZE}
-              onPageChange={setPage}
-            />
-          </div>
-        </>
-      )}
+        );
+      })()}
 
       {/* Detail modal */}
       {detailId && <ProjectDetailModal projectId={detailId} onClose={() => setDetailId(null)} />}
 
       {/* Add / Edit modal */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-slate-900/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.08] shrink-0">
-              <h2 className="text-lg font-bold text-white">
-                {editingId ? 'Edit project' : 'New project'}
-              </h2>
-              <button
-                onClick={closeModal}
-                className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
+        <ModalShell onClose={closeModal} maxWidth="max-w-xl">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-white/[0.08] shrink-0">
+            <h2 className="text-lg font-bold text-white">
+              {editingId ? 'Edit project' : 'New project'}
+            </h2>
+            <button
+              onClick={closeModal}
+              className="p-2.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
-              {/* Client */}
-              <div className="flex flex-col gap-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                    Client
-                  </label>
-                  {!showClientForm && (
-                    <button
-                      onClick={() => {
-                        setShowClientForm(true);
-                        handleClientChange('');
-                      }}
-                      className="flex items-center gap-0.5 text-xs text-[#FFC206] hover:underline"
-                    >
-                      <svg
-                        className="w-3 h-3"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                      </svg>
-                      New client
-                    </button>
-                  )}
-                </div>
-                {!showClientForm ? (
-                  <div ref={clientComboRef} className="relative">
-                    {(() => {
-                      const selected = clients.find((c) => c.id === form.clientId);
-                      const q = clientSearch.toLowerCase().trim();
-                      const filtered = q
-                        ? clients.filter((c) =>
-                            [c.name, c.contactPerson ?? '', c.phone, c.email].some((f) =>
-                              f.toLowerCase().includes(q)
-                            )
-                          )
-                        : clients;
-                      return (
-                        <>
-                          <input
-                            value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
-                            onChange={(e) => {
-                              setClientSearch(e.target.value);
-                              setClientDropOpen(true);
-                              if (!e.target.value) handleClientChange('');
-                            }}
-                            onFocus={() => {
-                              setClientSearch('');
-                              setClientDropOpen(true);
-                            }}
-                            onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
-                            placeholder="Search clients…"
-                            className={darkInputCls}
-                          />
-                          {clientDropOpen && (
-                            <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                              {filtered.length === 0 ? (
-                                <div className="px-3 py-2 text-sm text-white/40">
-                                  No clients found
-                                </div>
-                              ) : (
-                                filtered.map((c) => (
-                                  <button
-                                    key={c.id}
-                                    type="button"
-                                    onMouseDown={() => {
-                                      handleClientChange(c.id);
-                                      setClientSearch('');
-                                      setClientDropOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
-                                  >
-                                    <div className="text-sm font-medium text-white">{c.name}</div>
-                                    {(c.contactPerson || c.email) && (
-                                      <div className="text-xs text-white/40 truncate">
-                                        {[c.contactPerson, c.email].filter(Boolean).join(' · ')}
-                                      </div>
-                                    )}
-                                  </button>
-                                ))
-                              )}
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-[#FFC206]/30 bg-white/[0.05] p-4 flex flex-col gap-3">
-                    <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
-                      Create new client
-                    </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Company Name *</label>
-                        <input
-                          value={clientForm.name}
-                          onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
-                          placeholder="ANYMIND CO., LTD"
-                          className={darkInputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Contact Person</label>
-                        <input
-                          value={clientForm.contactPerson}
-                          onChange={(e) =>
-                            setClientForm((p) => ({ ...p, contactPerson: e.target.value }))
-                          }
-                          placeholder="Mr. Smith"
-                          className={darkInputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Email</label>
-                        <input
-                          type="email"
-                          value={clientForm.email}
-                          onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
-                          placeholder="billing@example.com"
-                          className={darkInputCls}
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Phone</label>
-                        <div className="flex h-11 rounded-xl border border-white/20 bg-white/10 focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition overflow-hidden">
-                          <span className="flex items-center px-3 text-sm font-medium text-white/50 bg-white/5 border-r border-white/20 shrink-0 select-none">
-                            +855
-                          </span>
-                          <input
-                            type="tel"
-                            value={phoneToLocal(clientForm.phone)}
-                            onChange={(e) => {
-                              const formatted = formatKhmerLocal(e.target.value);
-                              setClientForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
-                            }}
-                            placeholder="12 123 1234"
-                            className="flex-1 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none bg-transparent"
-                          />
-                        </div>
-                      </div>
-                      <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-xs text-white/50">Address</label>
-                        <input
-                          value={clientForm.address}
-                          onChange={(e) =>
-                            setClientForm((p) => ({ ...p, address: e.target.value }))
-                          }
-                          placeholder="123 Street, City"
-                          className={darkInputCls}
-                        />
-                      </div>
-                    </div>
-                    {clientFormError && <p className="text-xs text-red-400">{clientFormError}</p>}
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => {
-                          setShowClientForm(false);
-                          setClientForm(EMPTY_CLIENT_FORM);
-                          setClientFormError('');
-                        }}
-                        className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/60 hover:bg-white/10 transition"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={saveNewClient}
-                        className="h-9 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-xs font-bold hover:bg-amber-400 transition"
-                      >
-                        Add &amp; select
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Name */}
-              <div className="flex flex-col gap-1.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-5 flex flex-col gap-5">
+            {/* Client */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Project Name *
+                  Client
                 </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder={
-                    selectedClient
-                      ? `${selectedClient.name} — Project`
-                      : 'e.g. Wedding Video Package'
-                  }
-                  className={darkInputCls}
-                />
-                {selectedClient && !form.name && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      onClick={() => setForm((p) => ({ ...p, name: selectedClient.name }))}
-                      className="text-xs text-[#FFC206] hover:underline"
-                    >
-                      Use &quot;{selectedClient.name}&quot;
-                    </button>
-                    <span className="text-xs text-white/25">·</span>
-                    <button
-                      onClick={() =>
-                        setForm((p) => ({ ...p, name: `${selectedClient.name} Project` }))
-                      }
-                      className="text-xs text-[#FFC206] hover:underline"
-                    >
-                      Use &quot;{selectedClient.name} Project&quot;
-                    </button>
-                  </div>
-                )}
-              </div>
-              {/* Status — edit only */}
-              {editingId && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                    Status
-                  </label>
-                  <div className="flex gap-2 flex-wrap">
-                    {FORM_STATUS_OPTIONS.map((opt) => {
-                      const isActive = form.status === opt.value;
-                      return (
-                        <button
-                          key={opt.value}
-                          onClick={() => setForm((p) => ({ ...p, status: opt.value }))}
-                          className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${isActive ? `${opt.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {/* Budget + Billing Month row */}
-              {(() => {
-                const now = new Date();
-                const thisMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-                const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
-                const nextM = ((now.getMonth() + 1) % 12) + 1;
-                const nextMonthVal = `${nextY}-${String(nextM).padStart(2, '0')}`;
-                const displayMonth = confirmMonth
-                  ? new Date(confirmMonth + '-01').toLocaleDateString('en-US', {
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : 'Not set';
-                return (
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    {/* Budget */}
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                        Budget
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
-                          $
-                        </span>
-                        <input
-                          type="number"
-                          min={0}
-                          step={1}
-                          value={form.budget ?? ''}
-                          onChange={(e) =>
-                            setForm((p) => ({
-                              ...p,
-                              budget: e.target.value === '' ? undefined : Number(e.target.value),
-                            }))
-                          }
-                          placeholder="0"
-                          className={`${darkInputCls} pl-7`}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Billing Month */}
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                        Billing Month
-                      </label>
-                      <div className="flex flex-col">
-                        <button
-                          type="button"
-                          onClick={() => setBillingOpen((o) => !o)}
-                          className="h-11 w-full flex items-center justify-between px-4 rounded-xl border border-white/20 bg-white/10 text-sm transition hover:bg-white/[0.15]"
-                        >
-                          <span
-                            className={confirmMonth ? 'text-white font-medium' : 'text-white/40'}
-                          >
-                            {displayMonth}
-                          </span>
-                          <svg
-                            className={`w-4 h-4 text-white/40 transition-transform ${billingOpen ? 'rotate-180' : ''}`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                            strokeWidth={2}
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </button>
-                        {billingOpen && (
-                          <div className="mt-1.5 flex flex-col gap-1.5 p-3 rounded-xl border border-white/[0.1] bg-white/[0.05]">
-                            <div className="flex gap-2">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  applyConfirmMonth(thisMonthVal);
-                                  setBillingOpen(false);
-                                }}
-                                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === thisMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
-                              >
-                                This Month
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  applyConfirmMonth(nextMonthVal);
-                                  setBillingOpen(false);
-                                }}
-                                className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === nextMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
-                              >
-                                Next Month
-                              </button>
-                            </div>
-                            <input
-                              type="month"
-                              value={confirmMonth}
-                              className={`${darkInputCls} [color-scheme:dark] text-xs h-9`}
-                              onChange={(e) => {
-                                applyConfirmMonth(e.target.value);
-                                setBillingOpen(false);
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Dates */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Timeline
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-white/45">
-                      Filming Date <span className="text-white/25">(optional)</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={form.filmingDate ?? ''}
-                      onChange={(e) => setForm((p) => ({ ...p, filmingDate: e.target.value }))}
-                      className={`${darkInputCls} [color-scheme:dark]`}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs text-white/45">
-                      Deliver Date <span className="text-white/25">(optional)</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={form.deliverDate ?? ''}
-                      onChange={(e) => setForm((p) => ({ ...p, deliverDate: e.target.value }))}
-                      min={form.filmingDate ?? undefined}
-                      className={`${darkInputCls} [color-scheme:dark]`}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Linked invoices */}
-              {clientInvoices.length > 0 && (
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                    Linked Invoice(s)
-                  </label>
-                  <div className="flex flex-col gap-1 rounded-xl border border-white/[0.1] p-3 bg-white/[0.04]">
-                    {clientInvoices.map((inv) => (
-                      <label
-                        key={inv.id}
-                        className="flex items-center gap-3 cursor-pointer py-1.5 px-1 rounded-lg hover:bg-white/[0.06] transition"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={form.invoiceIds.includes(inv.id)}
-                          onChange={() => toggleInvoice(inv.id)}
-                          className="rounded border-white/30 text-amber-500 focus:ring-amber-500 w-4 h-4 bg-white/10"
-                        />
-                        <span className="text-sm text-white/80 font-medium">{inv.number}</span>
-                        <span className="text-xs text-white/40">{fmtDate(inv.date)}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {/* Deliverables */}
-              <div className="relative">
-                {!form.name.trim() && (
-                  <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
+                {!showClientForm && (
+                  <button
+                    onClick={() => {
+                      setShowClientForm(true);
+                      handleClientChange('');
+                    }}
+                    className="flex items-center gap-0.5 text-xs text-[#FFC206] hover:underline"
+                  >
                     <svg
-                      className="w-5 h-5 text-white/30"
+                      className="w-3 h-3"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
                       strokeWidth={2}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                     </svg>
-                    <p className="text-xs text-white/40 text-center px-4">
-                      Enter a project name first
-                    </p>
-                  </div>
+                    New client
+                  </button>
                 )}
-                <div
-                  className={!form.name.trim() ? 'pointer-events-none select-none opacity-30' : ''}
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                        Deliverables
-                      </label>
+              </div>
+              {!showClientForm ? (
+                <div ref={clientComboRef} className="relative">
+                  {(() => {
+                    const selected = clients.find((c) => c.id === form.clientId);
+                    const q = clientSearch.toLowerCase().trim();
+                    const filtered = q
+                      ? clients.filter((c) =>
+                          [c.name, c.contactPerson ?? '', c.phone, c.email].some((f) =>
+                            f.toLowerCase().includes(q)
+                          )
+                        )
+                      : clients;
+                    return (
+                      <>
+                        <input
+                          value={clientDropOpen ? clientSearch : (selected?.name ?? '')}
+                          onChange={(e) => {
+                            setClientSearch(e.target.value);
+                            setClientDropOpen(true);
+                            if (!e.target.value) handleClientChange('');
+                          }}
+                          onFocus={() => {
+                            setClientSearch('');
+                            setClientDropOpen(true);
+                          }}
+                          onBlur={() => setTimeout(() => setClientDropOpen(false), 150)}
+                          placeholder="Search clients…"
+                          className={darkInputCls}
+                        />
+                        {clientDropOpen && (
+                          <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                            {filtered.length === 0 ? (
+                              <div className="px-3 py-2 text-sm text-white/40">
+                                No clients found
+                              </div>
+                            ) : (
+                              filtered.map((c) => (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  onMouseDown={() => {
+                                    handleClientChange(c.id);
+                                    setClientSearch('');
+                                    setClientDropOpen(false);
+                                  }}
+                                  className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
+                                >
+                                  <div className="text-sm font-medium text-white">{c.name}</div>
+                                  {(c.contactPerson || c.email) && (
+                                    <div className="text-xs text-white/40 truncate">
+                                      {[c.contactPerson, c.email].filter(Boolean).join(' · ')}
+                                    </div>
+                                  )}
+                                </button>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#FFC206]/30 bg-white/[0.05] p-4 flex flex-col gap-3">
+                  <p className="text-xs font-semibold text-white/50 uppercase tracking-wide">
+                    Create new client
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-white/50">Company Name *</label>
+                      <input
+                        value={clientForm.name}
+                        onChange={(e) => setClientForm((p) => ({ ...p, name: e.target.value }))}
+                        placeholder="ANYMIND CO., LTD"
+                        className={darkInputCls}
+                      />
                     </div>
-                    {form.items.length === 0 && form.name.trim() && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-white/50">Contact Person</label>
+                      <input
+                        value={clientForm.contactPerson}
+                        onChange={(e) =>
+                          setClientForm((p) => ({ ...p, contactPerson: e.target.value }))
+                        }
+                        placeholder="Mr. Smith"
+                        className={darkInputCls}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-white/50">Email</label>
+                      <input
+                        type="email"
+                        value={clientForm.email}
+                        onChange={(e) => setClientForm((p) => ({ ...p, email: e.target.value }))}
+                        placeholder="billing@example.com"
+                        className={darkInputCls}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-white/50">Phone</label>
+                      <div className="flex h-11 rounded-xl border border-white/20 bg-white/10 focus-within:ring-2 focus-within:ring-[#FFC206] focus-within:border-transparent transition overflow-hidden">
+                        <span className="flex items-center px-3 text-sm font-medium text-white/50 bg-white/5 border-r border-white/20 shrink-0 select-none">
+                          +855
+                        </span>
+                        <input
+                          type="tel"
+                          value={phoneToLocal(clientForm.phone)}
+                          onChange={(e) => {
+                            const formatted = formatKhmerLocal(e.target.value);
+                            setClientForm((p) => ({ ...p, phone: phoneToFull(formatted) }));
+                          }}
+                          placeholder="12 123 1234"
+                          className="flex-1 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none bg-transparent"
+                        />
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex flex-col gap-1">
+                      <label className="text-xs text-white/50">Address</label>
+                      <input
+                        value={clientForm.address}
+                        onChange={(e) => setClientForm((p) => ({ ...p, address: e.target.value }))}
+                        placeholder="123 Street, City"
+                        className={darkInputCls}
+                      />
+                    </div>
+                  </div>
+                  {clientFormError && <p className="text-xs text-red-400">{clientFormError}</p>}
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => {
+                        setShowClientForm(false);
+                        setClientForm(EMPTY_CLIENT_FORM);
+                        setClientFormError('');
+                      }}
+                      className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/60 hover:bg-white/10 transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveNewClient}
+                      className="h-9 px-3 rounded-xl bg-[#FFC206] text-zinc-900 text-xs font-bold hover:bg-amber-400 transition"
+                    >
+                      Add &amp; select
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Name */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                Project Name *
+              </label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder={
+                  selectedClient ? `${selectedClient.name} — Project` : 'e.g. Wedding Video Package'
+                }
+                className={darkInputCls}
+              />
+              {selectedClient && !form.name && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setForm((p) => ({ ...p, name: selectedClient.name }))}
+                    className="text-xs text-[#FFC206] hover:underline"
+                  >
+                    Use &quot;{selectedClient.name}&quot;
+                  </button>
+                  <span className="text-xs text-white/25">·</span>
+                  <button
+                    onClick={() =>
+                      setForm((p) => ({ ...p, name: `${selectedClient.name} Project` }))
+                    }
+                    className="text-xs text-[#FFC206] hover:underline"
+                  >
+                    Use &quot;{selectedClient.name} Project&quot;
+                  </button>
+                </div>
+              )}
+            </div>
+            {/* Status — edit only */}
+            {editingId && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                  Status
+                </label>
+                <div className="flex gap-2 flex-wrap">
+                  {FORM_STATUS_OPTIONS.map((opt) => {
+                    const isActive = form.status === opt.value;
+                    return (
                       <button
-                        onClick={() =>
+                        key={opt.value}
+                        onClick={() => setForm((p) => ({ ...p, status: opt.value }))}
+                        className={`h-9 px-4 rounded-xl text-xs font-semibold border transition ${isActive ? `${opt.cls} border-current` : 'border-white/20 text-white/50 hover:bg-white/10'}`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            {/* Budget + Billing Month row */}
+            {(() => {
+              const now = new Date();
+              const thisMonthVal = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+              const nextY = now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear();
+              const nextM = ((now.getMonth() + 1) % 12) + 1;
+              const nextMonthVal = `${nextY}-${String(nextM).padStart(2, '0')}`;
+              const displayMonth = confirmMonth
+                ? new Date(confirmMonth + '-01').toLocaleDateString('en-US', {
+                    month: 'short',
+                    year: 'numeric',
+                  })
+                : 'Not set';
+              return (
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Budget */}
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                      Budget
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-white/40">
+                        $
+                      </span>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={form.budget ?? ''}
+                        onChange={(e) =>
                           setForm((p) => ({
                             ...p,
-                            items: scopeOfWork.map((desc) => ({
-                              id: uid(),
-                              description: desc,
-                              status: 'todo' as ProjectItemStatus,
-                            })),
+                            budget: e.target.value === '' ? undefined : Number(e.target.value),
                           }))
                         }
-                        className="self-start text-xs text-amber-600 hover:underline"
+                        placeholder="0"
+                        className={`${darkInputCls} pl-7`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Billing Month */}
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                      Billing Month
+                    </label>
+                    <div className="flex flex-col">
+                      <button
+                        type="button"
+                        onClick={() => setBillingOpen((o) => !o)}
+                        className="h-11 w-full flex items-center justify-between px-4 rounded-xl border border-white/20 bg-white/10 text-sm transition hover:bg-white/[0.15]"
                       >
-                        Load from global scope list
+                        <span className={confirmMonth ? 'text-white font-medium' : 'text-white/40'}>
+                          {displayMonth}
+                        </span>
+                        <svg
+                          className={`w-4 h-4 text-white/40 transition-transform ${billingOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
                       </button>
-                    )}
-                    {form.items.length > 0 && (
-                      <div className="rounded-xl border border-white/[0.1] overflow-hidden">
-                        {form.items.map((item, idx) => (
-                          <div
-                            key={item.id}
-                            className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
-                          >
-                            {editingId ? (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setForm((p) => ({
-                                    ...p,
-                                    items: p.items.map((it) =>
-                                      it.id === item.id
-                                        ? { ...it, status: it.status === 'done' ? 'todo' : 'done' }
-                                        : it
-                                    ),
-                                  }))
-                                }
-                                className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${item.status === 'done' ? 'bg-violet-500 border-violet-500' : 'border-white/30 hover:border-white/60'}`}
-                              >
-                                {item.status === 'done' && (
-                                  <svg
-                                    className="w-2.5 h-2.5 text-white"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
-                                    strokeWidth={3}
-                                  >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M5 13l4 4L19 7"
-                                    />
-                                  </svg>
-                                )}
-                              </button>
-                            ) : (
-                              <span className="w-1.5 h-1.5 rounded-full bg-white/25 shrink-0" />
-                            )}
-                            <span
-                              className={`text-sm flex-1 min-w-0 transition ${editingId && item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
-                            >
-                              {item.description}
-                            </span>
+                      {billingOpen && (
+                        <div className="mt-1.5 flex flex-col gap-1.5 p-3 rounded-xl border border-white/[0.1] bg-white/[0.05]">
+                          <div className="flex gap-2">
                             <button
-                              onClick={() => removeItem(item.id)}
-                              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition"
-                              title="Remove"
+                              type="button"
+                              onClick={() => {
+                                applyConfirmMonth(thisMonthVal);
+                                setBillingOpen(false);
+                              }}
+                              className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === thisMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
                             >
-                              <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2.5}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M6 18L18 6M6 6l12 12"
-                                />
-                              </svg>
+                              This Month
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                applyConfirmMonth(nextMonthVal);
+                                setBillingOpen(false);
+                              }}
+                              className={`flex-1 px-3 py-1.5 rounded-lg border text-xs font-medium transition ${confirmMonth === nextMonthVal ? 'border-amber-500/60 bg-amber-500/20 text-amber-400' : 'border-white/[0.1] bg-white/[0.05] text-white/70 hover:bg-white/[0.1] hover:text-white'}`}
+                            >
+                              Next Month
                             </button>
                           </div>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newItemText}
-                        onChange={(e) => setNewItemText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addScopeItem();
-                          }
-                        }}
-                        placeholder="Add deliverable… (Enter)"
-                        list="scope-suggestions-proj"
-                        className={`${darkInputCls} flex-1`}
-                      />
-                      <datalist id="scope-suggestions-proj">
-                        {scopeOfWork.map((s) => (
-                          <option key={s} value={s} />
-                        ))}
-                      </datalist>
-                      <button
-                        onClick={addScopeItem}
-                        className="h-11 px-4 rounded-xl bg-white/10 text-sm font-semibold text-white/70 hover:bg-white/15 transition"
-                      >
-                        Add
-                      </button>
+                          <input
+                            type="month"
+                            value={confirmMonth}
+                            className={`${darkInputCls} [color-scheme:dark] text-xs h-9`}
+                            onChange={(e) => {
+                              applyConfirmMonth(e.target.value);
+                              setBillingOpen(false);
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              </div>
+              );
+            })()}
 
-              {/* Note */}
+            {/* Dates */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                Timeline
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-white/45">
+                    Filming Date <span className="text-white/25">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={form.filmingDate ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, filmingDate: e.target.value }))}
+                    className={`${darkInputCls} [color-scheme:dark]`}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-white/45">
+                    Deliver Date <span className="text-white/25">(optional)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={form.deliverDate ?? ''}
+                    onChange={(e) => setForm((p) => ({ ...p, deliverDate: e.target.value }))}
+                    min={form.filmingDate ?? undefined}
+                    className={`${darkInputCls} [color-scheme:dark]`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Linked invoices */}
+            {clientInvoices.length > 0 && (
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
-                  Note <span className="normal-case font-normal text-white/30">(optional)</span>
+                  Linked Invoice(s)
                 </label>
-                <textarea
-                  rows={3}
-                  value={form.note ?? ''}
-                  onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
-                  placeholder="Any internal notes about this project…"
-                  className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full resize-none"
-                />
+                <div className="flex flex-col gap-1 rounded-xl border border-white/[0.1] p-3 bg-white/[0.04]">
+                  {clientInvoices.map((inv) => (
+                    <label
+                      key={inv.id}
+                      className="flex items-center gap-3 cursor-pointer py-1.5 px-1 rounded-lg hover:bg-white/[0.06] transition"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.invoiceIds.includes(inv.id)}
+                        onChange={() => toggleInvoice(inv.id)}
+                        className="rounded border-white/30 text-amber-500 focus:ring-amber-500 w-4 h-4 bg-white/10"
+                      />
+                      <span className="text-sm text-white/80 font-medium">{inv.number}</span>
+                      <span className="text-xs text-white/40">{fmtDate(inv.date)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Deliverables */}
+            <div className="relative">
+              {!form.name.trim() && (
+                <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/80 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
+                  <svg
+                    className="w-5 h-5 text-white/30"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                    />
+                  </svg>
+                  <p className="text-xs text-white/40 text-center px-4">
+                    Enter a project name first
+                  </p>
+                </div>
+              )}
+              <div
+                className={!form.name.trim() ? 'pointer-events-none select-none opacity-30' : ''}
+              >
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                      Deliverables
+                    </label>
+                  </div>
+                  {form.items.length === 0 && form.name.trim() && (
+                    <button
+                      onClick={() =>
+                        setForm((p) => ({
+                          ...p,
+                          items: scopeOfWork.map((desc) => ({
+                            id: uid(),
+                            description: desc,
+                            status: 'todo' as ProjectItemStatus,
+                          })),
+                        }))
+                      }
+                      className="self-start text-xs text-amber-600 hover:underline"
+                    >
+                      Load from global scope list
+                    </button>
+                  )}
+                  {form.items.length > 0 && (
+                    <div className="rounded-xl border border-white/[0.1] overflow-hidden">
+                      {form.items.map((item, idx) => (
+                        <div
+                          key={item.id}
+                          className={`flex items-center gap-3 px-3 py-2.5 ${idx !== form.items.length - 1 ? 'border-b border-white/[0.06]' : ''} hover:bg-white/[0.04] transition`}
+                        >
+                          {editingId ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setForm((p) => ({
+                                  ...p,
+                                  items: p.items.map((it) =>
+                                    it.id === item.id
+                                      ? { ...it, status: it.status === 'done' ? 'todo' : 'done' }
+                                      : it
+                                  ),
+                                }))
+                              }
+                              className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition ${item.status === 'done' ? 'bg-violet-500 border-violet-500' : 'border-white/30 hover:border-white/60'}`}
+                            >
+                              {item.status === 'done' && (
+                                <svg
+                                  className="w-2.5 h-2.5 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                  />
+                                </svg>
+                              )}
+                            </button>
+                          ) : (
+                            <span className="w-1.5 h-1.5 rounded-full bg-white/25 shrink-0" />
+                          )}
+                          <span
+                            className={`text-sm flex-1 min-w-0 transition ${editingId && item.status === 'done' ? 'line-through text-white/30' : 'text-white/80'}`}
+                          >
+                            {item.description}
+                          </span>
+                          <button
+                            onClick={() => removeItem(item.id)}
+                            className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition"
+                            title="Remove"
+                          >
+                            <svg
+                              className="w-3.5 h-3.5"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M6 18L18 6M6 6l12 12"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newItemText}
+                      onChange={(e) => setNewItemText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addScopeItem();
+                        }
+                      }}
+                      placeholder="Add deliverable… (Enter)"
+                      list="scope-suggestions-proj"
+                      className={`${darkInputCls} flex-1`}
+                    />
+                    <datalist id="scope-suggestions-proj">
+                      {scopeOfWork.map((s) => (
+                        <option key={s} value={s} />
+                      ))}
+                    </datalist>
+                    <button
+                      onClick={addScopeItem}
+                      className="h-11 px-4 rounded-xl bg-white/10 text-sm font-semibold text-white/70 hover:bg-white/15 transition"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            {formError && (
-              <p className="px-4 sm:px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>
-            )}
-            <div className="flex flex-col gap-2 px-4 sm:px-6 py-4 border-t border-white/[0.08] shrink-0">
-              <div className="flex gap-3">
-                <button
-                  onClick={closeModal}
-                  className="flex-1 h-11 rounded-xl border border-white/20 text-sm font-medium text-white/70 hover:bg-white/10 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="flex-1 h-11 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition"
-                >
-                  {editingId ? 'Save changes' : 'Create project'}
-                </button>
-              </div>
+
+            {/* Note */}
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-semibold text-white/60 uppercase tracking-wide">
+                Note <span className="normal-case font-normal text-white/30">(optional)</span>
+              </label>
+              <textarea
+                rows={3}
+                value={form.note ?? ''}
+                onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))}
+                placeholder="Any internal notes about this project…"
+                className="rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full resize-none"
+              />
             </div>
           </div>
-        </div>
+          {formError && (
+            <p className="px-4 sm:px-6 py-2 text-sm text-red-400 shrink-0">{formError}</p>
+          )}
+          <div className="flex flex-col gap-2 px-4 sm:px-6 py-4 border-t border-white/[0.08] shrink-0">
+            <div className="flex gap-3">
+              <button
+                onClick={closeModal}
+                className="flex-1 h-11 rounded-xl border border-white/20 text-sm font-medium text-white/70 hover:bg-white/10 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="flex-1 h-11 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition"
+              >
+                {editingId ? 'Save changes' : 'Create project'}
+              </button>
+            </div>
+          </div>
+        </ModalShell>
       )}
 
       {/* Delete confirm */}
