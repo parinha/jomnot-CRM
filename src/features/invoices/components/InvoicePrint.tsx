@@ -152,7 +152,7 @@ export default function InvoicePrint({
         <div className="flex items-center justify-between px-3 sm:px-6 py-2">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
-              href="/dashboard/invoices"
+              href="/invoices"
               className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 active:bg-white/30 transition shrink-0"
               title="Back to invoices"
             >

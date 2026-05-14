@@ -167,7 +167,7 @@ function SettingsForm({
 
   function switchTab(tab: Tab) {
     setActiveTab(tab);
-    router.replace(`/dashboard/settings?tab=${tab}`, { scroll: false });
+    router.replace(`/settings?tab=${tab}`, { scroll: false });
   }
 
   const [isPending, startTransition] = useTransition();

@@ -255,7 +255,7 @@ export default function InvoicesScreen() {
       didAutoOpen.current = true;
 
       openNew();
-      router.replace('/dashboard/invoices');
+      router.replace('/invoices');
     }
   }, [searchParams]);
   function openEdit(inv: Invoice) {

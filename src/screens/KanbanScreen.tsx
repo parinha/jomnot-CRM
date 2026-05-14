@@ -290,7 +290,7 @@ export default function KanbanScreen() {
         <div className="flex-1" />
         <button
           type="button"
-          onClick={() => router.push('/dashboard/settings?tab=workspace')}
+          onClick={() => router.push('/settings?tab=workspace')}
           className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border border-white/[0.10] text-[11px] font-medium text-white/40 hover:bg-white/[0.07] hover:text-white/70 transition"
         >
           <svg

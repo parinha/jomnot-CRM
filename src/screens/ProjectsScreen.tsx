@@ -253,7 +253,7 @@ export default function ProjectsScreen() {
   // Strip ?new=1 from URL after using it for initial state — no setState here
   useEffect(() => {
     if (autoOpen) {
-      router.replace('/dashboard/projects');
+      router.replace('/projects');
     }
   }, [autoOpen, router]);
 

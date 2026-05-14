@@ -13,7 +13,7 @@ function LoginForm() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (!loading && user) router.replace('/dashboard/kanban');
+    if (!loading && user) router.replace('/invoices');
   }, [user, loading, router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -26,7 +26,7 @@ function LoginForm() {
     setBusy(true);
     try {
       await signIn(email, password);
-      router.replace('/dashboard/kanban');
+      router.replace('/invoices');
     } catch {
       setError('Invalid email or password.');
     } finally {

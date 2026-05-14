@@ -552,7 +552,7 @@ function DetailSheet({ event, onClose }: { event: GanttEvent; onClose: () => voi
         </div>
 
         <Link
-          href="/dashboard/projects"
+          href="/projects"
           className="mt-5 flex items-center justify-center gap-1.5 w-full h-9 rounded-xl bg-white/[0.06] border border-white/10 text-xs font-medium text-white/55 hover:text-white hover:bg-white/10 transition"
         >
           Open in Projects
@@ -916,7 +916,7 @@ export default function TimelineScreen() {
             />
           </svg>
           <p className="text-sm font-medium">No projects with dates</p>
-          <Link href="/dashboard/projects" className="text-xs text-[#FFC206] hover:underline">
+          <Link href="/projects" className="text-xs text-[#FFC206] hover:underline">
             Add dates to projects →
           </Link>
         </div>

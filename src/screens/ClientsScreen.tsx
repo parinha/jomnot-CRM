@@ -159,7 +159,7 @@ export default function ClientsScreen() {
   // Strip ?new=1 from URL after using it for initial state — no setState here
   useEffect(() => {
     if (searchParams.get('new') === '1') {
-      router.replace('/dashboard/clients');
+      router.replace('/clients');
     }
   }, [router, searchParams]);
 

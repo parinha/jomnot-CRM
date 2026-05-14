@@ -105,7 +105,7 @@ export default function DashboardView() {
 
       {overdueInvoices.length > 0 && (
         <Link
-          href="/dashboard/invoices"
+          href="/invoices"
           className="flex items-center gap-3 bg-red-500/15 border border-red-500/25 rounded-2xl px-5 py-4 hover:bg-red-500/20 transition backdrop-blur-sm"
         >
           <div className="w-9 h-9 rounded-xl bg-red-500/20 flex items-center justify-center shrink-0">
@@ -149,7 +149,7 @@ export default function DashboardView() {
           value={fmtShort(invoicedThisMonth)}
           sub={`${thisMonth.length} invoice${thisMonth.length !== 1 ? 's' : ''}`}
           accent="border-l-amber-400"
-          href="/dashboard/invoices"
+          href="/invoices"
           isAmount
         />
         <StatCard
@@ -157,7 +157,7 @@ export default function DashboardView() {
           value={fmtShort(earnedThisMonth)}
           sub="Cash received"
           accent="border-l-green-400"
-          href="/dashboard/invoices"
+          href="/invoices"
           isAmount
         />
         <StatCard
@@ -165,43 +165,38 @@ export default function DashboardView() {
           value={fmtShort(outstanding)}
           sub="Awaiting payment"
           accent="border-l-blue-400"
-          href="/dashboard/payments"
+          href="/payments"
           isAmount
         />
         <StatCard
           label="Total earned"
           value={fmtShort(totalEarned)}
           sub="All time"
-          href="/dashboard/reports"
+          href="/reports"
           isAmount
         />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Clients"
-          value={String(clients.length)}
-          sub="Total"
-          href="/dashboard/clients"
-        />
+        <StatCard label="Clients" value={String(clients.length)} sub="Total" href="/clients" />
         <StatCard
           label="Active projects"
           value={String(activeProjects.length)}
           sub={`${completedProjects.length} completed`}
-          href="/dashboard/projects"
+          href="/projects"
         />
         <StatCard
           label="Total invoices"
           value={String(invoices.length)}
           sub={`${statusCounts['draft'] ?? 0} draft`}
-          href="/dashboard/invoices"
+          href="/invoices"
         />
         <StatCard
           label="Late"
           value={String(overdueInvoices.length)}
           sub={overdueInvoices.length > 0 ? fmtUSD(overdueAmount) : 'All clear'}
           accent={overdueInvoices.length > 0 ? 'border-l-red-400' : undefined}
-          href="/dashboard/invoices"
+          href="/invoices"
           isAmountSub={overdueInvoices.length > 0}
         />
       </div>
@@ -211,7 +206,7 @@ export default function DashboardView() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
             <h2 className="text-sm font-semibold text-white">Recent Invoices</h2>
             <Link
-              href="/dashboard/invoices"
+              href="/invoices"
               className="text-xs text-[#FFC206] hover:text-amber-300 font-semibold transition"
             >
               View all
@@ -255,7 +250,7 @@ export default function DashboardView() {
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.07]">
             <h2 className="text-sm font-semibold text-white">Active Projects</h2>
             <Link
-              href="/dashboard/projects"
+              href="/projects"
               className="text-xs text-[#FFC206] hover:text-amber-300 font-semibold transition"
             >
               View all
