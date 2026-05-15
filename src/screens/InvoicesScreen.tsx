@@ -526,7 +526,7 @@ export default function InvoicesScreen() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-white/[0.08] overflow-x-auto">
+      <div className="flex flex-wrap gap-2 mb-4">
         {(
           [
             { key: 'all', label: 'All', count: invoices.length },
@@ -537,7 +537,7 @@ export default function InvoicesScreen() {
             },
             {
               key: 'partial',
-              label: 'Deposit Rcvd',
+              label: 'Deposit',
               count: invoices.filter((i) => i.status === 'partial').length,
             },
             {
@@ -560,11 +560,11 @@ export default function InvoicesScreen() {
           <button
             key={key}
             onClick={() => setStatusFilter(key)}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition -mb-px whitespace-nowrap ${statusFilter === key ? 'border-[#FFC206] text-[#FFC206]' : 'border-transparent text-white/45 hover:text-white/70'}`}
+            className={`flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-semibold transition ${statusFilter === key ? 'bg-[#FFC206] text-zinc-900' : 'bg-white/[0.07] text-white/50 hover:bg-white/[0.12] hover:text-white'}`}
           >
             {label}
             <span
-              className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${statusFilter === key ? 'bg-[#FFC206]/20 text-[#FFC206]' : 'bg-white/10 text-white/40'}`}
+              className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusFilter === key ? 'bg-zinc-900/20 text-zinc-900' : 'bg-white/10 text-white/40'}`}
             >
               {count}
             </span>
@@ -1015,7 +1015,7 @@ export default function InvoicesScreen() {
           </div>
 
           <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 flex flex-col gap-6">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <PanelField label="Invoice Number" required>
                 <input
                   value={form.number}
@@ -1291,14 +1291,7 @@ export default function InvoicesScreen() {
                         Add row
                       </button>
                     </div>
-                    <div className="rounded-xl border border-white/[0.1] overflow-hidden">
-                      <div className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] text-xs font-medium text-white/45">
-                        <div className="bg-slate-800/80 px-3 py-2">Description</div>
-                        <div className="bg-slate-800/80 px-3 py-2 text-center">Qty</div>
-                        <div className="bg-slate-800/80 px-3 py-2 text-right">Unit Price</div>
-                        <div className="bg-slate-800/80 px-3 py-2 text-right">Total</div>
-                        <div className="bg-slate-800/80" />
-                      </div>
+                    <div className="rounded-xl border border-white/[0.1] overflow-hidden divide-y divide-white/[0.06]">
                       {form.items.map((item) => {
                         const nlIdx = item.description.indexOf('\n');
                         const title =
@@ -1322,159 +1315,163 @@ export default function InvoicesScreen() {
                         };
                         const customVal = customScope[item.id] ?? '';
                         return (
-                          <div
-                            key={item.id}
-                            className="grid grid-cols-[1fr_80px_100px_100px_32px] gap-px bg-white/[0.08] items-start"
-                          >
-                            <div className="bg-slate-900/60 flex flex-col gap-0">
-                              {/* Title */}
+                          <div key={item.id} className="bg-slate-900/60">
+                            {/* Title row */}
+                            <div className="flex items-center gap-2 pr-2">
                               <input
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder={form.projectName || 'Project / event title…'}
-                                className="px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] w-full bg-transparent"
+                                className="flex-1 px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] bg-transparent"
                               />
-                              {/* Scope chips area */}
-                              <div className="px-3 pb-2.5 border-t border-white/[0.06]">
-                                {/* Added scope chips */}
-                                {scopeLines.length > 0 && (
-                                  <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
-                                    {scopeLines.map((line) => (
-                                      <span
-                                        key={line}
-                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
-                                      >
-                                        {line}
-                                        <button
-                                          type="button"
-                                          onClick={() => removeScopeLine(line)}
-                                          className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
-                                        >
-                                          <svg
-                                            className="w-2.5 h-2.5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={2.5}
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              d="M6 18L18 6M6 6l12 12"
-                                            />
-                                          </svg>
-                                        </button>
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                                {/* Suggestion chips */}
-                                {scopeOfWork.length > 0 && (
-                                  <div className="flex flex-wrap gap-1.5 pt-1.5">
-                                    {scopeOfWork
-                                      .filter((s) => !scopeLines.includes(s))
-                                      .map((sug) => (
-                                        <button
-                                          key={sug}
-                                          type="button"
-                                          onClick={() => addScopeLine(sug)}
-                                          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
-                                        >
-                                          <svg
-                                            className="w-2.5 h-2.5"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                            stroke="currentColor"
-                                            strokeWidth={2.5}
-                                          >
-                                            <path
-                                              strokeLinecap="round"
-                                              strokeLinejoin="round"
-                                              d="M12 4v16m8-8H4"
-                                            />
-                                          </svg>
-                                          {sug}
-                                        </button>
-                                      ))}
-                                  </div>
-                                )}
-                                {/* Custom scope input */}
-                                <div className="flex items-center gap-1.5 mt-2">
-                                  <input
-                                    value={customVal}
-                                    onChange={(e) =>
-                                      setCustomScope((prev) => ({
-                                        ...prev,
-                                        [item.id]: e.target.value,
-                                      }))
-                                    }
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter') {
-                                        e.preventDefault();
-                                        addScopeLine(customVal);
-                                        setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                      }
-                                    }}
-                                    placeholder="Custom scope… (Enter to add)"
-                                    className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
+                              <button
+                                onClick={() => removeItem(item.id)}
+                                disabled={form.items.length === 1}
+                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-0 transition"
+                              >
+                                <svg
+                                  className="w-3.5 h-3.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
                                   />
-                                  {customVal.trim() && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        addScopeLine(customVal);
-                                        setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
-                                      }}
-                                      className="text-xs text-white/40 hover:text-white transition px-1"
+                                </svg>
+                              </button>
+                            </div>
+                            {/* Scope chips area */}
+                            <div className="px-3 pb-2.5 border-t border-white/[0.06]">
+                              {scopeLines.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
+                                  {scopeLines.map((line) => (
+                                    <span
+                                      key={line}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
                                     >
-                                      Add
-                                    </button>
-                                  )}
+                                      {line}
+                                      <button
+                                        type="button"
+                                        onClick={() => removeScopeLine(line)}
+                                        className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
+                                      >
+                                        <svg
+                                          className="w-2.5 h-2.5"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                          strokeWidth={2.5}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M6 18L18 6M6 6l12 12"
+                                          />
+                                        </svg>
+                                      </button>
+                                    </span>
+                                  ))}
                                 </div>
+                              )}
+                              {scopeOfWork.length > 0 && (
+                                <div className="flex flex-wrap gap-1.5 pt-1.5">
+                                  {scopeOfWork
+                                    .filter((s) => !scopeLines.includes(s))
+                                    .map((sug) => (
+                                      <button
+                                        key={sug}
+                                        type="button"
+                                        onClick={() => addScopeLine(sug)}
+                                        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
+                                      >
+                                        <svg
+                                          className="w-2.5 h-2.5"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                          strokeWidth={2.5}
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            d="M12 4v16m8-8H4"
+                                          />
+                                        </svg>
+                                        {sug}
+                                      </button>
+                                    ))}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-2">
+                                <input
+                                  value={customVal}
+                                  onChange={(e) =>
+                                    setCustomScope((prev) => ({
+                                      ...prev,
+                                      [item.id]: e.target.value,
+                                    }))
+                                  }
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      addScopeLine(customVal);
+                                      setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                    }
+                                  }}
+                                  placeholder="Custom scope… (Enter to add)"
+                                  className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
+                                />
+                                {customVal.trim() && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      addScopeLine(customVal);
+                                      setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
+                                    }}
+                                    className="text-xs text-white/40 hover:text-white transition px-1"
+                                  >
+                                    Add
+                                  </button>
+                                )}
                               </div>
                             </div>
-                            <input
-                              type="number"
-                              min={0}
-                              value={item.qty === 0 ? '' : item.qty}
-                              onChange={(e) =>
-                                updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
-                              }
-                              className="bg-slate-900/60 px-3 py-2 text-sm text-center text-white focus:outline-none focus:bg-white/[0.06]"
-                            />
-                            <input
-                              type="number"
-                              min={0}
-                              value={item.unitPrice === 0 ? '' : item.unitPrice}
-                              onChange={(e) =>
-                                updateItem(item.id, {
-                                  unitPrice: parseFloat(e.target.value) || 0,
-                                })
-                              }
-                              className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white focus:outline-none focus:bg-white/[0.06]"
-                            />
-                            <div className="bg-slate-900/60 px-3 py-2 text-sm text-right text-white/70 font-medium">
-                              {fmt(item.qty * item.unitPrice)}
-                            </div>
-                            <button
-                              onClick={() => removeItem(item.id)}
-                              disabled={form.items.length === 1}
-                              className="bg-slate-900/60 flex items-center justify-center text-white/20 hover:text-red-400 disabled:opacity-0 transition pt-2.5"
-                            >
-                              <svg
-                                className="w-3.5 h-3.5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={2}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M6 18L18 6M6 6l12 12"
+                            {/* Qty / Price / Total row */}
+                            <div className="flex items-center gap-3 px-3 py-2.5 border-t border-white/[0.06] bg-black/20">
+                              <div className="flex items-center gap-2 shrink-0">
+                                <span className="text-xs text-white/40">Qty</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={item.qty === 0 ? '' : item.qty}
+                                  onChange={(e) =>
+                                    updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
+                                  }
+                                  className="w-14 h-8 rounded-lg border border-white/15 bg-white/[0.06] px-2 text-sm text-center text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
                                 />
-                              </svg>
-                            </button>
+                              </div>
+                              <span className="text-white/25 text-sm">×</span>
+                              <div className="flex items-center gap-1.5 flex-1">
+                                <span className="text-xs text-white/40">$</span>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={item.unitPrice === 0 ? '' : item.unitPrice}
+                                  onChange={(e) =>
+                                    updateItem(item.id, {
+                                      unitPrice: parseFloat(e.target.value) || 0,
+                                    })
+                                  }
+                                  className="flex-1 h-8 rounded-lg border border-white/15 bg-white/[0.06] px-2 text-sm text-right text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                                />
+                              </div>
+                              <span className="text-sm font-semibold text-white/70 shrink-0">
+                                {fmt(item.qty * item.unitPrice)}
+                              </span>
+                            </div>
                           </div>
                         );
                       })}

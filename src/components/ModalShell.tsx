@@ -44,12 +44,14 @@ export default function ModalShell({ onClose, maxWidth = 'max-w-md', children }:
       <div
         className={`w-full ${maxWidth} bg-zinc-900 border border-white/[0.08] rounded-t-2xl shadow-2xl flex flex-col max-h-[92vh] animate-sheet-up`}
         style={dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
       >
-        {/* drag handle — mobile only */}
-        <div className="flex justify-center pt-3 pb-1 shrink-0">
+        {/* drag handle — mobile only; touch events scoped here so form scroll isn't intercepted */}
+        <div
+          className="flex justify-center pt-3 pb-1 shrink-0 touch-none"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
           <div className="w-10 h-1 rounded-full bg-white/20" />
         </div>
         {children}

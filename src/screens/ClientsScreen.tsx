@@ -596,7 +596,7 @@ export default function ClientsScreen() {
               </svg>
             </button>
           </div>
-          <div className="overflow-y-auto px-5 py-5 flex flex-col gap-4">
+          <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 flex flex-col gap-4">
             {[
               { label: 'Company Name *', key: 'name', placeholder: 'ANYMIND CO., LTD' },
               { label: 'Contact Person', key: 'contactPerson', placeholder: 'Mr. Smith' },
