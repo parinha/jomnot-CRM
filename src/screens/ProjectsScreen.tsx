@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ModalShell from '@/src/components/ModalShell';
-import { useCurrency } from '@/src/hooks/useAppPreferences';
+import { useCurrency, useAppPreferences } from '@/src/hooks/useAppPreferences';
 import type { Project, ProjectItem, ProjectItemStatus, ProjectStatus, Client } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
@@ -72,6 +72,7 @@ export default function ProjectsScreen() {
   const { data: projects } = useProjects();
   const { data: scopeOfWork } = useScopeOfWork();
   const { fmtAmount: fmt } = useCurrency();
+  const prefs = useAppPreferences();
 
   const [, startTransition] = useTransition();
   const { upsert: upsertProject, remove: deleteProject } = useProjectMutations();
@@ -93,6 +94,7 @@ export default function ProjectsScreen() {
   const [viewProjectId, setViewProjectId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
+  const [phaseFilter, setPhaseFilter] = useState<string>('all');
 
   // Client combobox
   const [clientSearch, setClientSearch] = useState('');
@@ -330,6 +332,78 @@ export default function ProjectsScreen() {
         </button>
       </div>
 
+      {/* Phase filter tabs */}
+      {(() => {
+        const phases = prefs.kanbanPhases;
+        const firstId = phases[0]?.id ?? '';
+        const lastId = phases[phases.length - 1]?.id ?? '';
+        const isKanbanDone = (p: Project) => (p.kanbanPhase ?? firstId) === lastId;
+        const isStatusDone = (p: Project) => p.status === 'completed';
+        const isActive = (p: Project) => !isKanbanDone(p) && !isStatusDone(p);
+
+        const chipCls = (active: boolean) =>
+          `flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-semibold transition ${active ? 'bg-[#FFC206] text-zinc-900' : 'bg-white/[0.07] text-white/50 hover:bg-white/[0.12] hover:text-white'}`;
+        const badgeCls = (active: boolean) =>
+          `text-xs font-bold px-1.5 py-0.5 rounded-full ${active ? 'bg-zinc-900/20 text-zinc-900' : 'bg-white/10 text-white/40'}`;
+
+        return (
+          <div className="flex flex-wrap gap-2 mb-4">
+            {/* All — active only (excludes kanban-done and status-done) */}
+            <button
+              onClick={() => setPhaseFilter('all')}
+              className={chipCls(phaseFilter === 'all')}
+            >
+              All
+              <span className={badgeCls(phaseFilter === 'all')}>
+                {projects.filter(isActive).length}
+              </span>
+            </button>
+
+            {/* Phase chips — all phases except the last (done) phase, active projects only */}
+            {phases.slice(0, -1).map((phase) => {
+              const count = projects.filter(
+                (p) => isActive(p) && (p.kanbanPhase ?? firstId) === phase.id
+              ).length;
+              const active = phaseFilter === phase.id;
+              return (
+                <button
+                  key={phase.id}
+                  onClick={() => setPhaseFilter(phase.id)}
+                  className={chipCls(active)}
+                >
+                  {phase.label}
+                  <span className={badgeCls(active)}>{count}</span>
+                </button>
+              );
+            })}
+
+            {/* Done — kanban in last phase, project status is NOT completed */}
+            {(() => {
+              const count = projects.filter((p) => isKanbanDone(p) && !isStatusDone(p)).length;
+              const active = phaseFilter === 'done';
+              return (
+                <button onClick={() => setPhaseFilter('done')} className={chipCls(active)}>
+                  Done
+                  <span className={badgeCls(active)}>{count}</span>
+                </button>
+              );
+            })()}
+
+            {/* Completed — project status is completed (regardless of kanban phase) */}
+            {(() => {
+              const count = projects.filter(isStatusDone).length;
+              const active = phaseFilter === 'completed';
+              return (
+                <button onClick={() => setPhaseFilter('completed')} className={chipCls(active)}>
+                  Completed
+                  <span className={badgeCls(active)}>{count}</span>
+                </button>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
       {/* Search */}
       <div className="mb-4">
         <SearchInput value={search} onChange={setSearch} placeholder="Search projects…" />
@@ -337,12 +411,26 @@ export default function ProjectsScreen() {
 
       {/* Unified project list */}
       {(() => {
-        const filtered = projects.filter(matchesSearch).sort((a, b) => {
-          if (!a.createdAt && !b.createdAt) return 0;
-          if (!a.createdAt) return 1;
-          if (!b.createdAt) return -1;
-          return b.createdAt.localeCompare(a.createdAt);
-        });
+        const phases = prefs.kanbanPhases;
+        const firstPhaseId = phases[0]?.id ?? '';
+        const lastPhaseId = phases[phases.length - 1]?.id ?? '';
+        const isKanbanDone = (p: Project) => (p.kanbanPhase ?? firstPhaseId) === lastPhaseId;
+        const isStatusDone = (p: Project) => p.status === 'completed';
+        const isActive = (p: Project) => !isKanbanDone(p) && !isStatusDone(p);
+        const filtered = projects
+          .filter((p) => {
+            if (!matchesSearch(p)) return false;
+            if (phaseFilter === 'completed') return isStatusDone(p);
+            if (phaseFilter === 'done') return isKanbanDone(p) && !isStatusDone(p);
+            if (phaseFilter === 'all') return isActive(p);
+            return isActive(p) && (p.kanbanPhase ?? firstPhaseId) === phaseFilter;
+          })
+          .sort((a, b) => {
+            if (!a.createdAt && !b.createdAt) return 0;
+            if (!a.createdAt) return 1;
+            if (!b.createdAt) return -1;
+            return b.createdAt.localeCompare(a.createdAt);
+          });
         if (filtered.length === 0) {
           return (
             <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl flex flex-col items-center justify-center py-16">
@@ -389,7 +477,7 @@ export default function ProjectsScreen() {
                       {project.items.length > 0 && (
                         <div className="mt-2.5">
                           <p className="text-[10px] font-semibold text-white/30 uppercase tracking-wider mb-1">
-                            SOW
+                            Scope of Work
                           </p>
                           <div className="flex flex-col gap-0.5">
                             {project.items.map((item) => (
@@ -424,6 +512,97 @@ export default function ProjectsScreen() {
                       </svg>
                     </span>
                   </div>
+                  {/* Progress bar (All tab) or phase nav buttons (other tabs) */}
+                  {(() => {
+                    const currentPhaseId = project.kanbanPhase ?? firstPhaseId;
+                    const currentIdx = phases.findIndex((ph) => ph.id === currentPhaseId);
+
+                    if (phaseFilter === 'all') {
+                      const pct =
+                        phases.length > 1
+                          ? Math.round((currentIdx / (phases.length - 1)) * 100)
+                          : 0;
+                      return (
+                        <div className="mt-3 pt-3 border-t border-white/[0.07]">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] text-white/40">
+                              {phases[currentIdx]?.label ?? ''}
+                            </span>
+                            <span className="text-[10px] font-semibold text-white/40">{pct}%</span>
+                          </div>
+                          <div className="h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-[#FFC206] transition-all duration-300"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const prevPhase = currentIdx > 0 ? phases[currentIdx - 1] : null;
+                    const nextPhase =
+                      currentIdx < phases.length - 1 ? phases[currentIdx + 1] : null;
+                    if (!prevPhase && !nextPhase) return null;
+                    return (
+                      <div className="mt-3 pt-3 border-t border-white/[0.07] flex gap-2">
+                        {prevPhase ? (
+                          <span
+                            role="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startTransition(async () => {
+                                await upsertProject({ ...project, kanbanPhase: prevPhase.id });
+                              });
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium text-white/50 bg-white/[0.06] hover:bg-white/[0.12] hover:text-white active:bg-white/[0.18] transition"
+                          >
+                            <svg
+                              className="w-3 h-3 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 19l-7-7 7-7"
+                              />
+                            </svg>
+                            {prevPhase.label}
+                          </span>
+                        ) : (
+                          <span className="flex-1" />
+                        )}
+                        {nextPhase ? (
+                          <span
+                            role="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startTransition(async () => {
+                                await upsertProject({ ...project, kanbanPhase: nextPhase.id });
+                              });
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 h-8 rounded-lg text-xs font-medium text-white/50 bg-white/[0.06] hover:bg-white/[0.12] hover:text-white active:bg-white/[0.18] transition"
+                          >
+                            {nextPhase.label}
+                            <svg
+                              className="w-3 h-3 shrink-0"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2.5}
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span className="flex-1" />
+                        )}
+                      </div>
+                    );
+                  })()}
                 </button>
               );
             })}
