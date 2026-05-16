@@ -467,6 +467,7 @@ export default function InvoicesScreen() {
   }
 
   const filteredInvoices = invoices.filter((inv) => {
+    if (statusFilter === 'all' && inv.status === 'paid') return false;
     if (statusFilter === 'active' && inv.status !== 'sent' && inv.status !== 'partial')
       return false;
     if (statusFilter !== 'all' && statusFilter !== 'active' && inv.status !== statusFilter)
@@ -486,6 +487,7 @@ export default function InvoicesScreen() {
   });
 
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
+    if (statusFilter === 'paid') return b.date.localeCompare(a.date);
     let cmp = 0;
     if (sortCol === 'number') {
       const n = (s: string) =>
@@ -532,7 +534,12 @@ export default function InvoicesScreen() {
       <div className="flex flex-wrap gap-2 mb-4">
         {(
           [
-            { key: 'all', label: 'All', count: invoices.length },
+            { key: 'all', label: 'All', count: invoices.filter((i) => i.status !== 'paid').length },
+            {
+              key: 'draft',
+              label: 'Draft',
+              count: invoices.filter((i) => i.status === 'draft').length,
+            },
             {
               key: 'active',
               label: 'Active',
@@ -544,19 +551,14 @@ export default function InvoicesScreen() {
               count: invoices.filter((i) => i.status === 'partial').length,
             },
             {
-              key: 'paid',
-              label: 'Paid',
-              count: invoices.filter((i) => i.status === 'paid').length,
-            },
-            {
               key: 'overdue',
               label: 'Late',
               count: invoices.filter((i) => i.status === 'overdue').length,
             },
             {
-              key: 'draft',
-              label: 'Draft',
-              count: invoices.filter((i) => i.status === 'draft').length,
+              key: 'paid',
+              label: 'Paid',
+              count: invoices.filter((i) => i.status === 'paid').length,
             },
           ] as const
         ).map(({ key, label, count }) => (
@@ -688,6 +690,30 @@ export default function InvoicesScreen() {
                       <p className="text-xs text-white/30 italic">No project linked yet</p>
                     )}
                   </div>
+                  {/* Mark Paid */}
+                  {status !== 'paid' && (
+                    <div className="mt-3 pt-3 border-t border-white/[0.07]">
+                      <span
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startTransition(() => upsertInvoice({ ...inv, status: 'paid' }));
+                        }}
+                        className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 active:bg-emerald-500/35 transition"
+                      >
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        Mark Paid
+                      </span>
+                    </div>
+                  )}
                 </button>
               );
             })}
