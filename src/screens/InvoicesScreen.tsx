@@ -300,17 +300,20 @@ export default function InvoicesScreen() {
 
   function addProjectToForm(project: Project) {
     setSelectedProjectIds((prev) => [...prev, project.id]);
-    const scopeLines = project.items.map((i) => i.description).filter(Boolean);
-    const description = project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
-    const newItem = { id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 };
     setForm((prev) => {
       const existingItems = prev.items.filter((it) => it.description.trim() || it.unitPrice > 0);
-      return {
+      const base = {
         ...prev,
         projectName: prev.projectName?.trim() || project.name,
         clientId: project.clientId,
-        items: [...existingItems, newItem],
       };
+      // Linking to an existing invoice that already has items — don't overwrite line items
+      if (editingId && existingItems.length > 0) return base;
+      const scopeLines = project.items.map((i) => i.description).filter(Boolean);
+      const description =
+        project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
+      const newItem = { id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 };
+      return { ...base, items: [...existingItems, newItem] };
     });
   }
 
