@@ -10,6 +10,7 @@ import type {
   Client,
   CompanyProfile,
   PaymentInfo,
+  PaymentMethod,
   InvoicingSettings,
   AppPreferences,
 } from '@/src/types';
@@ -54,11 +55,12 @@ export default function InvoicePrintPage() {
     async function load() {
       await auth.authStateReady();
 
-      const [invoice, clients, company, invoicing] = await Promise.all([
+      const [invoice, clients, company, invoicing, paymentMethodsDoc] = await Promise.all([
         fetchDoc<Invoice>('invoices', id),
         fetchAll<Client>('clients'),
         fetchDocPath<CompanyProfile>('settings/company'),
         fetchDocPath<Partial<InvoicingSettings>>('settings/invoicing'),
+        fetchDocPath<{ methods: PaymentMethod[] }>('settings/paymentMethods'),
       ]);
 
       if (!invoice) {
@@ -67,15 +69,20 @@ export default function InvoicePrintPage() {
       }
 
       const inv = invoicing ?? {};
+      const methods = paymentMethodsDoc?.methods ?? [];
+
+      const resolvedMethod = invoice.paymentMethodId
+        ? methods.find((m) => m.id === invoice.paymentMethodId)
+        : methods.find((m) => m.isDefault);
 
       const payment: PaymentInfo = {
         ...EMPTY_PAYMENT,
-        bankName: inv.bankName ?? '',
-        accountName: inv.accountName ?? '',
-        accountNumber: inv.accountNumber ?? '',
-        swiftCode: inv.swiftCode ?? '',
-        currency: inv.currency ?? '',
-        qrImage: inv.qrImage ?? '',
+        bankName: resolvedMethod?.bankName ?? inv.bankName ?? '',
+        accountName: resolvedMethod?.accountName ?? inv.accountName ?? '',
+        accountNumber: resolvedMethod?.accountNumber ?? inv.accountNumber ?? '',
+        swiftCode: resolvedMethod?.swiftCode ?? inv.swiftCode ?? '',
+        currency: resolvedMethod?.currency ?? inv.currency ?? '',
+        qrImage: resolvedMethod?.qrImage ?? inv.qrImage ?? '',
       };
 
       const prefs: AppPreferences = {
