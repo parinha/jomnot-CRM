@@ -44,6 +44,19 @@ export interface Invoice extends RecordMeta {
   depositPercent?: number;
   withWHT?: boolean;
   showVatTin?: boolean;
+  paymentMethodId?: string;
+}
+
+export interface PaymentMethod {
+  id: string;
+  label: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  swiftCode: string;
+  currency: string;
+  qrImage: string;
+  isDefault: boolean;
 }
 
 // ── Settings ───────────────────────────────────────────────────────────────────

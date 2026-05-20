@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import InvoicePrint from '@/src/components/InvoicePrint';
 import { fetchDoc, fetchAll, fetchDocPath } from '@/src/lib/client/firestore';
+import { auth } from '@/src/lib/auth';
 import type {
   Invoice,
   Client,
@@ -51,6 +52,8 @@ export default function InvoicePrintPage() {
 
   useEffect(() => {
     async function load() {
+      await auth.authStateReady();
+
       const [invoice, clients, company, invoicing] = await Promise.all([
         fetchDoc<Invoice>('invoices', id),
         fetchAll<Client>('clients'),

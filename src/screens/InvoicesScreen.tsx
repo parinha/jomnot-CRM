@@ -12,6 +12,7 @@ import {
   type Project,
   type CompanyProfile,
   type PaymentInfo,
+  type PaymentMethod,
 } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
@@ -19,6 +20,7 @@ import { useProjects } from '@/src/hooks/useProjects';
 import {
   useCompanyProfile,
   usePaymentInfo,
+  usePaymentMethods,
   useInvoicingSettings,
   useScopeOfWork,
 } from '@/src/hooks/useSettings';
@@ -68,6 +70,7 @@ export default function InvoicesScreen() {
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: companyProfile } = useCompanyProfile();
   const { data: paymentInfo } = usePaymentInfo();
+  const { data: paymentMethods } = usePaymentMethods();
   const { data: invoicingSettings } = useInvoicingSettings();
   const prefs = useAppPreferences();
   const { fmtAmount: fmt } = useCurrency();
@@ -83,6 +86,32 @@ export default function InvoicesScreen() {
 
   // ── Telegram ───────────────────────────────────────────────────────────────
   const [sendingTelegram, setSendingTelegram] = useState<string | null>(null);
+
+  function resolvePayment(inv: Invoice): PaymentInfo {
+    const method: PaymentMethod | undefined = inv.paymentMethodId
+      ? paymentMethods.find((m) => m.id === inv.paymentMethodId)
+      : paymentMethods.find((m) => m.isDefault);
+    if (method) {
+      return {
+        ...(paymentInfo ?? {}),
+        bankName: method.bankName,
+        accountName: method.accountName,
+        accountNumber: method.accountNumber,
+        swiftCode: method.swiftCode,
+        currency: method.currency,
+        qrImage: method.qrImage,
+      } as PaymentInfo;
+    }
+    return {
+      ...(paymentInfo ?? {}),
+      bankName: invoicingSettings?.bankName ?? '',
+      accountName: invoicingSettings?.accountName ?? '',
+      accountNumber: invoicingSettings?.accountNumber ?? '',
+      swiftCode: invoicingSettings?.swiftCode ?? '',
+      currency: invoicingSettings?.currency ?? '',
+      qrImage: invoicingSettings?.qrImage ?? '',
+    } as PaymentInfo;
+  }
 
   async function generatePdfBlob(inv: Invoice): Promise<Blob> {
     const [html2canvas, { default: jsPDF }] = await Promise.all([
@@ -108,15 +137,7 @@ export default function InvoicesScreen() {
           invoice: inv,
           client,
           company: companyProfile ?? ({} as CompanyProfile),
-          payment: {
-            ...(paymentInfo ?? {}),
-            bankName: invoicingSettings?.bankName ?? '',
-            accountName: invoicingSettings?.accountName ?? '',
-            accountNumber: invoicingSettings?.accountNumber ?? '',
-            swiftCode: invoicingSettings?.swiftCode ?? '',
-            currency: invoicingSettings?.currency ?? '',
-            qrImage: invoicingSettings?.qrImage ?? '',
-          } as PaymentInfo,
+          payment: resolvePayment(inv),
           subtotal,
           whtAmount,
           netTotal,
@@ -204,6 +225,7 @@ export default function InvoicesScreen() {
     depositPercent: undefined,
     withWHT: undefined,
     showVatTin: undefined,
+    paymentMethodId: paymentMethods.find((m) => m.isDefault)?.id,
   });
 
   const [form, setForm] = useState<FormState>(blankForm);
@@ -255,6 +277,7 @@ export default function InvoicesScreen() {
       depositPercent: inv.depositPercent,
       withWHT: inv.withWHT,
       showVatTin: inv.showVatTin,
+      paymentMethodId: inv.paymentMethodId ?? paymentMethods.find((m) => m.isDefault)?.id,
     });
     setSelectedProjectIds(projects.filter((p) => p.invoiceIds.includes(inv.id)).map((p) => p.id));
     setFormError('');
@@ -1251,6 +1274,28 @@ export default function InvoicesScreen() {
                 ))}
               </select>
             </PanelField>
+
+            {paymentMethods.length > 0 && (
+              <PanelField label="Payment Method">
+                <div className="flex flex-wrap gap-2">
+                  {paymentMethods.map((m) => {
+                    const active = form.paymentMethodId === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => setField('paymentMethodId', m.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-[#FFC206]/20 border-[#FFC206] text-[#FFC206]' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                      >
+                        {m.label}
+                        {m.isDefault && !active && (
+                          <span className="ml-1 opacity-50">(default)</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </PanelField>
+            )}
 
             <PanelField label="Status">
               <div className="flex gap-2 flex-wrap">

@@ -1,5 +1,11 @@
 import { useSettingsContext } from '@/src/contexts/SettingsContext';
-import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
+import type {
+  AppPreferences,
+  CompanyProfile,
+  InvoicingSettings,
+  PaymentInfo,
+  PaymentMethod,
+} from '@/src/types';
 import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { setDocPath, mergeDocPath } from '@/src/lib/client/firestore';
 
@@ -22,6 +28,14 @@ export function usePaymentInfo() {
     isError: false,
     error: null,
     mutate: async () => {},
+  };
+}
+
+export function usePaymentMethods() {
+  const { paymentMethods, loading } = useSettingsContext();
+  return {
+    data: paymentMethods,
+    isLoading: loading,
   };
 }
 
@@ -96,11 +110,16 @@ export function useSettingsMutations() {
     });
   }
 
+  async function savePaymentMethods(methods: PaymentMethod[]): Promise<void> {
+    await setDocPath('settings/paymentMethods', { methods });
+  }
+
   return {
     saveCompanyProfile,
     savePaymentInfo,
     saveInvoicingSettings,
     saveScopeOfWork,
     saveAppPreferences,
+    savePaymentMethods,
   };
 }

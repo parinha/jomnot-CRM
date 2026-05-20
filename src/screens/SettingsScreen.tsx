@@ -9,6 +9,7 @@ import type {
   CompanyProfile,
   InvoicingSettings,
   PaymentInfo,
+  PaymentMethod,
   KanbanPhase,
   TelegramKanbanTemplate,
   Project,
@@ -19,6 +20,7 @@ import { uid } from '@/src/lib/id';
 import {
   useCompanyProfile,
   usePaymentInfo,
+  usePaymentMethods,
   useInvoicingSettings,
   useScopeOfWork,
   useAppPreferences,
@@ -128,6 +130,7 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function SettingsScreen() {
   const { data: companyProfile, isLoading: loadingProfile } = useCompanyProfile();
   const { data: paymentInfo, isLoading: loadingPayment } = usePaymentInfo();
+  const { data: paymentMethods } = usePaymentMethods();
   const { data: invoicingSettings, isLoading: loadingInvoicing } = useInvoicingSettings();
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: appPreferences } = useAppPreferences();
@@ -140,6 +143,7 @@ export default function SettingsScreen() {
     <SettingsForm
       companyProfile={companyProfile ?? EMPTY_PROFILE}
       paymentInfo={paymentInfo ?? EMPTY_PAYMENT}
+      paymentMethods={paymentMethods}
       invoicingSettings={invoicingSettings}
       scopeOfWork={scopeOfWork ?? []}
       appPreferences={appPreferences}
@@ -151,6 +155,7 @@ export default function SettingsScreen() {
 function SettingsForm({
   companyProfile,
   paymentInfo,
+  paymentMethods: initialPaymentMethods,
   invoicingSettings,
   scopeOfWork,
   appPreferences,
@@ -158,6 +163,7 @@ function SettingsForm({
 }: {
   companyProfile: CompanyProfile;
   paymentInfo: PaymentInfo;
+  paymentMethods: PaymentMethod[];
   invoicingSettings: InvoicingSettings;
   scopeOfWork: string[];
   appPreferences: AppPreferences;
@@ -179,10 +185,23 @@ function SettingsForm({
     saveScopeOfWork,
     saveAppPreferences,
     saveInvoicingSettings,
+    savePaymentMethods,
   } = useSettingsMutations();
   const [profile, setProfileLocal] = useState<CompanyProfile>(companyProfile);
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
   const [inv, setInvLocal] = useState<InvoicingSettings>(invoicingSettings);
+  const [paymentMethods, setPaymentMethodsLocal] = useState<PaymentMethod[]>(initialPaymentMethods);
+  const [pmEditingId, setPmEditingId] = useState<string | null>(null);
+  const [pmModalOpen, setPmModalOpen] = useState(false);
+  const [pmForm, setPmForm] = useState<Omit<PaymentMethod, 'id' | 'isDefault'>>({
+    label: '',
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    swiftCode: '',
+    currency: '',
+    qrImage: '',
+  });
 
   const [savedProfile, setSavedProfile] = useState(false);
   const [savedPayment, setSavedPayment] = useState(false);
@@ -276,6 +295,70 @@ function SettingsForm({
       await savePaymentInfo(payment);
       setSavedKanban(true);
       setTimeout(() => setSavedKanban(false), 2000);
+    });
+  }
+
+  const pmInputRef = useRef<HTMLInputElement>(null);
+
+  function openAddPm() {
+    setPmEditingId(null);
+    setPmForm({
+      label: '',
+      bankName: '',
+      accountName: '',
+      accountNumber: '',
+      swiftCode: '',
+      currency: '',
+      qrImage: '',
+    });
+    setPmModalOpen(true);
+  }
+
+  function openEditPm(m: PaymentMethod) {
+    setPmEditingId(m.id);
+    setPmForm({
+      label: m.label,
+      bankName: m.bankName,
+      accountName: m.accountName,
+      accountNumber: m.accountNumber,
+      swiftCode: m.swiftCode,
+      currency: m.currency,
+      qrImage: m.qrImage,
+    });
+    setPmModalOpen(true);
+  }
+
+  function handleSavePm() {
+    startTransition(async () => {
+      let updated: PaymentMethod[];
+      if (pmEditingId) {
+        updated = paymentMethods.map((m) => (m.id === pmEditingId ? { ...m, ...pmForm } : m));
+      } else {
+        const isFirst = paymentMethods.length === 0;
+        updated = [...paymentMethods, { id: uid(), ...pmForm, isDefault: isFirst }];
+      }
+      await savePaymentMethods(updated);
+      setPaymentMethodsLocal(updated);
+      setPmModalOpen(false);
+    });
+  }
+
+  function handleDeletePm(id: string) {
+    startTransition(async () => {
+      let updated = paymentMethods.filter((m) => m.id !== id);
+      if (updated.length > 0 && !updated.some((m) => m.isDefault)) {
+        updated = updated.map((m, i) => ({ ...m, isDefault: i === 0 }));
+      }
+      await savePaymentMethods(updated);
+      setPaymentMethodsLocal(updated);
+    });
+  }
+
+  function handleSetDefaultPm(id: string) {
+    startTransition(async () => {
+      const updated = paymentMethods.map((m) => ({ ...m, isDefault: m.id === id }));
+      await savePaymentMethods(updated);
+      setPaymentMethodsLocal(updated);
     });
   }
 
@@ -495,97 +578,220 @@ function SettingsForm({
             </p>
           </div>
           <div className="flex flex-col gap-8">
-            {/* Payment Information */}
-            <div className="flex flex-col gap-5">
-              <SectionDivider label="Payment Information" />
-              {[
-                { label: 'Bank Name', key: 'bankName', placeholder: 'Advanced Bank Of Asia Ltd.' },
-                { label: 'Account Name', key: 'accountName', placeholder: 'Your Company Name' },
-                { label: 'Account Number', key: 'accountNumber', placeholder: '000 000 000' },
-                { label: 'SWIFT Code', key: 'swiftCode', placeholder: 'ABAAKHPP' },
-                { label: 'Currency', key: 'currency', placeholder: 'United States Dollars' },
-              ].map(({ label, key, placeholder }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className={labelCls}>{label}</label>
-                  <input
-                    type="text"
-                    value={(inv as unknown as Record<string, string>)[key] ?? ''}
-                    onChange={(e) => setInv(key as keyof InvoicingSettings, e.target.value)}
-                    placeholder={placeholder}
-                    className={inputCls}
-                  />
-                </div>
-              ))}
+            {/* Payment Methods */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <SectionDivider label="Payment Methods" />
+                <button
+                  onClick={openAddPm}
+                  className="h-8 px-3 rounded-xl bg-white/10 border border-white/20 text-xs font-semibold text-white hover:bg-white/20 transition shrink-0"
+                >
+                  + Add Method
+                </button>
+              </div>
 
-              {/* QR Code */}
-              <div className="flex flex-col gap-2">
-                <label className={labelCls}>Payment QR Code</label>
-                <div className="flex items-center gap-4">
-                  {inv.qrImage ? (
-                    <div className="relative group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={inv.qrImage}
-                        alt="QR Code"
-                        className="h-20 w-20 object-contain rounded-xl border border-white/20 bg-white/5 p-1"
-                      />
+              {paymentMethods.length === 0 ? (
+                <p className="text-sm text-white/40 py-2">
+                  No payment methods yet. Add one to show bank info on invoices.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {paymentMethods.map((m) => (
+                    <div
+                      key={m.id}
+                      className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.04] border border-white/10"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-white">
+                            {m.label || 'Unnamed'}
+                          </span>
+                          {m.isDefault && (
+                            <span className="px-2 py-0.5 rounded-full bg-[#FFC206]/20 text-[#FFC206] text-xs font-semibold">
+                              Default
+                            </span>
+                          )}
+                        </div>
+                        {(m.bankName || m.accountNumber) && (
+                          <p className="text-xs text-white/45 mt-0.5 truncate">
+                            {[m.bankName, m.accountNumber].filter(Boolean).join(' · ')}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {!m.isDefault && (
+                          <button
+                            onClick={() => handleSetDefaultPm(m.id)}
+                            className="h-7 px-2.5 rounded-lg border border-white/15 text-xs text-white/50 hover:text-white hover:bg-white/10 transition"
+                          >
+                            Set default
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openEditPm(m)}
+                          className="h-7 px-2.5 rounded-lg border border-white/15 text-xs text-white/50 hover:text-white hover:bg-white/10 transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeletePm(m.id)}
+                          className="h-7 px-2.5 rounded-lg border border-red-500/20 text-xs text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Payment method add/edit modal */}
+              {pmModalOpen && (
+                <div
+                  className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+                  onClick={() => setPmModalOpen(false)}
+                >
+                  <div
+                    className="w-full max-w-md bg-[#1a1f2e] border border-white/[0.1] rounded-2xl p-5 flex flex-col gap-4"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-white">
+                        {pmEditingId ? 'Edit Payment Method' : 'Add Payment Method'}
+                      </h3>
                       <button
-                        onClick={() => setInv('qrImage', '')}
-                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                        onClick={() => setPmModalOpen(false)}
+                        className="text-white/40 hover:text-white text-lg leading-none"
                       >
                         ×
                       </button>
                     </div>
-                  ) : (
-                    <div className="h-20 w-20 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
-                      <svg
-                        className="w-6 h-6 text-white/25"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={1.5}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                        />
-                      </svg>
+
+                    <div className="flex flex-col gap-3">
+                      {(
+                        [
+                          {
+                            label: 'Label',
+                            key: 'label',
+                            placeholder: 'e.g. Bank Transfer, PayPal',
+                          },
+                          {
+                            label: 'Bank Name',
+                            key: 'bankName',
+                            placeholder: 'Advanced Bank Of Asia Ltd.',
+                          },
+                          {
+                            label: 'Account Name',
+                            key: 'accountName',
+                            placeholder: 'Your Company Name',
+                          },
+                          {
+                            label: 'Account Number',
+                            key: 'accountNumber',
+                            placeholder: '000 000 000',
+                          },
+                          { label: 'SWIFT / ABA Code', key: 'swiftCode', placeholder: 'ABAAKHPP' },
+                          {
+                            label: 'Currency',
+                            key: 'currency',
+                            placeholder: 'United States Dollars',
+                          },
+                        ] as { label: string; key: keyof typeof pmForm; placeholder: string }[]
+                      ).map(({ label, key, placeholder }) => (
+                        <div key={key} className="flex flex-col gap-1">
+                          <label className={labelCls}>{label}</label>
+                          <input
+                            type="text"
+                            value={pmForm[key]}
+                            onChange={(e) =>
+                              setPmForm((prev) => ({ ...prev, [key]: e.target.value }))
+                            }
+                            placeholder={placeholder}
+                            className={inputCls}
+                          />
+                        </div>
+                      ))}
+
+                      {/* QR Code */}
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelCls}>Payment QR Code</label>
+                        <div className="flex items-center gap-3">
+                          {pmForm.qrImage ? (
+                            <div className="relative group shrink-0">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={pmForm.qrImage}
+                                alt="QR"
+                                className="h-16 w-16 object-contain rounded-xl border border-white/20 bg-white/5 p-1"
+                              />
+                              <button
+                                onClick={() => setPmForm((p) => ({ ...p, qrImage: '' }))}
+                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="h-16 w-16 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center shrink-0">
+                              <svg
+                                className="w-5 h-5 text-white/25"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={1.5}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                          <div>
+                            <button
+                              onClick={() => pmInputRef.current?.click()}
+                              className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/70 hover:bg-white/10 hover:text-white transition"
+                            >
+                              {pmForm.qrImage ? 'Replace QR' : 'Upload QR'}
+                            </button>
+                            <input
+                              ref={pmInputRef}
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const f = e.target.files?.[0];
+                                if (f)
+                                  handleImageUpload(f, (b64) =>
+                                    setPmForm((p) => ({ ...p, qrImage: b64 }))
+                                  );
+                                e.target.value = '';
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                  <div>
-                    <button
-                      onClick={() => qrInputRef.current?.click()}
-                      className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition"
-                    >
-                      {inv.qrImage ? 'Replace QR' : 'Upload QR code'}
-                    </button>
-                    <p className="text-xs text-white/35 mt-1.5">
-                      Printed on invoice for easy payment
-                    </p>
-                    <input
-                      ref={qrInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) handleImageUpload(f, (b64) => setInv('qrImage', b64));
-                        e.target.value = '';
-                      }}
-                    />
+
+                    <div className="flex gap-2 justify-end pt-1">
+                      <button
+                        onClick={() => setPmModalOpen(false)}
+                        className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/60 hover:bg-white/10 transition"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSavePm}
+                        disabled={isPending || !pmForm.label.trim()}
+                        className={saveBtnCls}
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                {savedPayment && (
-                  <span className="text-xs text-green-400 font-semibold">Saved ✓</span>
-                )}
-                <button onClick={handleSavePayment} disabled={isPending} className={saveBtnCls}>
-                  Save payment info
-                </button>
-              </div>
+              )}
             </div>
 
             {/* Currency */}

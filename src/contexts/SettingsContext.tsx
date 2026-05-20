@@ -3,7 +3,13 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/lib/firebase-client';
-import type { AppPreferences, CompanyProfile, InvoicingSettings, PaymentInfo } from '@/src/types';
+import type {
+  AppPreferences,
+  CompanyProfile,
+  InvoicingSettings,
+  PaymentInfo,
+  PaymentMethod,
+} from '@/src/types';
 import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
 
@@ -49,6 +55,7 @@ function buildAppPreferences(
 interface SettingsCtx {
   companyProfile: CompanyProfile;
   paymentInfo: PaymentInfo;
+  paymentMethods: PaymentMethod[];
   invoicingSettings: InvoicingSettings;
   scopeOfWork: string[];
   appPreferences: AppPreferences;
@@ -64,13 +71,14 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   );
   const [scopeOfWork, setScopeOfWork] = useState<string[]>(DEFAULT_SCOPES);
   const [prefsRaw, setPrefsRaw] = useState<Record<string, unknown>>({});
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const ready = new Set<string>();
     const markReady = (key: string) => {
       ready.add(key);
-      if (ready.size >= 4) setLoading(false);
+      if (ready.size >= 5) setLoading(false);
     };
 
     const u1 = onSnapshot(
@@ -113,11 +121,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       () => markReady('scopes')
     );
 
+    const u5 = onSnapshot(
+      doc(db, 'settings', 'paymentMethods'),
+      (snap) => {
+        if (snap.exists()) setPaymentMethods((snap.data()?.methods as PaymentMethod[]) ?? []);
+        markReady('paymentMethods');
+      },
+      () => markReady('paymentMethods')
+    );
+
     return () => {
       u1();
       u2();
       u3();
       u4();
+      u5();
     };
   }, []);
 
@@ -133,6 +151,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       value={{
         companyProfile,
         paymentInfo,
+        paymentMethods,
         invoicingSettings,
         scopeOfWork,
         appPreferences,
