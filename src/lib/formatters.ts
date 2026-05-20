@@ -27,13 +27,23 @@ export function fmtDate(
 }
 
 export function fmtUSD(n: number): string {
-  return n.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  return n.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 /** Format a number as currency using the given ISO 4217 code. Falls back to USD. */
 export function fmtCurrency(n: number, currencyCode = 'USD'): string {
   try {
-    return n.toLocaleString('en-US', { style: 'currency', currency: currencyCode });
+    return n.toLocaleString('en-US', {
+      style: 'currency',
+      currency: currencyCode,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
   } catch {
     return fmtUSD(n);
   }
