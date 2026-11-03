@@ -220,6 +220,8 @@ export interface CompanyProfile {
   website: string;
   signatoryName?: string;
   signatorySignature?: string;
+  /** Hex brand color for the app and PDF accents. Defaults to Sunflower yellow. */
+  brandColor?: string;
 }
 
 export interface PaymentInfo {

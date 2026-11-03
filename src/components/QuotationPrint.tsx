@@ -1,5 +1,6 @@
 'use client';
 
+import { brandPalette } from '@/src/lib/brand';
 import {
   Check,
   CircleNotch,
@@ -26,7 +27,6 @@ import { telegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/
 const DARK = '#1a1a1a';
 const MUTED = '#71717a';
 const LIGHT = '#e4e4e7';
-const BRAND = '#FFC206';
 
 export interface QuotationSheetProps {
   quote: Quotation;
@@ -128,7 +128,7 @@ export default function QuotationPrint(props: QuotationSheetProps) {
                 setTimeout(() => window.print(), 0);
               }}
               title="Save as PDF / Print"
-              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition"
+              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition"
             >
               <Printer className="w-5 h-5 shrink-0" weight="duotone" aria-hidden />
               <span className="hidden sm:inline">Save as PDF</span>
@@ -223,6 +223,7 @@ export function QuotationSheet({
   dateFormat,
 }: QuotationSheetProps) {
   const fmt = (n: number) => fmtCurrency(n, currencyCode ?? 'USD');
+  const { brand: BRAND, onBrand: ON_BRAND } = brandPalette(company.brandColor);
   const fd = (s: string) => fmtDate(s, dateFormat);
   const t = calcQuote(quote);
   const taxLabel = taxLabelFor(quote);
@@ -411,7 +412,7 @@ export function QuotationSheet({
                   style={{
                     textAlign: align as 'left' | 'right' | 'center',
                     padding: `8px ${px}`,
-                    color: DARK,
+                    color: ON_BRAND,
                     fontWeight: 700,
                     fontSize: '10px',
                   }}

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import InvoicePrint from '@/src/components/InvoicePrint';
 import { fetchDoc, fetchAll, fetchDocPath } from '@/src/lib/client/firestore';
 import { auth } from '@/src/lib/auth';
+import { applyBrand } from '@/src/lib/brand';
 import type {
   Invoice,
   Client,
@@ -64,6 +65,8 @@ export default function InvoicePrintPage() {
           fetchDocPath<{ methods: PaymentMethod[] }>('settings/paymentMethods'),
           fetchDocPath<Partial<PaymentInfo>>('settings/preferences'),
         ]);
+
+      applyBrand(company?.brandColor);
 
       if (!invoice) {
         setState({ status: 'not-found' });

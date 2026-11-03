@@ -175,7 +175,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   // Header switches between the green Home hero and a clean white app bar
   // (iPad and up always uses the white app bar; the green hero lives in the Home content)
   const iconBtn = isHome
-    ? 'text-white/90 hover:bg-white/15 active:bg-white/25 md:text-ink-2 md:hover:bg-black/[0.04] md:active:bg-black/[0.07]'
+    ? 'text-on-brand/90 hover:bg-on-brand/10 active:bg-on-brand/15 md:text-ink-2 md:hover:bg-black/[0.04] md:active:bg-black/[0.07]'
     : 'text-ink-2 hover:bg-black/[0.04] active:bg-black/[0.07]';
 
   return (
@@ -212,7 +212,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               ) : (
                 <div
                   className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                    isHome ? 'bg-white text-brand shadow-card' : 'bg-brand text-white'
+                    isHome ? 'bg-white text-brand-ink shadow-card' : 'bg-brand text-on-brand'
                   }`}
                 >
                   {initial}
@@ -220,7 +220,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
               )}
               <span
                 className={`hidden sm:block text-base font-semibold truncate max-w-[140px] ${
-                  isHome ? 'text-white' : 'text-ink'
+                  isHome ? 'text-on-brand' : 'text-ink'
                 }`}
               >
                 {profile.name || 'Studio'}
@@ -233,7 +233,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                 weight="duotone"
                 aria-hidden
                 className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${
-                  isHome ? 'text-brand md:text-muted' : 'text-muted'
+                  isHome ? 'text-brand-ink md:text-muted' : 'text-muted'
                 }`}
               />
               <input
@@ -322,7 +322,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                                 <div className="w-10 h-10 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
                                   <Receipt
                                     weight="duotone"
-                                    className="w-5 h-5 text-brand"
+                                    className="w-5 h-5 text-brand-ink"
                                     aria-hidden
                                   />
                                 </div>
@@ -424,7 +424,7 @@ function Sidebar({
             className="h-10 w-10 object-contain rounded-full bg-white p-0.5 shadow-card shrink-0"
           />
         ) : (
-          <div className="h-10 w-10 rounded-full bg-brand text-white flex items-center justify-center text-base font-bold shrink-0">
+          <div className="h-10 w-10 rounded-full bg-brand text-on-brand flex items-center justify-center text-base font-bold shrink-0">
             {initial}
           </div>
         )}
@@ -439,7 +439,7 @@ function Sidebar({
         <Link
           href="/invoices?new=1"
           title="New invoice"
-          className="flex items-center justify-center gap-2 h-12 w-12 lg:w-full mx-auto rounded-full bg-brand text-white text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark transition"
+          className="flex items-center justify-center gap-2 h-12 w-12 lg:w-full mx-auto rounded-full bg-brand text-on-brand text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark transition"
         >
           <Plus weight="bold" className="w-5 h-5 shrink-0" aria-hidden />
           <span className="hidden lg:inline">New invoice</span>
@@ -463,7 +463,7 @@ function Sidebar({
             >
               <NavIcon
                 weight="duotone"
-                className={`w-6 h-6 shrink-0 ${active ? 'text-brand' : ''}`}
+                className={`w-6 h-6 shrink-0 ${active ? 'text-brand-ink' : ''}`}
                 aria-hidden
               />
               <span
@@ -523,7 +523,7 @@ function MobileFAB() {
                 className="flex items-center gap-3 h-12 pl-2 pr-5 rounded-full bg-surface shadow-float text-sm font-semibold text-ink transition-all active:scale-95"
               >
                 <span className="w-9 h-9 rounded-full bg-brand-soft flex items-center justify-center">
-                  <ActionIcon weight="duotone" className="w-5 h-5 text-brand" aria-hidden />
+                  <ActionIcon weight="duotone" className="w-5 h-5 text-brand-ink" aria-hidden />
                 </span>
                 {label}
               </button>
@@ -533,7 +533,7 @@ function MobileFAB() {
         <button
           onClick={() => setOpen((v) => !v)}
           aria-label={open ? 'Close menu' : 'Create new'}
-          className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center shadow-brand transition-transform hover:bg-brand-hover active:scale-95"
+          className="w-14 h-14 rounded-full bg-brand text-on-brand flex items-center justify-center shadow-brand transition-transform hover:bg-brand-hover active:scale-95"
         >
           <Plus
             weight="bold"
@@ -563,7 +563,7 @@ function BottomTabBar({ pathname }: { pathname: string | null }) {
               href={href}
               className={[
                 'relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
-                active ? 'text-brand' : 'text-faint active:text-ink-2',
+                active ? 'text-brand-ink' : 'text-faint active:text-ink-2',
               ].join(' ')}
             >
               {active && (

@@ -486,7 +486,7 @@ export default function InvoicesScreen() {
         action={
           <button
             onClick={openNew}
-            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
+            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
           >
             <Plus className="w-4 h-4" weight="bold" aria-hidden />
             New invoice
@@ -538,14 +538,14 @@ export default function InvoicesScreen() {
                 onClick={() => setStatusFilter(key)}
                 className={`shrink-0 flex items-center gap-1.5 h-10 pl-4 pr-2 rounded-full text-sm font-semibold transition ${
                   on
-                    ? 'bg-brand text-white shadow-brand'
+                    ? 'bg-brand text-on-brand shadow-brand'
                     : 'bg-surface text-ink-2 shadow-card hover:bg-subtle'
                 }`}
               >
                 {label}
                 <span
                   className={`min-w-6 h-6 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full ${
-                    on ? 'bg-white/25 text-white' : 'bg-subtle text-muted'
+                    on ? 'bg-on-brand/15 text-on-brand' : 'bg-subtle text-muted'
                   }`}
                 >
                   {count}
@@ -565,13 +565,13 @@ export default function InvoicesScreen() {
       {/* Empty states */}
       {invoices.length === 0 ? (
         <EmptyCard
-          icon={<Receipt className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<Receipt className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="No invoices yet"
           text="Create your first invoice to get paid."
           action={
             <button
               onClick={openNew}
-              className="mt-4 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition"
+              className="mt-4 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition"
             >
               New invoice
             </button>
@@ -579,7 +579,7 @@ export default function InvoicesScreen() {
         />
       ) : filteredInvoices.length === 0 ? (
         <EmptyCard
-          icon={<MagnifyingGlass className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<MagnifyingGlass className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="Nothing found"
           text="No invoices match your search or filter."
           action={
@@ -588,7 +588,7 @@ export default function InvoicesScreen() {
                 setSearch('');
                 setStatusFilter('all');
               }}
-              className="mt-3 text-sm font-semibold text-brand hover:underline"
+              className="mt-3 text-sm font-semibold text-brand-ink hover:underline"
             >
               Clear filters
             </button>
@@ -652,13 +652,13 @@ export default function InvoicesScreen() {
                       onClick={() =>
                         startTransition(() => upsertInvoice({ ...inv, status: 'paid' }))
                       }
-                      className="ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 bg-brand text-white text-sm font-semibold shadow-[0_2px_8px_rgb(0_177_79/0.3)] hover:bg-brand-hover active:bg-brand-dark active:scale-95 transition"
+                      className="ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 bg-brand text-on-brand text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark active:scale-95 transition"
                     >
                       <CheckCircle className="w-4 h-4" weight="duotone" aria-hidden />
                       Mark paid
                     </button>
                   ) : (
-                    <span className="ml-auto h-9 px-3 flex items-center gap-1.5 text-sm font-semibold text-brand">
+                    <span className="ml-auto h-9 px-3 flex items-center gap-1.5 text-sm font-semibold text-brand-ink">
                       <SealCheck className="w-4 h-4" weight="duotone" aria-hidden />
                       Paid
                     </span>
@@ -760,7 +760,7 @@ export default function InvoicesScreen() {
                   </div>
                   {dep != null && (
                     <>
-                      <div className="flex justify-between text-sm text-brand">
+                      <div className="flex justify-between text-sm text-brand-ink">
                         <span>Deposit ({inv.depositPercent}%)</span>
                         <span className="amt">{fmt(dep)}</span>
                       </div>
@@ -834,7 +834,7 @@ export default function InvoicesScreen() {
                     href={`/invoices/${inv.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-soft border border-brand/40 text-brand text-sm font-semibold hover:bg-brand/15 transition"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-soft border border-brand/40 text-brand-ink text-sm font-semibold hover:bg-brand/15 transition"
                   >
                     <Printer className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                     PDF
@@ -861,7 +861,7 @@ export default function InvoicesScreen() {
                         setViewInvId(null);
                       });
                     }}
-                    className="h-11 w-full flex items-center justify-center gap-2 rounded-full bg-brand-soft border border-brand/30 text-brand text-sm font-semibold hover:bg-brand-soft transition"
+                    className="h-11 w-full flex items-center justify-center gap-2 rounded-full bg-brand-soft border border-brand/30 text-brand-ink text-sm font-semibold hover:bg-brand-soft transition"
                   >
                     <Check className="w-4 h-4 shrink-0" weight="bold" aria-hidden />
                     Mark as Paid
@@ -1017,7 +1017,7 @@ export default function InvoicesScreen() {
                       <button
                         key={m.id}
                         onClick={() => setField('paymentMethodId', m.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-brand-soft border-brand text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-brand-soft border-brand text-brand-ink' : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
                       >
                         {m.label}
                         {m.isDefault && !active && (
@@ -1126,7 +1126,7 @@ export default function InvoicesScreen() {
                                   {scopeLines.map((line) => (
                                     <span
                                       key={line}
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand text-white text-xs font-bold"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand text-on-brand text-xs font-bold"
                                     >
                                       {line}
                                       <button
@@ -1251,7 +1251,7 @@ export default function InvoicesScreen() {
                       )}
                       {form.depositPercent != null && (
                         <>
-                          <div className="flex gap-8 text-brand">
+                          <div className="flex gap-8 text-brand-ink">
                             <span>Deposit ({form.depositPercent}%)</span>
                             <span className="font-medium w-28 text-right">
                               − {fmt(depositAmount)}
@@ -1304,8 +1304,8 @@ export default function InvoicesScreen() {
             {/* Deposit toggle */}
             <div className="flex items-start gap-4 p-4 rounded-xl bg-brand-soft border border-brand/30">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-brand">Deposit / Partial Payment</p>
-                <p className="text-xs text-brand mt-0.5">
+                <p className="text-sm font-semibold text-brand-ink">Deposit / Partial Payment</p>
+                <p className="text-xs text-brand-ink mt-0.5">
                   Require a deposit upfront; client pays the balance on delivery.
                 </p>
                 {form.depositPercent != null && (
@@ -1323,7 +1323,7 @@ export default function InvoicesScreen() {
                       }
                       className="w-16 h-8 rounded-xl border border-brand/30 px-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-green-400 bg-subtle text-center"
                     />
-                    <span className="text-sm text-brand">% deposit = {fmt(depositAmount)}</span>
+                    <span className="text-sm text-brand-ink">% deposit = {fmt(depositAmount)}</span>
                   </div>
                 )}
               </div>
@@ -1392,7 +1392,7 @@ export default function InvoicesScreen() {
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
+                className="h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
               >
                 {editingId ? 'Save changes' : 'Create invoice'}
               </button>

@@ -1,6 +1,7 @@
 import { AuthProvider } from '@/src/components/AuthProvider';
 import AuthGuard from '@/src/components/AuthGuard';
 import DashboardShell from '@/src/components/Shell';
+import BrandTheme from '@/src/components/BrandTheme';
 import { InvoicesProvider } from '@/src/contexts/InvoicesContext';
 import { ClientsProvider } from '@/src/contexts/ClientsContext';
 import { SettingsProvider } from '@/src/contexts/SettingsContext';
@@ -12,6 +13,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <AuthProvider>
       <AuthGuard>
         <SettingsProvider>
+          <BrandTheme />
           <InvoicesProvider>
             <QuotationsProvider>
               <ReceiptsProvider>

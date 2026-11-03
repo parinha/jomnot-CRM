@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import ReceiptPrint from '@/src/components/ReceiptPrint';
 import { fetchDoc, fetchDocPath } from '@/src/lib/client/firestore';
 import { auth } from '@/src/lib/auth';
+import { applyBrand } from '@/src/lib/brand';
 import type {
   AppPreferences,
   Client,
@@ -60,6 +61,8 @@ export default function ReceiptPrintPage() {
         fetchDocPath<Partial<InvoicingSettings>>('settings/invoicing'),
         fetchDocPath<Partial<PaymentInfo>>('settings/preferences'),
       ]);
+
+      applyBrand(company?.brandColor);
 
       const inv = invoicing ?? {};
       setState({

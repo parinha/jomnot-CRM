@@ -17,7 +17,7 @@ export default function SortTh({ col, active, dir, onSort, className, children }
     >
       <span className="inline-flex items-center gap-1">
         {children}
-        <span className={isActive ? 'text-brand' : 'text-line-strong'}>
+        <span className={isActive ? 'text-brand-ink' : 'text-line-strong'}>
           {isActive ? (
             dir === 'asc' ? (
               <CaretUp className="w-3.5 h-3.5" weight="bold" aria-hidden />

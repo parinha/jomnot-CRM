@@ -54,10 +54,10 @@ function LoginForm() {
         style={{ paddingTop: 'max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2rem))' }}
       >
         <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center shadow-float">
-          <Receipt className="w-9 h-9 text-brand" weight="duotone" aria-hidden />
+          <Receipt className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />
         </div>
-        <h1 className="text-3xl font-semibold text-white mt-5">EasyInvoices24</h1>
-        <p className="text-white/85 mt-1">Invoicing made simple</p>
+        <h1 className="text-3xl font-semibold text-on-brand mt-5">EasyInvoices24</h1>
+        <p className="text-on-brand/85 mt-1">Invoicing made simple</p>
       </div>
 
       {/* White sheet */}
@@ -116,7 +116,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={busy}
-              className="mt-3 h-13 rounded-full bg-brand text-white text-base font-semibold hover:bg-brand-hover active:bg-brand-dark disabled:opacity-50 transition shadow-brand"
+              className="mt-3 h-13 rounded-full bg-brand text-on-brand text-base font-semibold hover:bg-brand-hover active:bg-brand-dark disabled:opacity-50 transition shadow-brand"
             >
               {busy ? 'Signing in…' : 'Sign in'}
             </button>

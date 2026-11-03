@@ -187,7 +187,7 @@ export default function InvoiceReceipts({ invoice }: { invoice: Invoice }) {
         <div className="flex flex-col divide-y divide-line rounded-2xl border border-line mb-2">
           {receipts.map((r) => (
             <div key={r.id} className="flex items-center gap-3 px-3 py-2.5">
-              <span className="w-9 h-9 rounded-full bg-brand-soft text-brand flex items-center justify-center shrink-0">
+              <span className="w-9 h-9 rounded-full bg-brand-soft text-brand-ink flex items-center justify-center shrink-0">
                 <ReceiptIcon className="w-4 h-4" weight="duotone" aria-hidden />
               </span>
               <div className="flex-1 min-w-0">
@@ -204,7 +204,7 @@ export default function InvoiceReceipts({ invoice }: { invoice: Invoice }) {
                 rel="noopener noreferrer"
                 title="Open PDF"
                 aria-label={`Open ${r.number} PDF`}
-                className="w-9 h-9 flex items-center justify-center rounded-full text-brand hover:bg-brand-soft transition shrink-0"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-brand-ink hover:bg-brand-soft transition shrink-0"
               >
                 <Printer className="w-4 h-4" weight="duotone" aria-hidden />
               </a>
@@ -236,13 +236,13 @@ export default function InvoiceReceipts({ invoice }: { invoice: Invoice }) {
 
       <button
         onClick={openCreate}
-        className="h-10 w-full flex items-center justify-center gap-1.5 rounded-full border border-dashed border-brand/50 text-brand text-sm font-semibold hover:bg-brand-soft transition"
+        className="h-10 w-full flex items-center justify-center gap-1.5 rounded-full border border-dashed border-brand/50 text-brand-ink text-sm font-semibold hover:bg-brand-soft transition"
       >
         <Plus className="w-4 h-4" weight="bold" aria-hidden />
         {receipts.length === 0 ? 'Create receipt' : 'Add another receipt'}
       </button>
       {remaining <= 0.005 && receipts.length > 0 && (
-        <p className="text-xs text-brand mt-1.5 text-center">This invoice is fully paid.</p>
+        <p className="text-xs text-brand-ink mt-1.5 text-center">This invoice is fully paid.</p>
       )}
 
       {/* ── Create receipt ───────────────────────────────────────────────── */}
@@ -288,14 +288,16 @@ export default function InvoiceReceipts({ invoice }: { invoice: Invoice }) {
                 <span className="font-medium text-ink amt">{fmt(totals.net)}</span>
               </div>
               {paid > 0 && (
-                <div className="flex justify-between text-brand">
+                <div className="flex justify-between text-brand-ink">
                   <span>Already received</span>
                   <span className="font-medium amt">{fmt(paid)}</span>
                 </div>
               )}
               <div className="flex justify-between font-semibold text-ink border-t border-line pt-1.5 mt-0.5">
                 <span>Balance after this receipt</span>
-                <span className={`amt ${balanceAfter > 0.005 ? 'text-orange-600' : 'text-brand'}`}>
+                <span
+                  className={`amt ${balanceAfter > 0.005 ? 'text-orange-600' : 'text-brand-ink'}`}
+                >
                   {fmt(Math.max(0, balanceAfter))}
                 </span>
               </div>
@@ -405,7 +407,7 @@ export default function InvoiceReceipts({ invoice }: { invoice: Invoice }) {
               <button
                 onClick={() => save(false)}
                 disabled={isPending}
-                className="h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
+                className="h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
               >
                 Create receipt
               </button>

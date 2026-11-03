@@ -173,14 +173,14 @@ export default function DashboardScreen() {
           aria-hidden
           className="hidden md:block absolute right-24 -bottom-24 w-56 h-56 rounded-full bg-white/[0.07]"
         />
-        <p className="relative text-white/80 text-sm">
+        <p className="relative text-on-brand/80 text-sm">
           {new Date().toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
             day: 'numeric',
           })}
         </p>
-        <h1 className="relative text-2xl md:text-3xl font-semibold text-white mt-0.5">
+        <h1 className="relative text-2xl md:text-3xl font-semibold text-on-brand mt-0.5">
           {greeting} 👋
         </h1>
       </div>
@@ -190,7 +190,7 @@ export default function DashboardScreen() {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-medium text-muted flex items-center gap-1.5">
-              <Wallet weight="duotone" className="w-4 h-4 text-brand" aria-hidden />
+              <Wallet weight="duotone" className="w-4 h-4 text-brand-ink" aria-hidden />
               Outstanding
             </p>
             <p className="text-3xl font-semibold text-ink mt-1 truncate amt">{fmt(outstanding)}</p>
@@ -218,7 +218,7 @@ export default function DashboardScreen() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] text-muted">Collected in {thisMonthName}</p>
-            <p className="text-base font-semibold text-brand truncate amt">
+            <p className="text-base font-semibold text-brand-ink truncate amt">
               {fmt(thisMonthEarned)}
             </p>
             <div className="mt-1.5 h-1.5 rounded-full bg-subtle overflow-hidden">
@@ -326,7 +326,7 @@ export default function DashboardScreen() {
       {invoices.length === 0 && (
         <div className="flex flex-col items-center justify-center py-12 text-center md:col-span-12">
           <div className="w-20 h-20 rounded-full bg-brand-soft flex items-center justify-center mb-4">
-            <ChartBar className="w-10 h-10 text-brand" weight="duotone" aria-hidden />
+            <ChartBar className="w-10 h-10 text-brand-ink" weight="duotone" aria-hidden />
           </div>
           <p className="text-base font-semibold text-ink">No data yet</p>
           <p className="text-sm text-muted mt-1">Create your first invoice to see your numbers.</p>
@@ -353,7 +353,7 @@ function SectionTitle({ title, sub, right }: { title: string; sub?: string; righ
 // ── Shortcut tile (Grab-style service grid) ───────────────────────────────────
 
 const TILE_TONES = {
-  green: 'bg-brand-soft text-brand',
+  green: 'bg-brand-soft text-brand-ink',
   sky: 'bg-sky-50 text-sky-600',
   amber: 'bg-amber-50 text-amber-600',
   violet: 'bg-violet-50 text-violet-600',
@@ -432,7 +432,7 @@ function RevenueChart({
         </p>
         {momPct !== null && (
           <span
-            className={`flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-brand' : 'text-red-600'}`}
+            className={`flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-brand-ink' : 'text-red-600'}`}
           >
             {up ? (
               <TrendUp weight="bold" className="w-3.5 h-3.5" aria-hidden />
@@ -463,7 +463,7 @@ function RevenueChart({
                 />
               </div>
               <span
-                className={`text-[11px] ${isCurrentMonth ? 'text-brand font-semibold' : 'text-faint'}`}
+                className={`text-[11px] ${isCurrentMonth ? 'text-brand-ink font-semibold' : 'text-faint'}`}
               >
                 {d.label}
               </span>
@@ -610,7 +610,7 @@ function InvoiceAlertList({
         </span>
         <Link
           href="/invoices"
-          className="ml-auto text-sm font-semibold text-brand flex items-center gap-0.5"
+          className="ml-auto text-sm font-semibold text-brand-ink flex items-center gap-0.5"
         >
           See all
           <CaretRight weight="bold" className="w-3.5 h-3.5" aria-hidden />

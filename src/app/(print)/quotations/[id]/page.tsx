@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import QuotationPrint from '@/src/components/QuotationPrint';
 import { fetchDoc, fetchAll, fetchDocPath } from '@/src/lib/client/firestore';
 import { auth } from '@/src/lib/auth';
+import { applyBrand } from '@/src/lib/brand';
 import type {
   Quotation,
   Client,
@@ -56,6 +57,8 @@ export default function QuotationPrintPage() {
           fetchDocPath<{ methods: PaymentMethod[] }>('settings/paymentMethods'),
           fetchDocPath<Partial<PaymentInfo>>('settings/preferences'),
         ]);
+
+      applyBrand(company?.brandColor);
 
       if (!quote) {
         setState({ status: 'not-found' });

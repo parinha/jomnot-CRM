@@ -34,7 +34,7 @@ export default function Pagination({
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`h-10 w-10 rounded-full text-xs font-semibold transition ${p === page ? 'bg-brand text-white shadow-brand' : 'border border-line-strong bg-subtle text-muted hover:bg-black/[0.04] hover:text-ink'}`}
+            className={`h-10 w-10 rounded-full text-xs font-semibold transition ${p === page ? 'bg-brand text-on-brand shadow-brand' : 'border border-line-strong bg-subtle text-muted hover:bg-black/[0.04] hover:text-ink'}`}
           >
             {p}
           </button>

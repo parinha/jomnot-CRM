@@ -4,7 +4,7 @@ import { Receipt } from '@phosphor-icons/react/ssr';
 
 /** Shared pill button styles, matching the rest of the app. */
 export const statusPrimaryBtn =
-  'h-13 w-full rounded-full bg-brand text-white text-base font-semibold hover:bg-brand-hover active:bg-brand-dark transition shadow-brand flex items-center justify-center gap-2';
+  'h-13 w-full rounded-full bg-brand text-on-brand text-base font-semibold hover:bg-brand-hover active:bg-brand-dark transition shadow-brand flex items-center justify-center gap-2';
 export const statusSecondaryBtn =
   'h-13 w-full rounded-full bg-subtle text-ink-2 text-base font-semibold hover:bg-line active:bg-line-strong transition flex items-center justify-center gap-2';
 
@@ -37,16 +37,16 @@ export default function StatusScreen({
       >
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 text-white/90 hover:text-white transition"
+          className="flex items-center gap-2 text-on-brand/90 hover:text-on-brand transition"
           aria-label="EasyInvoices24 home"
         >
           <span className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center shadow-float">
-            <Receipt className="w-5 h-5 text-brand" weight="duotone" aria-hidden />
+            <Receipt className="w-5 h-5 text-brand-ink" weight="duotone" aria-hidden />
           </span>
           <span className="text-lg font-semibold">EasyInvoices24</span>
         </Link>
         <p
-          className="mt-6 text-[96px] md:text-[128px] leading-none font-semibold text-white tracking-tight select-none"
+          className="mt-6 text-[96px] md:text-[128px] leading-none font-semibold text-on-brand tracking-tight select-none"
           aria-hidden
         >
           {code}

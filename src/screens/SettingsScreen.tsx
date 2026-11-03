@@ -23,6 +23,7 @@ import type {
   QuotationSettings,
 } from '@/src/types';
 import { uid } from '@/src/lib/id';
+import { BRAND_PRESETS, DEFAULT_BRAND_COLOR, brandPalette, normalizeHex } from '@/src/lib/brand';
 import {
   useCompanyProfile,
   usePaymentInfo,
@@ -212,7 +213,7 @@ function SettingsForm({
 
   function handleSaveProfile() {
     startTransition(async () => {
-      await saveCompanyProfile(profile);
+      await saveCompanyProfile({ ...profile, brandColor: normalizeHex(profile.brandColor) });
       setSavedProfile(true);
       setTimeout(() => setSavedProfile(false), 2000);
     });
@@ -295,7 +296,7 @@ function SettingsForm({
   const labelCls = 'text-sm font-medium text-ink-2';
   const sectionCls = 'bg-surface shadow-card rounded-2xl p-5 md:p-6';
   const saveBtnCls =
-    'h-11 px-6 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shadow-brand disabled:opacity-60';
+    'h-11 px-6 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition shadow-brand disabled:opacity-60';
   const saveRowCls = 'flex items-center justify-end gap-3 mt-6 pt-5 border-t border-line';
 
   return (
@@ -320,11 +321,11 @@ function SettingsForm({
               onClick={() => switchTab(tab.id)}
               className={`shrink-0 flex items-center gap-2 h-10 px-4 rounded-full text-sm font-semibold transition md:w-full md:h-11 md:rounded-xl md:px-3 ${
                 on
-                  ? 'bg-brand text-white shadow-brand md:bg-brand-soft md:text-brand-ink md:shadow-none'
+                  ? 'bg-brand text-on-brand shadow-brand md:bg-brand-soft md:text-brand-ink md:shadow-none'
                   : 'bg-surface text-ink-2 shadow-card hover:bg-subtle md:bg-transparent md:shadow-none md:text-muted md:hover:text-ink'
               }`}
             >
-              <span className={on ? 'md:text-brand' : ''}>{tab.icon}</span>
+              <span className={on ? 'md:text-brand-ink' : ''}>{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           );
@@ -386,6 +387,91 @@ function SettingsForm({
                   </div>
                 </div>
               </div>
+
+              {/* Brand color */}
+              {(() => {
+                const pal = brandPalette(profile.brandColor);
+                return (
+                  <div className="flex flex-col gap-3">
+                    <div>
+                      <label className={labelCls}>Brand color</label>
+                      <p className="text-xs text-faint mt-0.5">
+                        Used for buttons and highlights in the app, and the table header on
+                        invoices, quotations and receipts. Applies after you save.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      {BRAND_PRESETS.map((p) => {
+                        const active = pal.brand === normalizeHex(p.hex);
+                        return (
+                          <button
+                            key={p.hex}
+                            type="button"
+                            onClick={() => setP('brandColor', p.hex)}
+                            title={p.name}
+                            aria-label={`${p.name} brand color`}
+                            aria-pressed={active}
+                            className={`w-9 h-9 rounded-full border-2 border-surface transition ${active ? 'ring-2 ring-ink ring-offset-1' : 'ring-1 ring-line-strong hover:scale-105'}`}
+                            style={{ background: p.hex }}
+                          />
+                        );
+                      })}
+                      <label
+                        title="Custom color"
+                        className="relative w-9 h-9 rounded-full overflow-hidden ring-1 ring-line-strong cursor-pointer"
+                        style={{
+                          background:
+                            'conic-gradient(#ef4444,#f59e0b,#eab308,#22c55e,#06b6d4,#3b82f6,#a855f7,#ef4444)',
+                        }}
+                      >
+                        <input
+                          type="color"
+                          value={pal.brand.toLowerCase()}
+                          onChange={(e) => setP('brandColor', e.target.value.toUpperCase())}
+                          aria-label="Custom brand color"
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                      </label>
+                      <input
+                        value={profile.brandColor ?? DEFAULT_BRAND_COLOR}
+                        onChange={(e) => setP('brandColor', e.target.value)}
+                        aria-label="Brand color hex"
+                        className={`${inputCls} !w-28 font-mono uppercase`}
+                        maxLength={7}
+                      />
+                    </div>
+                    {/* Preview */}
+                    <div className="flex flex-wrap items-center gap-3 p-3 rounded-xl bg-subtle">
+                      <span
+                        className="h-10 px-4 rounded-full flex items-center text-sm font-semibold"
+                        style={{
+                          background: pal.brand,
+                          color: pal.onBrand,
+                          boxShadow: `0 6px 18px color-mix(in srgb, ${pal.brand} 40%, transparent)`,
+                        }}
+                      >
+                        New invoice
+                      </span>
+                      <span
+                        className="h-8 px-3 rounded-full flex items-center text-xs font-semibold"
+                        style={{ background: pal.soft, color: pal.ink }}
+                      >
+                        Paid
+                      </span>
+                      <span className="text-sm font-semibold" style={{ color: pal.ink }}>
+                        Link text
+                      </span>
+                      <span
+                        className="flex-1 min-w-[160px] h-8 px-3 rounded-md flex items-center justify-between text-[11px] font-bold"
+                        style={{ background: pal.brand, color: pal.onBrand, fontFamily: 'Arial' }}
+                      >
+                        <span>Description / Scope of Work</span>
+                        <span>Total</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {[
                 { label: 'Company Name', key: 'name', placeholder: 'Acme Studio Co., Ltd.' },
@@ -469,7 +555,9 @@ function SettingsForm({
             </div>
 
             <div className={saveRowCls}>
-              {savedProfile && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              {savedProfile && (
+                <span className="text-xs text-brand-ink font-semibold">Saved ✓</span>
+              )}
               <button onClick={handleSaveProfile} disabled={isPending} className={saveBtnCls}>
                 Save profile
               </button>
@@ -513,7 +601,7 @@ function SettingsForm({
                               {m.label || 'Unnamed'}
                             </span>
                             {m.isDefault && (
-                              <span className="px-2 py-0.5 rounded-full bg-brand-soft text-brand text-xs font-semibold">
+                              <span className="px-2 py-0.5 rounded-full bg-brand-soft text-brand-ink text-xs font-semibold">
                                 Default
                               </span>
                             )}
@@ -740,7 +828,7 @@ function SettingsForm({
                         key={fmt}
                         type="button"
                         onClick={() => setInv('dateFormat', fmt)}
-                        className={`h-10 px-3 rounded-xl border text-sm font-medium transition text-left ${inv.dateFormat === fmt ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
+                        className={`h-10 px-3 rounded-xl border text-sm font-medium transition text-left ${inv.dateFormat === fmt ? 'border-brand/40 bg-brand-soft text-brand-ink' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
                       >
                         {fmt}
                       </button>
@@ -798,7 +886,7 @@ function SettingsForm({
                             key={t}
                             type="button"
                             onClick={() => setInv('taxType', t)}
-                            className={`flex-1 h-10 rounded-full border text-sm font-medium transition ${inv.taxType === t ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
+                            className={`flex-1 h-10 rounded-full border text-sm font-medium transition ${inv.taxType === t ? 'border-brand/40 bg-brand-soft text-brand-ink' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
                           >
                             {t === 'additive' ? 'Additive (VAT / GST)' : 'Deductive (WHT)'}
                           </button>
@@ -816,7 +904,9 @@ function SettingsForm({
             </div>
 
             <div className={saveRowCls}>
-              {savedInvoicing && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              {savedInvoicing && (
+                <span className="text-xs text-brand-ink font-semibold">Saved ✓</span>
+              )}
               <button onClick={handleSaveInvoicing} disabled={isPending} className={saveBtnCls}>
                 Save invoicing settings
               </button>
@@ -929,7 +1019,9 @@ function SettingsForm({
               </div>
             </div>
             <div className={saveRowCls}>
-              {savedQuotation && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              {savedQuotation && (
+                <span className="text-xs text-brand-ink font-semibold">Saved ✓</span>
+              )}
               <button onClick={handleSaveQuotation} disabled={isPending} className={saveBtnCls}>
                 Save quotation defaults
               </button>
@@ -1104,7 +1196,9 @@ function SettingsForm({
               </div>
 
               <div className={saveRowCls}>
-                {savedTelegram && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+                {savedTelegram && (
+                  <span className="text-xs text-brand-ink font-semibold">Saved ✓</span>
+                )}
                 <button onClick={handleSaveTelegram} disabled={isPending} className={saveBtnCls}>
                   Save Telegram settings
                 </button>
@@ -1191,7 +1285,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
               />
               <button
                 onClick={() => commitEdit(i)}
-                className="h-11 px-4 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shrink-0"
+                className="h-11 px-4 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition shrink-0"
               >
                 Save
               </button>
@@ -1237,7 +1331,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         <button
           onClick={addScope}
           disabled={!newValue.trim()}
-          className="h-11 px-4 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shrink-0 disabled:opacity-40"
+          className="h-11 px-4 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition shrink-0 disabled:opacity-40"
         >
           Add
         </button>

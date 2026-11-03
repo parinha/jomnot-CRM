@@ -12,7 +12,7 @@ export default function NotFound() {
   return (
     <StatusScreen
       code="404"
-      icon={<MagnifyingGlass className="w-10 h-10 text-brand" weight="duotone" aria-hidden />}
+      icon={<MagnifyingGlass className="w-10 h-10 text-brand-ink" weight="duotone" aria-hidden />}
       title="Page not found"
       text="The page you're looking for doesn't exist or may have been moved."
       actions={

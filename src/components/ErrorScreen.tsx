@@ -19,7 +19,7 @@ export default function ErrorScreen({
   return (
     <StatusScreen
       code="500"
-      icon={<WarningCircle className="w-10 h-10 text-brand" weight="duotone" aria-hidden />}
+      icon={<WarningCircle className="w-10 h-10 text-brand-ink" weight="duotone" aria-hidden />}
       title="Something went wrong"
       text="An unexpected error occurred on our side. Please try again — your invoices and data are safe."
       detail={

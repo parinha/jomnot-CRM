@@ -1,14 +1,16 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { Toaster } from 'sonner';
 import './globals.css';
 import ServiceWorkerRegistrar from '@/src/components/ServiceWorkerRegistrar';
 import { fontVariables } from './fonts';
+import { BRAND_BOOT_SCRIPT, DEFAULT_BRAND_COLOR } from '@/src/lib/brand';
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#00b14f',
+  themeColor: DEFAULT_BRAND_COLOR,
 };
 
 export const metadata: Metadata = {
@@ -39,8 +41,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${fontVariables} h-full antialiased`}>
+    // suppressHydrationWarning: the brand boot script sets CSS variables on <html> before hydration
+    <html lang="en" className={`${fontVariables} h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col">
+        <Script
+          id="brand-boot"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: BRAND_BOOT_SCRIPT }}
+        />
         <ServiceWorkerRegistrar />
         {children}
         <Toaster theme="light" position="top-center" richColors />

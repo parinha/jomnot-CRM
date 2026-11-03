@@ -411,7 +411,7 @@ export default function QuotationsScreen() {
         action={
           <button
             onClick={openNew}
-            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
+            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
           >
             <Plus className="w-4 h-4" weight="bold" aria-hidden />
             New quote
@@ -439,14 +439,14 @@ export default function QuotationsScreen() {
                 onClick={() => setFilter(key)}
                 className={`shrink-0 flex items-center gap-1.5 h-10 pl-4 pr-2 rounded-full text-sm font-semibold transition ${
                   on
-                    ? 'bg-brand text-white shadow-brand'
+                    ? 'bg-brand text-on-brand shadow-brand'
                     : 'bg-surface text-ink-2 shadow-card hover:bg-subtle'
                 }`}
               >
                 {label}
                 <span
                   className={`min-w-6 h-6 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full ${
-                    on ? 'bg-white/25 text-white' : 'bg-subtle text-muted'
+                    on ? 'bg-on-brand/15 text-on-brand' : 'bg-subtle text-muted'
                   }`}
                 >
                   {n}
@@ -466,13 +466,13 @@ export default function QuotationsScreen() {
       {/* List */}
       {quotes.length === 0 ? (
         <EmptyCard
-          icon={<ClipboardText className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<ClipboardText className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="No quotations yet"
           text="Create your first quote to send to a client."
           action={
             <button
               onClick={openNew}
-              className="mt-4 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition"
+              className="mt-4 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition"
             >
               New quote
             </button>
@@ -480,7 +480,7 @@ export default function QuotationsScreen() {
         />
       ) : filtered.length === 0 ? (
         <EmptyCard
-          icon={<MagnifyingGlass className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<MagnifyingGlass className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="Nothing found"
           text="No quotations match your search or filter."
           action={
@@ -489,7 +489,7 @@ export default function QuotationsScreen() {
                 setSearch('');
                 setFilter('all');
               }}
-              className="mt-3 text-sm font-semibold text-brand hover:underline"
+              className="mt-3 text-sm font-semibold text-brand-ink hover:underline"
             >
               Clear filters
             </button>
@@ -556,8 +556,8 @@ export default function QuotationsScreen() {
                       disabled={converting === q.id}
                       className={`ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 text-sm font-semibold active:scale-95 transition disabled:opacity-60 ${
                         q.invoiceId
-                          ? 'text-brand hover:bg-brand-soft'
-                          : 'bg-brand text-white shadow-[0_2px_8px_rgb(0_177_79/0.3)] hover:bg-brand-hover active:bg-brand-dark'
+                          ? 'text-brand-ink hover:bg-brand-soft'
+                          : 'bg-brand text-on-brand shadow-brand hover:bg-brand-hover active:bg-brand-dark'
                       }`}
                     >
                       {converting === q.id ? (
@@ -576,7 +576,7 @@ export default function QuotationsScreen() {
                   ) : (
                     <button
                       onClick={() => setStatus(q, 'accepted')}
-                      className="ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 bg-brand text-white text-sm font-semibold shadow-[0_2px_8px_rgb(0_177_79/0.3)] hover:bg-brand-hover active:bg-brand-dark active:scale-95 transition"
+                      className="ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 bg-brand text-on-brand text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark active:scale-95 transition"
                     >
                       <CheckCircle className="w-4 h-4" weight="duotone" aria-hidden />
                       Accepted
@@ -681,7 +681,7 @@ export default function QuotationsScreen() {
                     <span className="amt">{fmt(t.total)}</span>
                   </div>
                   {t.deposit != null && (
-                    <Row label="Deposit to start" value={fmt(t.deposit)} cls="text-brand" />
+                    <Row label="Deposit to start" value={fmt(t.deposit)} cls="text-brand-ink" />
                   )}
                 </div>
 
@@ -731,7 +731,7 @@ export default function QuotationsScreen() {
                       convertToInvoice(q);
                     }}
                     disabled={converting === q.id}
-                    className="h-11 w-full flex items-center justify-center gap-2 rounded-full bg-brand text-white text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark transition disabled:opacity-60"
+                    className="h-11 w-full flex items-center justify-center gap-2 rounded-full bg-brand text-on-brand text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark transition disabled:opacity-60"
                   >
                     <Receipt className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                     {q.invoiceId && invoices.some((i) => i.id === q.invoiceId)
@@ -754,7 +754,7 @@ export default function QuotationsScreen() {
                     href={`/quotations/${q.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-soft border border-brand/40 text-brand text-sm font-semibold hover:bg-brand/15 transition"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-soft border border-brand/40 text-brand-ink text-sm font-semibold hover:bg-brand/15 transition"
                   >
                     <Printer className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                     PDF
@@ -926,7 +926,7 @@ export default function QuotationsScreen() {
                       <button
                         key={m.id}
                         onClick={() => setField('paymentMethodId', m.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-brand-soft border-brand text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-brand-soft border-brand text-brand-ink' : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
                       >
                         {m.label}
                         {m.isDefault && !active && (
@@ -1039,14 +1039,14 @@ export default function QuotationsScreen() {
                             {scopeLines.map((line) => (
                               <span
                                 key={line}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand text-white text-xs font-bold"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand text-on-brand text-xs font-bold"
                               >
                                 {line}
                                 <button
                                   type="button"
                                   onClick={() => removeScopeLine(line)}
                                   aria-label={`Remove ${line}`}
-                                  className="ml-0.5 text-white/80 hover:text-white transition"
+                                  className="ml-0.5 text-on-brand/70 hover:text-on-brand transition"
                                 >
                                   <X className="w-2.5 h-2.5" weight="bold" aria-hidden />
                                 </button>
@@ -1203,8 +1203,8 @@ export default function QuotationsScreen() {
             <div className="flex flex-col gap-3 p-4 rounded-xl bg-brand-soft border border-brand/30">
               <div className="flex items-start gap-4">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-brand">Deposit to start</p>
-                  <p className="text-xs text-brand mt-0.5">
+                  <p className="text-sm font-semibold text-brand-ink">Deposit to start</p>
+                  <p className="text-xs text-brand-ink mt-0.5">
                     Shown under the total and in the payment info.
                   </p>
                 </div>
@@ -1253,7 +1253,7 @@ export default function QuotationsScreen() {
                                 : Math.round(ft.total / 2),
                           }))
                         }
-                        className={`h-8 min-w-10 px-3 rounded-md text-sm font-semibold transition ${form.depositMode === mode ? 'bg-brand text-white' : 'text-brand'}`}
+                        className={`h-8 min-w-10 px-3 rounded-md text-sm font-semibold transition ${form.depositMode === mode ? 'bg-brand text-on-brand' : 'text-brand-ink'}`}
                       >
                         {label}
                       </button>
@@ -1270,7 +1270,7 @@ export default function QuotationsScreen() {
                     }
                     className="w-28 h-9 rounded-xl border border-brand/30 px-3 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-green-400 bg-surface text-right"
                   />
-                  <span className="text-sm text-brand">= {fmt(ft.deposit ?? 0)}</span>
+                  <span className="text-sm text-brand-ink">= {fmt(ft.deposit ?? 0)}</span>
                 </div>
               )}
             </div>
@@ -1395,7 +1395,7 @@ export default function QuotationsScreen() {
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
+                className="h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
               >
                 {editingId ? 'Save changes' : 'Create quote'}
               </button>

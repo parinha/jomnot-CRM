@@ -1,5 +1,6 @@
 'use client';
 
+import { brandPalette } from '@/src/lib/brand';
 import {
   Check,
   CircleNotch,
@@ -27,7 +28,6 @@ import { telegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/
 const DARK = '#1a1a1a';
 const MUTED = '#71717a';
 const LIGHT = '#e4e4e7';
-const BRAND = '#FFC206';
 const OK = '#15803d';
 const OK_SOFT = '#ecfdf3';
 const WARN = '#b45309';
@@ -147,7 +147,7 @@ export default function ReceiptPrint(props: ReceiptSheetProps & { payment: Payme
                 setTimeout(() => window.print(), 0);
               }}
               title="Save as PDF / Print"
-              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition"
+              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition"
             >
               <Printer className="w-5 h-5 shrink-0" weight="duotone" aria-hidden />
               <span className="hidden sm:inline">Save as PDF</span>
@@ -220,6 +220,7 @@ export function ReceiptSheet({
   dateFormat,
 }: ReceiptSheetProps) {
   const code = currencyCode ?? 'USD';
+  const { brand: BRAND, onBrand: ON_BRAND } = brandPalette(company.brandColor);
   const fmt = (n: number) => fmtCurrency(n, code);
   const fd = (s: string) => fmtDate(s, dateFormat);
   const totals = invoice ? invoiceTotals(invoice, { taxRate, taxType }) : null;
@@ -427,6 +428,7 @@ export function ReceiptSheet({
                     style={{
                       textAlign: align as 'left' | 'right' | 'center',
                       padding: `8px ${px}`,
+                      color: ON_BRAND,
                       fontWeight: 700,
                       fontSize: '10px',
                     }}

@@ -210,7 +210,7 @@ export default function ClientsScreen() {
         action={
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition shadow-brand"
+            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition shadow-brand"
           >
             <Plus className="w-4 h-4" weight="bold" aria-hidden />
             Add client
@@ -228,13 +228,13 @@ export default function ClientsScreen() {
       {/* Empty states */}
       {clients.length === 0 ? (
         <EmptyCard
-          icon={<UsersThree className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<UsersThree className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="No clients yet"
           text="Add your first client to start invoicing."
           action={
             <button
               onClick={openAdd}
-              className="mt-4 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition"
+              className="mt-4 h-11 px-5 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition"
             >
               Add client
             </button>
@@ -242,13 +242,13 @@ export default function ClientsScreen() {
         />
       ) : sortedClients.length === 0 ? (
         <EmptyCard
-          icon={<MagnifyingGlass className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          icon={<MagnifyingGlass className="w-9 h-9 text-brand-ink" weight="duotone" aria-hidden />}
           title="Nothing found"
           text="No clients match your search."
           action={
             <button
               onClick={() => setSearch('')}
-              className="mt-3 text-sm font-semibold text-brand hover:underline"
+              className="mt-3 text-sm font-semibold text-brand-ink hover:underline"
             >
               Clear search
             </button>
@@ -307,7 +307,7 @@ export default function ClientsScreen() {
                     <p className="text-[11px] text-muted">Invoices</p>
                   </div>
                   <div className="py-2.5 px-1 border-x border-line min-w-0">
-                    <p className="text-sm font-semibold text-brand truncate amt">
+                    <p className="text-sm font-semibold text-brand-ink truncate amt">
                       {fmt(stats?.earned ?? 0)}
                     </p>
                     <p className="text-[11px] text-muted">Earned</p>
@@ -584,7 +584,7 @@ export default function ClientsScreen() {
             </button>
             <button
               onClick={handleSave}
-              className="flex-1 h-11 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition"
+              className="flex-1 h-11 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover transition"
             >
               {editingClient ? 'Save changes' : 'Add client'}
             </button>

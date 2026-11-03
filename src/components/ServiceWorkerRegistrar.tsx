@@ -61,7 +61,7 @@ export default function ServiceWorkerRegistrar() {
       style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))' }}
     >
       <div className="flex items-center gap-3 w-full max-w-sm bg-surface rounded-2xl px-4 py-3 shadow-float">
-        <div className="w-9 h-9 rounded-full bg-brand-soft text-brand flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-full bg-brand-soft text-brand-ink flex items-center justify-center shrink-0">
           <ArrowClockwise className="w-4 h-4" weight="bold" aria-hidden />
         </div>
         <div className="flex-1 min-w-0">
@@ -70,7 +70,7 @@ export default function ServiceWorkerRegistrar() {
         </div>
         <button
           onClick={applyUpdate}
-          className="h-9 px-4 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition shrink-0"
+          className="h-9 px-4 rounded-full bg-brand text-on-brand text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition shrink-0"
         >
           Update
         </button>

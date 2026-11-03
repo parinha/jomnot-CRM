@@ -106,7 +106,7 @@ export default function InvoicePreviewModal({
             </div>
             {depositAmount !== null && (
               <>
-                <div className="flex justify-between text-sm text-brand">
+                <div className="flex justify-between text-sm text-brand-ink">
                   <span>Deposit ({inv.depositPercent}%)</span>
                   <span>{fmt(depositAmount)}</span>
                 </div>
@@ -145,7 +145,7 @@ export default function InvoicePreviewModal({
           href={inv ? `/invoices/${inv.id}` : '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-11 px-5 rounded-full bg-brand-soft border border-brand/40 text-brand text-sm font-semibold hover:bg-brand/15 transition flex items-center"
+          className="h-11 px-5 rounded-full bg-brand-soft border border-brand/40 text-brand-ink text-sm font-semibold hover:bg-brand/15 transition flex items-center"
         >
           Open PDF
         </a>

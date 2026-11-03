@@ -35,7 +35,7 @@ export const STATUS_CONFIG: Record<
   paid: {
     label: 'Paid',
     cls: 'bg-brand-soft text-brand-ink',
-    color: 'text-brand',
+    color: 'text-brand-ink',
     bg: 'bg-green-50 border-green-200',
     bar: 'bg-brand',
   },
