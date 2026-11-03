@@ -27,12 +27,14 @@ export default class ScreenErrorBoundary extends Component<Props, State> {
     if (this.state.error) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-8 text-center">
-          <Warning className="w-10 h-10 text-amber-500" weight="duotone" aria-hidden />
+          <div className="w-20 h-20 rounded-full bg-brand-soft flex items-center justify-center">
+            <Warning className="w-10 h-10 text-brand" weight="duotone" aria-hidden />
+          </div>
           <h2 className="text-lg font-semibold text-ink">Something went wrong</h2>
-          <p className="text-sm text-faint max-w-sm break-words">{this.state.error.message}</p>
+          <p className="text-sm text-muted max-w-sm break-words">{this.state.error.message}</p>
           <button
             onClick={() => this.setState({ error: null })}
-            className="px-4 py-2 rounded-lg bg-yellow-400 text-ink text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition"
+            className="h-11 px-6 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark transition shadow-brand"
           >
             Try again
           </button>
