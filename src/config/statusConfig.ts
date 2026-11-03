@@ -1,4 +1,4 @@
-import type { InvoiceStatus, ProjectStatus, ProjectItemStatus } from '@/src/types';
+import type { InvoiceStatus } from '@/src/types';
 
 // ── Invoice status ─────────────────────────────────────────────────────────────
 export const STATUS_CONFIG: Record<
@@ -46,25 +46,4 @@ export const STATUS_CONFIG: Record<
     bg: 'bg-red-50 border-red-200',
     bar: 'bg-red-500',
   },
-};
-
-// ── Project status ─────────────────────────────────────────────────────────────
-export const PROJECT_STATUS_CONFIG: Record<ProjectStatus, { label: string; cls: string }> = {
-  unconfirmed: { label: 'Unconfirmed', cls: 'bg-zinc-700 text-zinc-300' },
-  confirmed: { label: 'Confirmed', cls: 'bg-sky-500/20 text-sky-300' },
-  'on-hold': { label: 'On Hold', cls: 'bg-amber-500/20 text-amber-300' },
-  completed: { label: 'Done', cls: 'bg-emerald-500/20 text-emerald-300' },
-};
-
-// ── Project scope item status ──────────────────────────────────────────────────
-export const ITEM_STATUS_CONFIG: Record<ProjectItemStatus, { label: string; cls: string }> = {
-  todo: { label: 'To Do', cls: 'bg-zinc-100 text-zinc-500' },
-  'in-progress': { label: 'In Progress', cls: 'bg-amber-100 text-amber-700' },
-  done: { label: 'Done', cls: 'bg-green-100 text-green-700' },
-};
-
-export const ITEM_STATUS_NEXT: Record<ProjectItemStatus, ProjectItemStatus> = {
-  todo: 'in-progress',
-  'in-progress': 'done',
-  done: 'todo',
 };

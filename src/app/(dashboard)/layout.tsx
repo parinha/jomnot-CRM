@@ -3,7 +3,6 @@ import AuthGuard from '@/src/components/AuthGuard';
 import DashboardShell from '@/src/components/Shell';
 import { InvoicesProvider } from '@/src/contexts/InvoicesContext';
 import { ClientsProvider } from '@/src/contexts/ClientsContext';
-import { ProjectsProvider } from '@/src/contexts/ProjectsContext';
 import { SettingsProvider } from '@/src/contexts/SettingsContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -13,9 +12,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsProvider>
           <InvoicesProvider>
             <ClientsProvider>
-              <ProjectsProvider>
-                <DashboardShell>{children}</DashboardShell>
-              </ProjectsProvider>
+              <DashboardShell>{children}</DashboardShell>
             </ClientsProvider>
           </InvoicesProvider>
         </SettingsProvider>

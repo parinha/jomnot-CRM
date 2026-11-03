@@ -9,7 +9,6 @@ import { fmtCurrency } from '@/src/lib/formatters';
 import { calcSubtotal } from '@/src/lib/calculations';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useProjects } from '@/src/hooks/useProjects';
 import { useCompanyProfile, useAppPreferences } from '@/src/hooks/useSettings';
 
 // ── Navigation config ────────────────────────────────────────────────────────
@@ -29,11 +28,6 @@ const BOTTOM_TABS = [
     href: '/invoices',
     label: 'Invoices',
     d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-  },
-  {
-    href: '/projects',
-    label: 'Projects',
-    d: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
   },
   {
     href: '/settings',
@@ -58,13 +52,6 @@ const FAB_ACTIONS = [
     iconD: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
     color: 'bg-purple-500/20 border-purple-400/40 text-purple-300',
   },
-  {
-    key: 'project',
-    label: 'Create Project',
-    href: '/projects?new=1',
-    iconD: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z',
-    color: 'bg-amber-500/20 border-amber-400/40 text-amber-300',
-  },
 ] as const;
 
 // ── Shell ────────────────────────────────────────────────────────────────────
@@ -72,7 +59,6 @@ const FAB_ACTIONS = [
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const { data: clients } = useClients();
   const { data: invoices } = useInvoices();
-  const { data: projects } = useProjects();
   const { data: companyProfile } = useCompanyProfile();
   const { data: prefs } = useAppPreferences();
   const [refreshing, setRefreshing] = useState(false);
@@ -169,15 +155,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             .join(' ')
             .toLowerCase()
             .includes(q);
-        })
-        .slice(0, 5)
-    : [];
-
-  const matchedProjects = q
-    ? projects
-        .filter((p) => {
-          const client = clients.find((c) => c.id === p.clientId);
-          return [p.name, client?.name ?? '', p.status].join(' ').toLowerCase().includes(q);
         })
         .slice(0, 5)
     : [];
@@ -297,9 +274,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             {/* Search results dropdown */}
             {showResults && query && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden max-h-[420px] overflow-y-auto">
-                {matchedClients.length === 0 &&
-                matchedInvoices.length === 0 &&
-                matchedProjects.length === 0 ? (
+                {matchedClients.length === 0 && matchedInvoices.length === 0 ? (
                   <p className="px-4 py-6 text-sm text-white/40 text-center">
                     No results for &quot;{query}&quot;
                   </p>
@@ -373,51 +348,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
                                 </div>
                                 <p className="text-xs text-white/40 truncate">
                                   {client?.name ?? '—'} · {fmtCurrency(total, prefs.currencyCode)}
-                                </p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {matchedProjects.length > 0 && (
-                      <div
-                        className={
-                          matchedClients.length > 0 || matchedInvoices.length > 0
-                            ? 'border-t border-white/[0.06]'
-                            : ''
-                        }
-                      >
-                        <p className="px-4 py-2.5 text-[10px] font-semibold text-white/40 uppercase tracking-wider border-b border-white/[0.06]">
-                          Projects
-                        </p>
-                        {matchedProjects.map((p) => {
-                          const client = clients.find((c) => c.id === p.clientId);
-                          return (
-                            <button
-                              key={p.id}
-                              onClick={() => go('/projects')}
-                              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] active:bg-white/[0.1] transition text-left"
-                            >
-                              <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
-                                <svg
-                                  className="w-4 h-4 text-amber-400"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={2}
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{p.name}</p>
-                                <p className="text-xs text-white/40 truncate">
-                                  {client?.name ?? '—'} · {p.status}
                                 </p>
                               </div>
                             </button>

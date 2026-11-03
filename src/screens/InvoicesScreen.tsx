@@ -9,14 +9,12 @@ import {
   type Invoice,
   type LineItem,
   type InvoiceStatus,
-  type Project,
   type CompanyProfile,
   type PaymentInfo,
   type PaymentMethod,
 } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useProjects } from '@/src/hooks/useProjects';
 import {
   useCompanyProfile,
   usePaymentInfo,
@@ -33,10 +31,8 @@ import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
-import ProjectDetailModal from '@/src/components/ProjectDetailModal';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
-import { useProjectMutations } from '@/src/hooks/useProjects';
 
 function localToday(): string {
   const d = new Date();
@@ -66,7 +62,6 @@ const inputCls =
 export default function InvoicesScreen() {
   const { data: clients, isLoading } = useClients();
   const { data: invoices } = useInvoices();
-  const { data: projects } = useProjects();
   const { data: scopeOfWork } = useScopeOfWork();
   const { data: companyProfile } = useCompanyProfile();
   const { data: paymentInfo } = usePaymentInfo();
@@ -79,7 +74,6 @@ export default function InvoicesScreen() {
 
   const [isPending, startTransition] = useTransition();
   const { upsert: upsertInvoice, remove: deleteInvoice } = useInvoiceMutations();
-  const { upsert: upsertProject } = useProjectMutations();
   const searchParams = useSearchParams();
   const router = useRouter();
   const didAutoOpen = useRef(false);
@@ -230,12 +224,6 @@ export default function InvoicesScreen() {
 
   const [form, setForm] = useState<FormState>(blankForm);
 
-  // Project combobox + multi-select
-  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
-  const [projectSearch, setProjectSearch] = useState('');
-  const [projectDropOpen, setProjectDropOpen] = useState(false);
-  const projectComboRef = useRef<HTMLDivElement>(null);
-
   // Client combobox
   const [clientSearch, setClientSearch] = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
@@ -247,9 +235,6 @@ export default function InvoicesScreen() {
     setFormError('');
     setClientSearch('');
     setClientDropOpen(false);
-    setProjectSearch('');
-    setProjectDropOpen(false);
-    setSelectedProjectIds([]);
     setPanelOpen(true);
   }
 
@@ -279,12 +264,9 @@ export default function InvoicesScreen() {
       showVatTin: inv.showVatTin,
       paymentMethodId: inv.paymentMethodId ?? paymentMethods.find((m) => m.isDefault)?.id,
     });
-    setSelectedProjectIds(projects.filter((p) => p.invoiceIds.includes(inv.id)).map((p) => p.id));
     setFormError('');
     setClientSearch('');
     setClientDropOpen(false);
-    setProjectSearch('');
-    setProjectDropOpen(false);
     setPanelOpen(true);
   }
   function closePanel() {
@@ -293,9 +275,6 @@ export default function InvoicesScreen() {
     setFormError('');
     setClientSearch('');
     setClientDropOpen(false);
-    setProjectSearch('');
-    setProjectDropOpen(false);
-    setSelectedProjectIds([]);
   }
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -318,49 +297,6 @@ export default function InvoicesScreen() {
     );
   }
 
-  // Conflict popup: project already linked to another invoice
-  const [conflictProject, setConflictProject] = useState<Project | null>(null);
-
-  function addProjectToForm(project: Project) {
-    setSelectedProjectIds((prev) => [...prev, project.id]);
-    setForm((prev) => {
-      const existingItems = prev.items.filter((it) => it.description.trim() || it.unitPrice > 0);
-      const base = {
-        ...prev,
-        projectName: prev.projectName?.trim() || project.name,
-        clientId: project.clientId,
-      };
-      // Linking to an existing invoice that already has items — don't overwrite line items
-      if (editingId && existingItems.length > 0) return base;
-      const scopeLines = project.items.map((i) => i.description).filter(Boolean);
-      const description =
-        project.name + (scopeLines.length > 0 ? '\n' + scopeLines.join('\n') : '');
-      const newItem = { id: uid(), description, qty: 1, unitPrice: project.budget ?? 0 };
-      return { ...base, items: [...existingItems, newItem] };
-    });
-  }
-
-  function selectProject(project: Project) {
-    if (selectedProjectIds.includes(project.id)) {
-      setProjectSearch('');
-      setProjectDropOpen(false);
-      return;
-    }
-    setProjectSearch('');
-    setProjectDropOpen(false);
-    // Check if already linked to another invoice (excluding the one being edited)
-    const alreadyLinked = project.invoiceIds.filter((id) => id !== editingId);
-    if (alreadyLinked.length > 0) {
-      setConflictProject(project);
-      return;
-    }
-    addProjectToForm(project);
-  }
-
-  function removeSelectedProject(projectId: string) {
-    setSelectedProjectIds((prev) => prev.filter((id) => id !== projectId));
-  }
-
   function validateForm(): string | null {
     if (!form.projectName?.trim()) return 'Project / Campaign Name is required.';
     if (!form.clientId) return 'Please select a client.';
@@ -376,15 +312,6 @@ export default function InvoicesScreen() {
 
   async function performSave(invoiceId: string) {
     await upsertInvoice({ id: invoiceId, ...form });
-    for (const p of projects) {
-      const wasLinked = p.invoiceIds.includes(invoiceId);
-      const isSelected = selectedProjectIds.includes(p.id);
-      if (isSelected && !wasLinked) {
-        await upsertProject({ ...p, invoiceIds: [...p.invoiceIds, invoiceId] });
-      } else if (!isSelected && wasLinked) {
-        await upsertProject({ ...p, invoiceIds: p.invoiceIds.filter((id) => id !== invoiceId) });
-      }
-    }
   }
 
   function handleSave() {
@@ -441,7 +368,6 @@ export default function InvoicesScreen() {
 
   // ── Modals ─────────────────────────────────────────────────────────────────
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [viewProjectId, setViewProjectId] = useState<string | null>(null);
   const [viewInvId, setViewInvId] = useState<string | null>(null);
 
   function handleDelete(id: string) {
@@ -649,7 +575,6 @@ export default function InvoicesScreen() {
               const sub = calcSubtotal(inv);
               const status = (inv.status ?? 'draft') as InvoiceStatus;
               const sc = STATUS_CONFIG[status];
-              const linkedProjects = projects.filter((p) => p.invoiceIds.includes(inv.id));
               return (
                 <button
                   key={inv.id}
@@ -696,23 +621,6 @@ export default function InvoicesScreen() {
                     <p className="text-xs text-white/35">{fmtDt(inv.date)}</p>
                     <p className="font-semibold text-white amt">{fmt(sub)}</p>
                   </div>
-                  {/* Project */}
-                  <div className="mt-3 pt-3 border-t border-white/[0.07]">
-                    {linkedProjects.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5">
-                        {linkedProjects.map((lp) => (
-                          <span
-                            key={lp.id}
-                            className="text-xs px-2 py-0.5 rounded-lg bg-blue-500/15 border border-blue-400/25 text-blue-300"
-                          >
-                            {lp.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-white/30 italic">No project linked yet</p>
-                    )}
-                  </div>
                   {/* Mark Paid */}
                   {status !== 'paid' && (
                     <div className="mt-3 pt-3 border-t border-white/[0.07]">
@@ -758,7 +666,6 @@ export default function InvoicesScreen() {
           const inv = invoices.find((i) => i.id === viewInvId);
           if (!inv) return null;
           const client = clients.find((c) => c.id === inv.clientId);
-          const linked = projects.filter((p) => p.invoiceIds.includes(inv.id));
           const sc = STATUS_CONFIG[(inv.status ?? 'draft') as InvoiceStatus];
           const sub = calcSubtotal(inv);
           const wht = calcTaxAmount(inv, taxConfig);
@@ -868,27 +775,6 @@ export default function InvoicesScreen() {
                 </div>
 
                 {/* Linked projects */}
-                {linked.length > 0 && (
-                  <div>
-                    <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1.5">
-                      Project
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {linked.map((lp) => (
-                        <button
-                          key={lp.id}
-                          onClick={() => {
-                            setViewInvId(null);
-                            setViewProjectId(lp.id);
-                          }}
-                          className="text-xs px-2 py-0.5 rounded-lg bg-blue-500/15 border border-blue-400/25 text-blue-300 hover:bg-blue-500/25 transition"
-                        >
-                          {lp.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Status change */}
                 <div>
@@ -1111,10 +997,7 @@ export default function InvoicesScreen() {
                         onChange={(e) => {
                           setClientSearch(e.target.value);
                           setClientDropOpen(true);
-                          if (!e.target.value) {
-                            setField('clientId', '');
-                            setSelectedProjectIds([]);
-                          }
+                          if (!e.target.value) setField('clientId', '');
                         }}
                         onFocus={() => {
                           setClientSearch('');
@@ -1134,7 +1017,6 @@ export default function InvoicesScreen() {
                                 key={c.id}
                                 type="button"
                                 onMouseDown={() => {
-                                  if (c.id !== form.clientId) setSelectedProjectIds([]);
                                   setField('clientId', c.id);
                                   setClientSearch('');
                                   setClientDropOpen(false);
@@ -1157,98 +1039,6 @@ export default function InvoicesScreen() {
                     </>
                   );
                 })()}
-              </div>
-            </PanelField>
-
-            <PanelField label="Linked Projects">
-              <div ref={projectComboRef} className="relative flex flex-col gap-2">
-                {selectedProjectIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedProjectIds.map((pid) => {
-                      const lp = projects.find((p) => p.id === pid);
-                      if (!lp) return null;
-                      return (
-                        <span
-                          key={pid}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-400/25 text-xs text-blue-300"
-                        >
-                          {lp.name}
-                          <button
-                            type="button"
-                            onClick={() => removeSelectedProject(pid)}
-                            className="ml-0.5 text-blue-300/60 hover:text-blue-200 transition"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="10"
-                              height="10"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M18 6L6 18M6 6l12 12" />
-                            </svg>
-                          </button>
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
-                <input
-                  value={projectSearch}
-                  onChange={(e) => {
-                    setProjectSearch(e.target.value);
-                    setProjectDropOpen(true);
-                  }}
-                  onFocus={() => {
-                    if (form.clientId) setProjectDropOpen(true);
-                  }}
-                  onBlur={() => setTimeout(() => setProjectDropOpen(false), 150)}
-                  placeholder={form.clientId ? 'Search and add projects…' : 'Select a client first'}
-                  disabled={!form.clientId}
-                  className={`${inputCls} disabled:opacity-40 disabled:cursor-not-allowed`}
-                />
-                {projectDropOpen &&
-                  form.clientId &&
-                  (() => {
-                    const q = projectSearch.toLowerCase().trim();
-                    const available = projects.filter(
-                      (p) =>
-                        p.clientId === form.clientId &&
-                        p.status !== 'unconfirmed' &&
-                        !selectedProjectIds.includes(p.id)
-                    );
-                    const filtered = q
-                      ? available.filter((p) => p.name.toLowerCase().includes(q))
-                      : available;
-                    if (filtered.length === 0) return null;
-                    return (
-                      <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
-                        {filtered.map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onMouseDown={() => selectProject(p)}
-                            className="w-full text-left px-3 py-2 hover:bg-white/10 transition"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-sm font-medium text-white truncate">
-                                {p.name}
-                              </div>
-                              {p.budget ? (
-                                <div className="text-xs text-[#FFC206] shrink-0">
-                                  ${p.budget.toLocaleString()}
-                                </div>
-                              ) : null}
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })()}
               </div>
             </PanelField>
 
@@ -1750,63 +1540,6 @@ export default function InvoicesScreen() {
           onConfirm={() => handleDelete(deleteId)}
           onClose={() => setDeleteId(null)}
         />
-      )}
-
-      {/* ── Project already linked conflict ────────────────────────────────────── */}
-      {conflictProject &&
-        (() => {
-          const conflictInvoices = conflictProject.invoiceIds
-            .filter((id) => id !== editingId)
-            .map((id) => invoices.find((inv) => inv.id === id))
-            .filter(Boolean) as Invoice[];
-          return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-              <div className="w-full max-w-sm bg-slate-900 border border-white/[0.1] rounded-2xl shadow-2xl p-6 flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                  <p className="font-semibold text-white">Project already invoiced</p>
-                  <p className="text-sm text-white/60">
-                    <span className="text-white font-medium">{conflictProject.name}</span> is
-                    already linked to {conflictInvoices.length === 1 ? 'invoice' : 'invoices'}{' '}
-                    <span className="text-[#FFC206] font-medium">
-                      {conflictInvoices.map((inv) => inv.number).join(', ')}
-                    </span>
-                    . Do you still want to add it?
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {conflictInvoices.map((inv) => (
-                    <button
-                      key={inv.id}
-                      onClick={() => window.open(`/invoices/${inv.id}`, '_blank')}
-                      className="w-full h-10 px-4 rounded-xl border border-blue-400/30 bg-blue-500/15 text-sm text-blue-300 hover:bg-blue-500/25 transition"
-                    >
-                      View {inv.number}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => {
-                      addProjectToForm(conflictProject);
-                      setConflictProject(null);
-                    }}
-                    className="w-full h-10 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
-                  >
-                    Still Add
-                  </button>
-                  <button
-                    onClick={() => setConflictProject(null)}
-                    className="w-full h-10 px-4 rounded-xl border border-white/20 text-sm text-white/60 hover:bg-white/10 transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })()}
-
-      {/* ── View project detail ─────────────────────────────────────────────────── */}
-      {viewProjectId && (
-        <ProjectDetailModal projectId={viewProjectId} onClose={() => setViewProjectId(null)} />
       )}
     </>
   );

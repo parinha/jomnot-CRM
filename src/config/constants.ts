@@ -14,40 +14,6 @@ export const DEFAULT_SCOPES = [
   'Pre-Announcement Teaser x1',
 ];
 
-// ── Telegram template ─────────────────────────────────────────────────────────
-
-export interface TelegramSectionConfig {
-  emoji: string;
-  label: string;
-  enabled: boolean;
-}
-
-export interface TelegramTimeline {
-  overdue: string; // days < 0 or === 0
-  urgent: string; // ≤ 3d left
-  soon: string; // ≤ 10d left
-  ok: string; // > 10d left
-  noDate: string; // no deliver date
-}
-
-export interface TelegramTemplate {
-  headerEmoji: string;
-  headerTitle: string;
-  timeline: TelegramTimeline;
-}
-
-export const DEFAULT_TELEGRAM_TEMPLATE: TelegramTemplate = {
-  headerEmoji: '📊',
-  headerTitle: 'PROJECT UPDATE',
-  timeline: {
-    overdue: '🔴',
-    urgent: '🟠',
-    soon: '🟡',
-    ok: '🟢',
-    noDate: '▸',
-  },
-};
-
 // ── localStorage keys for UI preferences ──────────────────────────────────────
 export const STORAGE_KEYS = {
   tableCliCol: 'tbl_cli_col',

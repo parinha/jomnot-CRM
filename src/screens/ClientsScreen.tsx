@@ -5,13 +5,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import type { Client } from '@/src/types';
 import { useClients } from '@/src/hooks/useClients';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useProjects } from '@/src/hooks/useProjects';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { calcEarned, calcSubtotal, calcBalance } from '@/src/lib/calculations';
 import { fmtUSD, fmtDate } from '@/src/lib/formatters';
 import { uid } from '@/src/lib/id';
 import { PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
-import { STATUS_CONFIG, PROJECT_STATUS_CONFIG } from '@/src/config/statusConfig';
+import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import ModalShell from '@/src/components/ModalShell';
@@ -53,7 +52,6 @@ function phoneToFull(local: string): string {
 export default function ClientsScreen() {
   const { data: clients, isLoading } = useClients();
   const { data: invoices } = useInvoices();
-  const { data: projects } = useProjects();
 
   const [, startTransition] = useTransition();
   const { upsert, remove } = useClientMutations();
@@ -116,8 +114,7 @@ export default function ClientsScreen() {
           (inv) => inv.status === 'sent' || inv.status === 'partial' || inv.status === 'overdue'
         )
         .reduce((s, inv) => s + calcBalance(inv), 0);
-      const projectCount = projects.filter((p) => p.clientId === c.id).length;
-      return [c.id, { count: ci.length, earned, remaining, projectCount }];
+      return [c.id, { count: ci.length, earned, remaining }];
     })
   );
 
@@ -355,7 +352,6 @@ export default function ClientsScreen() {
           const c = clients.find((cl) => cl.id === viewClientId);
           if (!c) return null;
           const clientInvs = invoices.filter((inv) => inv.clientId === c.id);
-          const clientProjs = projects.filter((p) => p.clientId === c.id);
           const stats = statsMap.get(c.id);
 
           return (
@@ -467,8 +463,11 @@ export default function ClientsScreen() {
                             }}
                             className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08] hover:bg-white/[0.09] transition text-left"
                           >
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-sm font-semibold text-white">{inv.number}</p>
+                              {inv.projectName && (
+                                <p className="text-xs text-white/60 truncate">{inv.projectName}</p>
+                              )}
                               <p className="text-xs text-white/40">{fmtDate(inv.date)}</p>
                             </div>
                             <div className="flex items-center gap-2">
@@ -487,38 +486,6 @@ export default function ClientsScreen() {
                     </div>
                   ) : (
                     <p className="text-xs text-white/30 italic">No invoices for this client</p>
-                  )}
-                </div>
-
-                {/* Projects */}
-                <div>
-                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-                    Projects
-                  </p>
-                  {clientProjs.length > 0 ? (
-                    <div className="flex flex-col gap-2">
-                      {clientProjs.map((p) => {
-                        const sc = PROJECT_STATUS_CONFIG[p.status] ?? {
-                          label: 'Unknown',
-                          cls: 'bg-zinc-700 text-zinc-300',
-                        };
-                        return (
-                          <div
-                            key={p.id}
-                            className="flex items-center justify-between px-3 py-2.5 rounded-xl bg-white/[0.05] border border-white/[0.08]"
-                          >
-                            <p className="text-sm text-white/80 truncate">{p.name}</p>
-                            <span
-                              className={`ml-2 shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
-                            >
-                              {sc.label}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-white/30 italic">No projects for this client</p>
                   )}
                 </div>
               </div>

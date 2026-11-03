@@ -61,11 +61,6 @@ export interface PaymentMethod {
 
 // ── Settings ───────────────────────────────────────────────────────────────────
 
-export interface KanbanPhase {
-  id: string;
-  label: string;
-}
-
 // Invoicing tab: bank payment details + currency/date/tax display settings
 export interface InvoicingSettings {
   bankName: string;
@@ -99,12 +94,11 @@ export const DEFAULT_INVOICING_SETTINGS: InvoicingSettings = {
   taxType: 'additive',
 };
 
-// Workspace tab: kanban phases and calendar config
+// Workspace preferences (display settings merged from invoicing + holidays)
 export interface AppPreferences {
   currencyCode: string; // kept for useAppPreferences backward compat (merged from invoicing)
   currencySymbol: string;
   dateFormat: 'DD/Mon/YYYY' | 'MM/DD/YYYY' | 'DD/MM/YYYY' | 'YYYY-MM-DD';
-  kanbanPhases: KanbanPhase[];
   taxEnabled: boolean;
   taxLabel: string;
   taxRate: number;
@@ -116,11 +110,6 @@ export const DEFAULT_APP_PREFERENCES: AppPreferences = {
   currencyCode: 'USD',
   currencySymbol: '$',
   dateFormat: 'DD/Mon/YYYY',
-  kanbanPhases: [
-    { id: 'phase-todo', label: 'To-do' },
-    { id: 'phase-inprogress', label: 'In Progress' },
-    { id: 'phase-done', label: 'Done' },
-  ],
   taxEnabled: false,
   taxLabel: 'Tax',
   taxRate: 0,
@@ -138,12 +127,6 @@ export interface CompanyProfile {
   signatorySignature?: string;
 }
 
-export interface TelegramKanbanTemplate {
-  headerEmoji?: string;
-  headerTitle?: string;
-  sectionOrder?: string[]; // ordered kanban phase IDs only
-}
-
 export interface PaymentInfo {
   bankName: string;
   accountName: string;
@@ -154,40 +137,4 @@ export interface PaymentInfo {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramTopicId?: string;
-  projectTelegramChatId?: string;
-  projectTelegramTopicId?: string;
-  kanbanUpdateEnabled?: boolean;
-  kanbanUpdateTimes?: string[]; // ["09:00", "16:00"] 24-hour in user's timezone
-  kanbanUpdateDays?: string[]; // ["mon","tue","wed","thu","fri","sat","sun"]
-  kanbanUpdateTimezone?: string; // IANA timezone e.g. "Asia/Bangkok"
-  telegramTemplate?: TelegramKanbanTemplate;
-}
-
-// ── Project ────────────────────────────────────────────────────────────────────
-
-export type ProjectItemStatus = 'todo' | 'in-progress' | 'done';
-
-export interface ProjectItem {
-  id: string;
-  description: string;
-  status: ProjectItemStatus;
-}
-
-export type ProjectStatus = 'unconfirmed' | 'confirmed' | 'on-hold' | 'completed';
-
-export interface Project extends RecordMeta {
-  id: string;
-  name: string;
-  clientId: string;
-  invoiceIds: string[];
-  items: ProjectItem[];
-  kanbanPhase?: string; // phase id; undefined = first column
-  status: ProjectStatus;
-  createdAt: string;
-  confirmedMonth?: string;
-  filmingDate?: string;
-  deliverDate?: string;
-  completedAt?: string;
-  budget?: number;
-  note?: string;
 }

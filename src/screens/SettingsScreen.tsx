@@ -1,21 +1,9 @@
 'use client';
 
-import { useState, useRef, useTransition, useMemo } from 'react';
+import { useState, useRef, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/src/components/AuthProvider';
-import { useSendProjectsTelegram } from '@/src/hooks/useTelegram';
-import type {
-  AppPreferences,
-  CompanyProfile,
-  InvoicingSettings,
-  PaymentInfo,
-  PaymentMethod,
-  KanbanPhase,
-  TelegramKanbanTemplate,
-  Project,
-} from '@/src/types';
-import { DEFAULT_APP_PREFERENCES } from '@/src/types';
-import { buildProjectsSummaryMessage } from '@/src/lib/telegram-messages';
+import type { CompanyProfile, InvoicingSettings, PaymentInfo, PaymentMethod } from '@/src/types';
 import { uid } from '@/src/lib/id';
 import {
   useCompanyProfile,
@@ -23,7 +11,6 @@ import {
   usePaymentMethods,
   useInvoicingSettings,
   useScopeOfWork,
-  useAppPreferences,
   useSettingsMutations,
 } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
@@ -133,7 +120,6 @@ export default function SettingsScreen() {
   const { data: paymentMethods } = usePaymentMethods();
   const { data: invoicingSettings, isLoading: loadingInvoicing } = useInvoicingSettings();
   const { data: scopeOfWork } = useScopeOfWork();
-  const { data: appPreferences } = useAppPreferences();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
 
@@ -146,7 +132,6 @@ export default function SettingsScreen() {
       paymentMethods={paymentMethods}
       invoicingSettings={invoicingSettings}
       scopeOfWork={scopeOfWork ?? []}
-      appPreferences={appPreferences}
       initialTab={tabParam ?? 'company'}
     />
   );
@@ -158,7 +143,6 @@ function SettingsForm({
   paymentMethods: initialPaymentMethods,
   invoicingSettings,
   scopeOfWork,
-  appPreferences,
   initialTab,
 }: {
   companyProfile: CompanyProfile;
@@ -166,7 +150,6 @@ function SettingsForm({
   paymentMethods: PaymentMethod[];
   invoicingSettings: InvoicingSettings;
   scopeOfWork: string[];
-  appPreferences: AppPreferences;
   initialTab: Tab;
 }) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -183,7 +166,6 @@ function SettingsForm({
     saveCompanyProfile,
     savePaymentInfo,
     saveScopeOfWork,
-    saveAppPreferences,
     saveInvoicingSettings,
     savePaymentMethods,
   } = useSettingsMutations();
@@ -207,26 +189,10 @@ function SettingsForm({
   const [savedPayment, setSavedPayment] = useState(false);
   const [savedInvoicing, setSavedInvoicing] = useState(false);
   const [savedTelegram, setSavedTelegram] = useState(false);
-  const [savedKanban, setSavedKanban] = useState(false);
-  const [savedPrefs, setSavedPrefs] = useState(false);
-  const [prefs, setPrefsLocal] = useState<AppPreferences>(appPreferences);
-
-  function setPref<K extends keyof AppPreferences>(k: K, v: AppPreferences[K]) {
-    setPrefsLocal((prev) => ({ ...prev, [k]: v }));
-    setSavedPrefs(false);
-  }
 
   function setInv<K extends keyof InvoicingSettings>(k: K, v: InvoicingSettings[K]) {
     setInvLocal((prev) => ({ ...prev, [k]: v }));
     setSavedInvoicing(false);
-  }
-
-  function handleSavePrefs() {
-    startTransition(async () => {
-      await saveAppPreferences(prefs);
-      setSavedPrefs(true);
-      setTimeout(() => setSavedPrefs(false), 2000);
-    });
   }
 
   function handleSaveInvoicing() {
@@ -247,14 +213,6 @@ function SettingsForm({
   function setPay<K extends keyof PaymentInfo>(k: K, v: PaymentInfo[K]) {
     setPaymentLocal((prev) => ({ ...prev, [k]: v }));
     setSavedPayment(false);
-  }
-
-  function setTmpl<K extends keyof TelegramKanbanTemplate>(k: K, v: TelegramKanbanTemplate[K]) {
-    setPaymentLocal((prev) => ({
-      ...prev,
-      telegramTemplate: { ...(prev.telegramTemplate ?? {}), [k]: v },
-    }));
-    setSavedTelegram(false);
   }
 
   function handleImageUpload(file: File, onResult: (b64: string) => void) {
@@ -287,14 +245,6 @@ function SettingsForm({
       await savePaymentInfo(payment);
       setSavedTelegram(true);
       setTimeout(() => setSavedTelegram(false), 2000);
-    });
-  }
-
-  function handleSaveKanban() {
-    startTransition(async () => {
-      await savePaymentInfo(payment);
-      setSavedKanban(true);
-      setTimeout(() => setSavedKanban(false), 2000);
     });
   }
 
@@ -925,37 +875,6 @@ function SettingsForm({
       {/* ── Workspace tab ─────────────────────────────────────────────────────── */}
       {activeTab === 'workspace' && (
         <div className="flex flex-col gap-6">
-          {/* Phase labels + Holidays */}
-          <section className={sectionCls}>
-            <div className="flex flex-col gap-1 mb-6">
-              <h2 className="text-base font-semibold text-white">Workspace Preferences</h2>
-              <p className="text-xs text-white/40">
-                Project phases and public holidays used across the app.
-              </p>
-            </div>
-            <div className="flex flex-col gap-8">
-              {/* Kanban phases */}
-              <div className="flex flex-col gap-3">
-                <SectionDivider label="Kanban Phases" />
-                <p className="text-xs text-white/35 -mt-1">
-                  Define your workflow columns. Drag projects between them on the Kanban page.
-                </p>
-                <KanbanPhaseList
-                  phases={prefs.kanbanPhases}
-                  onChange={(phases) => setPref('kanbanPhases', phases)}
-                  inputCls={inputCls}
-                />
-              </div>
-            </div>
-
-            <div className={saveRowCls}>
-              {savedPrefs && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
-              <button onClick={handleSavePrefs} disabled={isPending} className={saveBtnCls}>
-                Save preferences
-              </button>
-            </div>
-          </section>
-
           {/* Scope of Work */}
           <section className={sectionCls}>
             <div className="flex flex-col gap-1 mb-6">
@@ -990,8 +909,7 @@ function SettingsForm({
               <div>
                 <h2 className="text-base font-semibold text-white">Telegram Bot</h2>
                 <p className="text-xs text-white/40 mt-0.5">
-                  Send invoices and project updates to Telegram. Create a bot via @BotFather and add
-                  it to your groups.
+                  Send invoices to Telegram. Create a bot via @BotFather and add it to your group.
                 </p>
               </div>
             </div>
@@ -1051,46 +969,6 @@ function SettingsForm({
                   <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">{`📄 INV-0042\n📅 Date: 20 Apr 2026\n👤 Client: Jane Smith\n\n📎 PDF attached`}</pre>
                 </div>
               </div>
-
-              {/* Projects group */}
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
-                  <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
-                    Projects
-                  </p>
-                </div>
-                {[
-                  {
-                    label: 'Chat ID',
-                    key: 'projectTelegramChatId',
-                    placeholder: '-1009876543210 or @projectgroup',
-                  },
-                  {
-                    label: 'Topic ID (optional)',
-                    key: 'projectTelegramTopicId',
-                    placeholder: 'Leave blank if not using topics',
-                  },
-                ].map(({ label, key, placeholder }) => (
-                  <div key={key} className="flex flex-col gap-1.5">
-                    <label className={labelCls}>{label}</label>
-                    <input
-                      type="text"
-                      value={(payment as unknown as Record<string, string>)[key] ?? ''}
-                      onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
-                      placeholder={placeholder}
-                      className={inputCls}
-                    />
-                  </div>
-                ))}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <label className={labelCls}>Preview</label>
-                    <span className="text-[10px] text-white/25 italic">sample message</span>
-                  </div>
-                  <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">{`🆕 New Project Added — 20 Apr 2026\n\n📋  Wedding Film\n🏷  Status: Confirmed (Apr 2026)\n📅  Filming: 25 Apr 2026\n🗓  Deliver: 10 May 2026  (🟡 20d left)\n\n━━━━━━━━━━━━\n💼  Total active: 4  |  ⏳ Unconfirmed: 1`}</pre>
-                </div>
-              </div>
             </div>
 
             <div className={saveRowCls}>
@@ -1099,171 +977,6 @@ function SettingsForm({
               )}
               <button onClick={handleSaveTelegram} disabled={isPending} className={saveBtnCls}>
                 Save Telegram settings
-              </button>
-            </div>
-          </section>
-
-          {/* Kanban Updates */}
-          <section className={sectionCls}>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-base font-semibold text-white">Kanban Updates</h2>
-                <p className="text-xs text-white/40 mt-0.5">
-                  Post a daily project status digest to the Projects channel at the scheduled time.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPay('kanbanUpdateEnabled', !payment.kanbanUpdateEnabled)}
-                className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${payment.kanbanUpdateEnabled ? 'bg-[#FFC206]' : 'bg-white/20'}`}
-              >
-                <span
-                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
-                  style={{ left: payment.kanbanUpdateEnabled ? '22px' : '2px' }}
-                />
-              </button>
-            </div>
-
-            {payment.kanbanUpdateEnabled && (
-              <div className="flex flex-col gap-4">
-                {/* Timezone */}
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Timezone</label>
-                  <select
-                    value={payment.kanbanUpdateTimezone ?? 'UTC'}
-                    onChange={(e) => setPay('kanbanUpdateTimezone', e.target.value)}
-                    className={`${inputCls} cursor-pointer`}
-                  >
-                    {[
-                      ['UTC', 'UTC'],
-                      ['America/Los_Angeles', 'Los Angeles (UTC−8/−7)'],
-                      ['America/Denver', 'Denver (UTC−7/−6)'],
-                      ['America/Chicago', 'Chicago (UTC−6/−5)'],
-                      ['America/New_York', 'New York (UTC−5/−4)'],
-                      ['America/Sao_Paulo', 'São Paulo (UTC−3)'],
-                      ['Europe/London', 'London (UTC+0/+1)'],
-                      ['Europe/Paris', 'Paris (UTC+1/+2)'],
-                      ['Europe/Moscow', 'Moscow (UTC+3)'],
-                      ['Asia/Dubai', 'Dubai (UTC+4)'],
-                      ['Asia/Kolkata', 'India (UTC+5:30)'],
-                      ['Asia/Dhaka', 'Dhaka (UTC+6)'],
-                      ['Asia/Bangkok', 'Bangkok (UTC+7)'],
-                      ['Asia/Singapore', 'Singapore (UTC+8)'],
-                      ['Asia/Tokyo', 'Tokyo (UTC+9)'],
-                      ['Australia/Sydney', 'Sydney (UTC+10/+11)'],
-                    ].map(([val, label]) => (
-                      <option key={val} value={val} className="bg-zinc-900">
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Send times */}
-                <div className="flex flex-col gap-2">
-                  <label className={labelCls}>Send times</label>
-                  <div className="flex flex-col gap-2">
-                    {(payment.kanbanUpdateTimes ?? ['09:00', '16:00']).map((t, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <input
-                          type="time"
-                          value={t}
-                          onChange={(e) => {
-                            const next = [...(payment.kanbanUpdateTimes ?? ['09:00', '16:00'])];
-                            next[i] = e.target.value;
-                            setPay('kanbanUpdateTimes', next);
-                          }}
-                          className={`${inputCls} w-36`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = (payment.kanbanUpdateTimes ?? ['09:00', '16:00']).filter(
-                              (_, idx) => idx !== i
-                            );
-                            setPay('kanbanUpdateTimes', next);
-                          }}
-                          className="h-11 px-3 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition shrink-0"
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = [
-                          ...(payment.kanbanUpdateTimes ?? ['09:00', '16:00']),
-                          '09:00',
-                        ];
-                        setPay('kanbanUpdateTimes', next);
-                      }}
-                      className="h-9 px-4 rounded-xl border border-white/15 text-xs font-semibold text-white/50 hover:bg-white/[0.07] hover:text-white/80 transition self-start"
-                    >
-                      + Add time
-                    </button>
-                  </div>
-                </div>
-
-                {/* Day selector */}
-                <div className="flex flex-col gap-2">
-                  <label className={labelCls}>Days</label>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const).map((day) => {
-                      const active = (
-                        payment.kanbanUpdateDays ?? ['mon', 'tue', 'wed', 'thu', 'fri']
-                      ).includes(day);
-                      return (
-                        <button
-                          key={day}
-                          type="button"
-                          onClick={() => {
-                            const current = payment.kanbanUpdateDays ?? [
-                              'mon',
-                              'tue',
-                              'wed',
-                              'thu',
-                              'fri',
-                            ];
-                            const next = active
-                              ? current.filter((d) => d !== day)
-                              : [...current, day];
-                            setPay('kanbanUpdateDays', next);
-                          }}
-                          className={`h-9 w-12 rounded-xl border text-xs font-semibold uppercase tracking-wide transition ${active ? 'border-violet-400/50 bg-violet-400/15 text-violet-300' : 'border-white/15 text-white/40 hover:bg-white/[0.06] hover:text-white/60'}`}
-                        >
-                          {day}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Template editor */}
-                <KanbanTemplateEditor
-                  template={payment.telegramTemplate ?? {}}
-                  onChange={(k, v) => setTmpl(k, v)}
-                  onReorder={(order) => setTmpl('sectionOrder', order)}
-                  phases={
-                    prefs.kanbanPhases.length > 0
-                      ? prefs.kanbanPhases
-                      : DEFAULT_APP_PREFERENCES.kanbanPhases
-                  }
-                  inputCls={inputCls}
-                  labelCls={labelCls}
-                />
-
-                {/* Send preview */}
-                <SendPreviewButton />
-              </div>
-            )}
-
-            <div
-              className={`${saveRowCls} ${payment.kanbanUpdateEnabled ? '' : 'mt-0 pt-0 border-t-0'}`}
-            >
-              {savedKanban && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
-              <button onClick={handleSaveKanban} disabled={isPending} className={saveBtnCls}>
-                Save Kanban settings
               </button>
             </div>
           </section>
@@ -1304,78 +1017,6 @@ function SectionDivider({ label }: { label: string }) {
     <div className="flex items-center gap-3">
       <p className="text-xs font-bold uppercase tracking-widest text-white/40 shrink-0">{label}</p>
       <div className="flex-1 h-px bg-white/[0.07]" />
-    </div>
-  );
-}
-
-// ── Kanban phase list ─────────────────────────────────────────────────────────
-
-function KanbanPhaseList({
-  phases,
-  onChange,
-  inputCls,
-}: {
-  phases: KanbanPhase[];
-  onChange: (phases: KanbanPhase[]) => void;
-  inputCls: string;
-}) {
-  const [newLabel, setNewLabel] = useState('');
-
-  function addPhase() {
-    if (!newLabel.trim()) return;
-    onChange([...phases, { id: uid(), label: newLabel.trim() }]);
-    setNewLabel('');
-  }
-
-  function updateLabel(id: string, label: string) {
-    onChange(phases.map((p) => (p.id === id ? { ...p, label } : p)));
-  }
-
-  function removePhase(id: string) {
-    if (phases.length <= 1) return;
-    onChange(phases.filter((p) => p.id !== id));
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      {phases.map((phase, i) => (
-        <div key={phase.id} className="flex items-center gap-3">
-          <span className="text-xs text-white/30 w-5 shrink-0 text-right">{i + 1}</span>
-          <input
-            type="text"
-            value={phase.label}
-            onChange={(e) => updateLabel(phase.id, e.target.value)}
-            className={`${inputCls} flex-1`}
-          />
-          <button
-            type="button"
-            onClick={() => removePhase(phase.id)}
-            disabled={phases.length <= 1}
-            className="h-11 px-3 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            Remove
-          </button>
-        </div>
-      ))}
-      <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/[0.08]">
-        <input
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') addPhase();
-          }}
-          placeholder="New phase name…"
-          className={`${inputCls} flex-1`}
-        />
-        <button
-          type="button"
-          onClick={addPhase}
-          disabled={!newLabel.trim()}
-          className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
-        >
-          Add
-        </button>
-      </div>
     </div>
   );
 }
@@ -1479,230 +1120,6 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         >
           Add
         </button>
-      </div>
-    </div>
-  );
-}
-
-// ── Send preview button ────────────────────────────────────────────────────────
-
-function SendPreviewButton() {
-  const { sendAll } = useSendProjectsTelegram();
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'ok' | 'err'>('idle');
-
-  async function handleSend() {
-    setLoading(true);
-    setStatus('idle');
-    const result = await sendAll();
-    setLoading(false);
-    if (result.ok) {
-      setStatus('ok');
-      setTimeout(() => setStatus('idle'), 3000);
-    } else {
-      setStatus('err');
-      setTimeout(() => setStatus('idle'), 3000);
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-3 pt-1">
-      <button
-        type="button"
-        onClick={handleSend}
-        disabled={loading}
-        className="flex items-center gap-2 h-10 px-5 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sm font-semibold text-sky-300 hover:bg-sky-500/25 hover:border-sky-500/50 transition disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        {loading ? (
-          <>
-            <svg className="w-4 h-4 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-              />
-            </svg>
-            Sending…
-          </>
-        ) : (
-          <>
-            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-            </svg>
-            Send Preview to Telegram
-          </>
-        )}
-      </button>
-      {status === 'ok' && <span className="text-xs text-green-400 font-semibold">Sent ✓</span>}
-      {status === 'err' && <span className="text-xs text-red-400 font-semibold">Failed</span>}
-    </div>
-  );
-}
-
-// ── Kanban template editor ─────────────────────────────────────────────────────
-
-function buildSampleProjects(phases: KanbanPhase[]): Project[] {
-  const today = new Date();
-  const ym = today.toISOString().slice(0, 7);
-  const samples: { name: string; items: { id: string; description: string; status: 'todo' }[] }[] =
-    [
-      {
-        name: 'Event Coverage',
-        items: [
-          { id: 's1', description: 'Video x1', status: 'todo' },
-          { id: 's2', description: 'Photo x1', status: 'todo' },
-        ],
-      },
-      {
-        name: 'Wedding Film',
-        items: [{ id: 's3', description: 'Highlight Reel', status: 'todo' }],
-      },
-      {
-        name: 'Corp. Video',
-        items: [
-          { id: 's4', description: 'Interview x2', status: 'todo' },
-          { id: 's5', description: 'B-Roll Package', status: 'todo' },
-        ],
-      },
-      { name: 'Social Pack', items: [{ id: 's6', description: 'Reels x3', status: 'todo' }] },
-    ];
-
-  return phases.map((phase, i) => {
-    const s = samples[i % samples.length];
-    return {
-      id: `prev-p${i}`,
-      name: s.name,
-      status: 'confirmed' as const,
-      kanbanPhase: phase.id,
-      clientId: '',
-      invoiceIds: [],
-      items: s.items,
-      createdAt: '',
-      confirmedMonth: ym,
-    };
-  });
-}
-
-function KanbanTemplateEditor({
-  template,
-  onChange,
-  onReorder,
-  phases,
-  inputCls,
-  labelCls,
-}: {
-  template: TelegramKanbanTemplate;
-  onChange: <K extends keyof TelegramKanbanTemplate>(k: K, v: TelegramKanbanTemplate[K]) => void;
-  onReorder: (order: string[]) => void;
-  phases: KanbanPhase[];
-  inputCls: string;
-  labelCls: string;
-}) {
-  // Phase-only order (same logic as buildProjectsSummaryMessage)
-  const allPhaseIds = phases.map((p) => p.id);
-  const stored = (template.sectionOrder ?? []).filter((id) => allPhaseIds.includes(id));
-  const missing = allPhaseIds.filter((id) => !stored.includes(id));
-  const order = stored.length > 0 ? [...stored, ...missing] : allPhaseIds;
-
-  function move(idx: number, dir: -1 | 1) {
-    const next = [...order];
-    const swap = idx + dir;
-    if (swap < 0 || swap >= next.length) return;
-    [next[idx], next[swap]] = [next[swap], next[idx]];
-    onReorder(next);
-  }
-
-  const sampleProjects = useMemo(() => buildSampleProjects(phases), [phases]);
-  const preview = useMemo(
-    () => buildProjectsSummaryMessage(sampleProjects, phases, template),
-    [sampleProjects, phases, template]
-  );
-
-  const miniInput =
-    'h-9 w-14 rounded-lg border border-white/20 bg-white/10 px-2 text-sm text-white text-center placeholder:text-white/30 focus:outline-none focus:ring-1 focus:ring-[#FFC206] focus:border-transparent transition';
-
-  return (
-    <div className="flex flex-col gap-5 pt-2">
-      <div className="flex items-center gap-3">
-        <p className="text-xs font-bold uppercase tracking-widest text-white/40 shrink-0">
-          Message Template
-        </p>
-        <div className="flex-1 h-px bg-white/[0.07]" />
-      </div>
-
-      {/* Header */}
-      <div className="flex flex-col gap-1.5">
-        <label className={labelCls}>Header</label>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={template.headerEmoji ?? ''}
-            onChange={(e) => onChange('headerEmoji', e.target.value)}
-            placeholder="📊"
-            className={miniInput}
-            maxLength={4}
-          />
-          <input
-            type="text"
-            value={template.headerTitle ?? ''}
-            onChange={(e) => onChange('headerTitle', e.target.value)}
-            placeholder="PROJECT UPDATE"
-            className={`${inputCls} flex-1`}
-          />
-        </div>
-      </div>
-
-      {/* Section order */}
-      <div className="flex flex-col gap-2">
-        <label className={labelCls}>Section Order</label>
-        <div className="flex flex-col gap-1.5">
-          {order.map((sid, idx) => (
-            <div
-              key={sid}
-              className="flex items-center gap-2 h-9 px-3 rounded-xl bg-white/[0.04] border border-white/[0.07]"
-            >
-              <span className="text-sm w-5 text-center shrink-0">■</span>
-              <span className="flex-1 text-sm text-white/70 truncate">
-                {phases.find((p) => p.id === sid)?.label ?? sid}
-              </span>
-              <button
-                type="button"
-                disabled={idx === 0}
-                onClick={() => move(idx, -1)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.08] transition disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
-              >
-                ↑
-              </button>
-              <button
-                type="button"
-                disabled={idx === order.length - 1}
-                onClick={() => move(idx, 1)}
-                className="w-6 h-6 rounded-lg flex items-center justify-center text-white/40 hover:text-white hover:bg-white/[0.08] transition disabled:opacity-20 disabled:cursor-not-allowed shrink-0"
-              >
-                ↓
-              </button>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Live preview */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <label className={labelCls}>Preview</label>
-          <span className="text-[10px] text-white/25 italic">uses sample data</span>
-        </div>
-        <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">
-          {preview}
-        </pre>
       </div>
     </div>
   );

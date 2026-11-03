@@ -39,7 +39,6 @@ function buildAppPreferences(
   const p = prefs as Partial<AppPreferences>;
   return {
     ...DEFAULT_APP_PREFERENCES,
-    kanbanPhases: p.kanbanPhases ?? DEFAULT_APP_PREFERENCES.kanbanPhases,
     holidays: p.holidays ?? DEFAULT_APP_PREFERENCES.holidays,
     currencyCode: invoicing.currencyCode ?? p.currencyCode ?? DEFAULT_APP_PREFERENCES.currencyCode,
     currencySymbol:

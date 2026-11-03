@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { useInvoices } from '@/src/hooks/useInvoices';
-import { useProjects } from '@/src/hooks/useProjects';
 import { useClients } from '@/src/hooks/useClients';
 import { useCurrency, useAppPreferences } from '@/src/hooks/useAppPreferences';
-import { calcSubtotal, calcEarned, taxConfigFromPrefs } from '@/src/lib/calculations';
+import { calcSubtotal, calcEarned, calcBalance, taxConfigFromPrefs } from '@/src/lib/calculations';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import type { Invoice, InvoiceStatus } from '@/src/types';
 
@@ -53,41 +52,29 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
 
 export default function DashboardScreen() {
   const { data: invoices } = useInvoices();
-  const { data: projects } = useProjects();
   const { data: clients } = useClients();
   const { fmtAmount: fmt, fmtShort } = useCurrency();
   const prefs = useAppPreferences();
   const taxConfig = taxConfigFromPrefs(prefs);
 
-  const todayStr = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
-
   const thisYM = getYM(0);
   const lastYM = getYM(-1);
-  const nextYM = getYM(1);
 
   const thisMonthName = ymFullLabel(thisYM);
   const lastMonthName = ymFullLabel(lastYM);
-  const nextMonthName = ymFullLabel(nextYM);
 
   // ── KPIs ───────────────────────────────────────────────────────────────────
   const thisMonthInvs = invoices.filter((i) => i.date.startsWith(thisYM));
   const thisMonthBilled = thisMonthInvs.reduce((s, i) => s + calcSubtotal(i), 0);
   const thisMonthEarned = thisMonthInvs.reduce((s, i) => s + calcEarned(i, taxConfig), 0);
-  const thisMonthProjCount = new Set(
-    thisMonthInvs.flatMap((inv) =>
-      projects.filter((p) => p.invoiceIds.includes(inv.id)).map((p) => p.id)
-    )
-  ).size;
-
   const lastMonthBilled = invoices
     .filter((i) => i.date.startsWith(lastYM))
     .reduce((s, i) => s + calcSubtotal(i), 0);
 
-  const nextMonthProjs = projects.filter((p) => p.confirmedMonth === nextYM);
-  const nextMonthPipeline = nextMonthProjs.reduce((s, p) => s + (p.budget ?? 0), 0);
+  const outstandingInvs = invoices.filter(
+    (i) => i.status === 'sent' || i.status === 'partial' || i.status === 'overdue'
+  );
+  const outstanding = outstandingInvs.reduce((s, i) => s + calcBalance(i, taxConfig), 0);
 
   const momPct =
     lastMonthBilled > 0
@@ -130,11 +117,6 @@ export default function DashboardScreen() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, 5);
 
-  const lateProjects = projects
-    .filter((p) => p.status !== 'completed' && p.deliverDate && p.deliverDate < todayStr)
-    .sort((a, b) => (a.deliverDate ?? '').localeCompare(b.deliverDate ?? ''))
-    .slice(0, 5);
-
   // ── Top clients (last 3 months) ────────────────────────────────────────────
   const last3YMs = [getYM(-2), getYM(-1), getYM(0)];
   const clientTotals: Record<string, number> = {};
@@ -173,7 +155,7 @@ export default function DashboardScreen() {
           label={thisMonthName}
           sub="Billed"
           value={fmt(thisMonthBilled)}
-          note={`${thisMonthProjCount} project${thisMonthProjCount !== 1 ? 's' : ''}`}
+          note={`${thisMonthInvs.length} invoice${thisMonthInvs.length !== 1 ? 's' : ''}`}
           accent="amber"
           iconD="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
@@ -198,12 +180,12 @@ export default function DashboardScreen() {
           iconD="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
         />
         <KPICard
-          label={nextMonthName}
-          sub="Pipeline"
-          value={fmt(nextMonthPipeline)}
-          note={`${nextMonthProjs.length} project${nextMonthProjs.length !== 1 ? 's' : ''} confirmed`}
+          label="Outstanding"
+          sub="Unpaid"
+          value={fmt(outstanding)}
+          note={`${outstandingInvs.length} invoice${outstandingInvs.length !== 1 ? 's' : ''} unpaid`}
           accent="purple"
-          iconD="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"
+          iconD="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
         />
       </div>
 
@@ -245,54 +227,6 @@ export default function DashboardScreen() {
       )}
 
       {/* Late Projects */}
-      {lateProjects.length > 0 && (
-        <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <svg
-              className="w-4 h-4 text-rose-400 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <h3 className="text-sm font-semibold text-rose-300">Late Projects</h3>
-            <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">
-              {lateProjects.length}
-            </span>
-          </div>
-          <div className="flex flex-col divide-y divide-white/[0.05]">
-            {lateProjects.map((p) => {
-              const client = clients.find((c) => c.id === p.clientId);
-              const daysLate = p.deliverDate
-                ? Math.floor(
-                    (new Date(todayStr).getTime() - new Date(p.deliverDate).getTime()) / 86400000
-                  )
-                : 0;
-              return (
-                <Link
-                  href="/projects"
-                  key={p.id}
-                  className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0"
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-white truncate">{p.name}</p>
-                    <p className="text-[10px] text-white/40">{client?.name ?? '—'}</p>
-                  </div>
-                  <span className="text-[10px] font-bold text-rose-400 shrink-0 ml-3">
-                    {daysLate}d late
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Top Clients */}
       {topClients.length > 0 && (
@@ -329,7 +263,7 @@ export default function DashboardScreen() {
       )}
 
       {/* Empty state */}
-      {invoices.length === 0 && projects.length === 0 && (
+      {invoices.length === 0 && (
         <div className="flex flex-col items-center justify-center py-16 text-white/30">
           <svg
             className="w-12 h-12 mb-3 text-white/10"
@@ -344,7 +278,7 @@ export default function DashboardScreen() {
               d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
             />
           </svg>
-          <p className="text-sm">No data yet. Create your first invoice or project.</p>
+          <p className="text-sm">No data yet. Create your first invoice.</p>
         </div>
       )}
     </div>

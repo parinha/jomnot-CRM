@@ -81,13 +81,6 @@ export function useSettingsMutations() {
       telegramBotToken: payment.telegramBotToken,
       telegramChatId: payment.telegramChatId,
       telegramTopicId: payment.telegramTopicId,
-      projectTelegramChatId: payment.projectTelegramChatId,
-      projectTelegramTopicId: payment.projectTelegramTopicId,
-      kanbanUpdateEnabled: payment.kanbanUpdateEnabled,
-      kanbanUpdateTimes: payment.kanbanUpdateTimes,
-      kanbanUpdateDays: payment.kanbanUpdateDays,
-      kanbanUpdateTimezone: payment.kanbanUpdateTimezone,
-      telegramTemplate: payment.telegramTemplate,
     };
     await mergeDocPath(
       'settings/preferences',
@@ -105,7 +98,6 @@ export function useSettingsMutations() {
 
   async function saveAppPreferences(prefs: AppPreferences): Promise<void> {
     await mergeDocPath('settings/preferences', {
-      kanbanPhases: prefs.kanbanPhases,
       holidays: prefs.holidays,
     });
   }
