@@ -49,15 +49,20 @@ export async function sheetToPdfBlob(sheet: ReactElement, scale: number): Promis
   }
 }
 
-/** Where quotations go on Telegram: the quote chat/topic, falling back to the invoice chat. */
-export function quoteTelegramTarget(payment: PaymentInfo | null | undefined) {
+/**
+ * Where quotations / receipts go on Telegram: their own chat/topic if set,
+ * otherwise the invoice chat (and the invoice topic when no separate chat is set).
+ */
+export function telegramTarget(payment: PaymentInfo | null | undefined, doc: 'quote' | 'receipt') {
   const token = payment?.telegramBotToken?.trim() ?? '';
-  const quoteChat = payment?.telegramQuoteChatId?.trim() ?? '';
-  const chatId = quoteChat || payment?.telegramChatId?.trim() || '';
-  const topicId =
-    payment?.telegramQuoteTopicId?.trim() ||
-    (quoteChat ? '' : payment?.telegramTopicId?.trim()) ||
-    '';
+  const ownChat = (
+    doc === 'quote' ? payment?.telegramQuoteChatId : payment?.telegramReceiptChatId
+  )?.trim();
+  const ownTopic = (
+    doc === 'quote' ? payment?.telegramQuoteTopicId : payment?.telegramReceiptTopicId
+  )?.trim();
+  const chatId = ownChat || payment?.telegramChatId?.trim() || '';
+  const topicId = ownTopic || (ownChat ? '' : payment?.telegramTopicId?.trim()) || '';
   return { token, chatId, topicId };
 }
 

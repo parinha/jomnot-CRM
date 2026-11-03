@@ -972,8 +972,8 @@ function SettingsForm({
                 <div>
                   <h2 className="text-base font-semibold text-ink">Telegram Bot</h2>
                   <p className="text-xs text-muted mt-0.5">
-                    Send invoices and quotations to Telegram. Create a bot via @BotFather and add it
-                    to your group.
+                    Send invoices, quotations and receipts to Telegram. Create a bot via @BotFather
+                    and add it to your group.
                   </p>
                 </div>
               </div>
@@ -1051,6 +1051,41 @@ function SettingsForm({
                     {
                       label: 'Topic ID (optional)',
                       key: 'telegramQuoteTopicId',
+                      placeholder: 'e.g. 42',
+                    },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key} className="flex flex-col gap-1.5">
+                      <label className={labelCls}>{label}</label>
+                      <input
+                        type="text"
+                        value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                        onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                        placeholder={placeholder}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Receipts group */}
+                <div className="rounded-xl bg-subtle p-4 flex flex-col gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                    <p className="text-sm font-semibold text-ink">Receipts</p>
+                  </div>
+                  <p className="text-xs text-muted -mt-2">
+                    To post receipts in another topic of the same group, fill in only the Topic ID.
+                    Leave both blank to use the invoice chat and topic.
+                  </p>
+                  {[
+                    {
+                      label: 'Chat ID (optional)',
+                      key: 'telegramReceiptChatId',
+                      placeholder: 'Same as invoices',
+                    },
+                    {
+                      label: 'Topic ID (optional)',
+                      key: 'telegramReceiptTopicId',
                       placeholder: 'e.g. 42',
                     },
                   ].map(({ label, key, placeholder }) => (

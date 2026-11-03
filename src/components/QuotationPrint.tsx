@@ -20,7 +20,7 @@ import {
   taxLabelFor,
   validUntil,
 } from '@/src/lib/quotation';
-import { quoteTelegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/pdf';
+import { telegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/pdf';
 
 // ── Design tokens (same as the invoice PDF) ───────────────────────────────────
 const DARK = '#1a1a1a';
@@ -61,7 +61,7 @@ export default function QuotationPrint(props: QuotationSheetProps) {
   const [sentOk, setSentOk] = useState(false);
 
   async function sendToTelegram() {
-    const { token, chatId, topicId } = quoteTelegramTarget(payment);
+    const { token, chatId, topicId } = telegramTarget(payment, 'quote');
     if (!token || !chatId) {
       toast.error('Add your Telegram Bot Token and Chat ID in Settings first.');
       return;

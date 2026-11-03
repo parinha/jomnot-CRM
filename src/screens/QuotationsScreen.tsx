@@ -58,7 +58,7 @@ import {
   taxLabelFor,
   validUntil,
 } from '@/src/lib/quotation';
-import { quoteTelegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/pdf';
+import { telegramTarget, sendTelegramDocument, sheetToPdfBlob } from '@/src/lib/pdf';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
 import { PageHeader, EmptyCard } from '@/src/components/PageHeader';
@@ -149,7 +149,7 @@ export default function QuotationsScreen() {
   }
 
   async function sendToTelegram(q: Quotation) {
-    const { token, chatId, topicId } = quoteTelegramTarget(paymentInfo);
+    const { token, chatId, topicId } = telegramTarget(paymentInfo, 'quote');
     if (!token || !chatId) {
       toast.error('Add your Telegram Bot Token and Chat ID in Settings first.');
       return;

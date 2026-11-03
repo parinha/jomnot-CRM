@@ -89,6 +89,32 @@ export interface Quotation extends RecordMeta {
   invoiceId?: string;
 }
 
+// ── Receipt ────────────────────────────────────────────────────────────────────
+
+export type ReceiptKind = 'full' | 'deposit' | 'balance';
+
+export interface Receipt extends RecordMeta {
+  id: string;
+  number: string;
+  invoiceId: string;
+  clientId: string;
+  /** Date the payment was received (YYYY-MM-DD). */
+  date: string;
+  kind: ReceiptKind;
+  amount: number;
+  /** Snapshots taken when the receipt was issued, so later invoice edits don't change it. */
+  invoiceTotal: number;
+  previouslyPaid: number;
+  method: string;
+  reference?: string;
+  message?: string;
+  showStamp: boolean;
+  showWords: boolean;
+  showItems: boolean;
+  showProgress: boolean;
+  showCustomerSignature: boolean;
+}
+
 export interface QuotationSettings {
   validDays: number;
   depositPercent: number;
@@ -209,4 +235,7 @@ export interface PaymentInfo {
   /** Optional separate destination for quotations; falls back to the invoice chat. */
   telegramQuoteChatId?: string;
   telegramQuoteTopicId?: string;
+  /** Optional separate destination for receipts; falls back to the invoice chat. */
+  telegramReceiptChatId?: string;
+  telegramReceiptTopicId?: string;
 }

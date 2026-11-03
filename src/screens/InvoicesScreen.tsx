@@ -51,6 +51,7 @@ import Pagination from '@/src/components/Pagination';
 import { PageHeader, EmptyCard } from '@/src/components/PageHeader';
 import ModalShell from '@/src/components/ModalShell';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
+import InvoiceReceipts from '@/src/components/InvoiceReceipts';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 
 function localToday(): string {
@@ -783,7 +784,8 @@ export default function InvoicesScreen() {
                   </div>
                 </div>
 
-                {/* Linked projects */}
+                {/* Receipts */}
+                <InvoiceReceipts invoice={inv} />
 
                 {/* Status change */}
                 <div>

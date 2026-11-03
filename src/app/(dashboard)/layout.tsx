@@ -5,6 +5,7 @@ import { InvoicesProvider } from '@/src/contexts/InvoicesContext';
 import { ClientsProvider } from '@/src/contexts/ClientsContext';
 import { SettingsProvider } from '@/src/contexts/SettingsContext';
 import { QuotationsProvider } from '@/src/contexts/QuotationsContext';
+import { ReceiptsProvider } from '@/src/contexts/ReceiptsContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,9 +14,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <SettingsProvider>
           <InvoicesProvider>
             <QuotationsProvider>
-              <ClientsProvider>
-                <DashboardShell>{children}</DashboardShell>
-              </ClientsProvider>
+              <ReceiptsProvider>
+                <ClientsProvider>
+                  <DashboardShell>{children}</DashboardShell>
+                </ClientsProvider>
+              </ReceiptsProvider>
             </QuotationsProvider>
           </InvoicesProvider>
         </SettingsProvider>

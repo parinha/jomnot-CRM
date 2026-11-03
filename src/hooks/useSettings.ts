@@ -89,6 +89,8 @@ export function useSettingsMutations() {
       telegramTopicId: payment.telegramTopicId,
       telegramQuoteChatId: payment.telegramQuoteChatId,
       telegramQuoteTopicId: payment.telegramQuoteTopicId,
+      telegramReceiptChatId: payment.telegramReceiptChatId,
+      telegramReceiptTopicId: payment.telegramReceiptTopicId,
     };
     await mergeDocPath(
       'settings/preferences',
