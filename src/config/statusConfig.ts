@@ -1,4 +1,4 @@
-import type { InvoiceStatus } from '@/src/types';
+import type { InvoiceStatus, QuotationStatus } from '@/src/types';
 
 // ── Invoice status ─────────────────────────────────────────────────────────────
 export const STATUS_CONFIG: Record<
@@ -46,4 +46,13 @@ export const STATUS_CONFIG: Record<
     bg: 'bg-red-50 border-red-200',
     bar: 'bg-red-500',
   },
+};
+
+// ── Quotation status ───────────────────────────────────────────────────────────
+export const QUOTE_STATUS_CONFIG: Record<QuotationStatus, { label: string; cls: string }> = {
+  draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-600' },
+  sent: { label: 'Sent', cls: 'bg-blue-50 text-blue-700' },
+  accepted: { label: 'Accepted', cls: 'bg-brand-soft text-brand-ink' },
+  declined: { label: 'Declined', cls: 'bg-red-50 text-red-600' },
+  expired: { label: 'Expired', cls: 'bg-amber-50 text-amber-700' },
 };

@@ -9,8 +9,13 @@ import type {
   InvoicingSettings,
   PaymentInfo,
   PaymentMethod,
+  QuotationSettings,
 } from '@/src/types';
-import { DEFAULT_APP_PREFERENCES, DEFAULT_INVOICING_SETTINGS } from '@/src/types';
+import {
+  DEFAULT_APP_PREFERENCES,
+  DEFAULT_INVOICING_SETTINGS,
+  DEFAULT_QUOTATION_SETTINGS,
+} from '@/src/types';
 import { DEFAULT_SCOPES } from '@/src/config/constants';
 
 const EMPTY_PROFILE: CompanyProfile = {
@@ -58,6 +63,7 @@ interface SettingsCtx {
   invoicingSettings: InvoicingSettings;
   scopeOfWork: string[];
   appPreferences: AppPreferences;
+  quotationSettings: QuotationSettings;
   loading: boolean;
 }
 
@@ -71,13 +77,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [scopeOfWork, setScopeOfWork] = useState<string[]>(DEFAULT_SCOPES);
   const [prefsRaw, setPrefsRaw] = useState<Record<string, unknown>>({});
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [quotationSettings, setQuotationSettings] = useState<QuotationSettings>(
+    DEFAULT_QUOTATION_SETTINGS
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const ready = new Set<string>();
     const markReady = (key: string) => {
       ready.add(key);
-      if (ready.size >= 5) setLoading(false);
+      if (ready.size >= 6) setLoading(false);
     };
 
     const u1 = onSnapshot(
@@ -129,7 +138,21 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       () => markReady('paymentMethods')
     );
 
+    const u6 = onSnapshot(
+      doc(db, 'settings', 'quotation'),
+      (snap) => {
+        if (snap.exists())
+          setQuotationSettings({
+            ...DEFAULT_QUOTATION_SETTINGS,
+            ...(snap.data() as Partial<QuotationSettings>),
+          });
+        markReady('quotation');
+      },
+      () => markReady('quotation')
+    );
+
     return () => {
+      u6();
       u1();
       u2();
       u3();
@@ -154,6 +177,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         invoicingSettings,
         scopeOfWork,
         appPreferences,
+        quotationSettings,
         loading,
       }}
     >

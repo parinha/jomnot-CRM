@@ -5,6 +5,7 @@ import type {
   InvoicingSettings,
   PaymentInfo,
   PaymentMethod,
+  QuotationSettings,
 } from '@/src/types';
 import { DEFAULT_APP_PREFERENCES } from '@/src/types';
 import { setDocPath, mergeDocPath } from '@/src/lib/client/firestore';
@@ -61,6 +62,11 @@ export function useScopeOfWork() {
   };
 }
 
+export function useQuotationSettings() {
+  const { quotationSettings, loading } = useSettingsContext();
+  return { data: quotationSettings, isLoading: loading };
+}
+
 export function useAppPreferences() {
   const { appPreferences, loading } = useSettingsContext();
   return {
@@ -81,6 +87,8 @@ export function useSettingsMutations() {
       telegramBotToken: payment.telegramBotToken,
       telegramChatId: payment.telegramChatId,
       telegramTopicId: payment.telegramTopicId,
+      telegramQuoteChatId: payment.telegramQuoteChatId,
+      telegramQuoteTopicId: payment.telegramQuoteTopicId,
     };
     await mergeDocPath(
       'settings/preferences',
@@ -102,6 +110,10 @@ export function useSettingsMutations() {
     });
   }
 
+  async function saveQuotationSettings(settings: QuotationSettings): Promise<void> {
+    await setDocPath('settings/quotation', settings as unknown as Record<string, unknown>);
+  }
+
   async function savePaymentMethods(methods: PaymentMethod[]): Promise<void> {
     await setDocPath('settings/paymentMethods', { methods });
   }
@@ -113,5 +125,6 @@ export function useSettingsMutations() {
     saveScopeOfWork,
     saveAppPreferences,
     savePaymentMethods,
+    saveQuotationSettings,
   };
 }

@@ -43,6 +43,7 @@ import { TablePageSkeleton } from '@/src/components/PageSkeleton';
 import { calcSubtotal, calcTaxAmount, calcNet, taxConfigFromPrefs } from '@/src/lib/calculations';
 import { useAppPreferences, useCurrency, useDateFmt } from '@/src/hooks/useAppPreferences';
 import { uid } from '@/src/lib/id';
+import { nextInvoiceNumber } from '@/src/lib/numbering';
 import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import SearchInput from '@/src/components/SearchInput';
@@ -55,17 +56,6 @@ import { useInvoiceMutations } from '@/src/hooks/useInvoices';
 function localToday(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function nextInvoiceNumber(invoices: Invoice[]): string {
-  const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
-  const max = invoices.reduce((m, inv) => {
-    if (!inv.number.startsWith(prefix)) return m;
-    const n = parseInt(inv.number.slice(prefix.length), 10);
-    return isNaN(n) ? m : Math.max(m, n);
-  }, 0);
-  return `${prefix}${String(max + 1).padStart(3, '0')}`;
 }
 
 function emptyItem(): LineItem {
@@ -266,6 +256,20 @@ export default function InvoicesScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  // Open an invoice for editing via /invoices?edit=<id> (used after converting a quotation)
+  const didOpenEdit = useRef<string | null>(null);
+  useEffect(() => {
+    const editId = searchParams.get('edit');
+    if (!editId || didOpenEdit.current === editId) return;
+    const target = invoices.find((i) => i.id === editId);
+    if (!target) return;
+    didOpenEdit.current = editId;
+    openEdit(target);
+    router.replace('/invoices');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, invoices]);
+
   function openEdit(inv: Invoice) {
     setEditingId(inv.id);
     setForm({

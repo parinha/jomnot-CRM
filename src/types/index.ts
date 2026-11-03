@@ -47,6 +47,75 @@ export interface Invoice extends RecordMeta {
   paymentMethodId?: string;
 }
 
+// ── Quotation ──────────────────────────────────────────────────────────────────
+
+export interface QuoteLineItem extends LineItem {
+  /** Shown on the quote as an add-on but not counted in the total. */
+  optional?: boolean;
+}
+
+export type QuotationStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired';
+
+export type QuoteTaxMode = 'none' | 'vat' | 'wht';
+
+export interface Quotation extends RecordMeta {
+  id: string;
+  number: string;
+  date: string;
+  validDays: number;
+  status: QuotationStatus;
+  clientId: string;
+  projectName?: string;
+  items: QuoteLineItem[];
+  intro?: string;
+  notes: string;
+  discountPercent?: number;
+  taxMode: QuoteTaxMode;
+  taxLabel?: string;
+  taxRate?: number;
+  /** Shown under the total when taxMode is 'none'. */
+  taxNote?: string;
+  depositMode?: 'percent' | 'amount';
+  depositValue?: number;
+  /** One item per line. */
+  gear?: string;
+  /** One term per line. */
+  terms?: string;
+  /** Supports **bold** markup. */
+  usageRights?: string;
+  showVatTin?: boolean;
+  paymentMethodId?: string;
+  /** Set when the quote has been converted into an invoice. */
+  invoiceId?: string;
+}
+
+export interface QuotationSettings {
+  validDays: number;
+  depositPercent: number;
+  intro: string;
+  terms: string;
+  usageRights: string;
+  gear: string;
+  taxNote: string;
+}
+
+export const DEFAULT_QUOTATION_SETTINGS: QuotationSettings = {
+  validDays: 14,
+  depositPercent: 50,
+  intro:
+    'Dear {contact},\n\nThank you for considering {company} for the {project}. We are pleased to present our quotation, which outlines the proposed scope of work, deliverables, and investment. Should you have any questions or wish to adjust the scope, please do not hesitate to contact us.',
+  terms: [
+    'Prices are valid until the date shown on this quotation.',
+    'Work begins after the deposit is received.',
+    'Includes 2 rounds of revisions per deliverable.',
+    'Final files are delivered after full payment.',
+  ].join('\n'),
+  usageRights:
+    'The work delivered under this quotation is **non-exclusive**. The client may use the materials within the agreed scope of work for publishing and promotional boosting for a period of **3 months** from the delivery date. Any usage, re-use, or boosting beyond this period will require an additional service fee.',
+  gear: '',
+  taxNote: 'All prices exclude VAT and other applicable taxes.',
+};
+
 export interface PaymentMethod {
   id: string;
   label: string;
@@ -137,4 +206,7 @@ export interface PaymentInfo {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramTopicId?: string;
+  /** Optional separate destination for quotations; falls back to the invoice chat. */
+  telegramQuoteChatId?: string;
+  telegramQuoteTopicId?: string;
 }

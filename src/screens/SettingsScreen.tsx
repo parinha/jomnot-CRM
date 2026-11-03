@@ -2,6 +2,7 @@
 
 import {
   Buildings,
+  ClipboardText,
   FileText,
   ImageSquare,
   PlugsConnected,
@@ -14,7 +15,13 @@ import {
 import { useState, useRef, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/src/components/AuthProvider';
-import type { CompanyProfile, InvoicingSettings, PaymentInfo, PaymentMethod } from '@/src/types';
+import type {
+  CompanyProfile,
+  InvoicingSettings,
+  PaymentInfo,
+  PaymentMethod,
+  QuotationSettings,
+} from '@/src/types';
 import { uid } from '@/src/lib/id';
 import {
   useCompanyProfile,
@@ -22,6 +29,7 @@ import {
   usePaymentMethods,
   useInvoicingSettings,
   useScopeOfWork,
+  useQuotationSettings,
   useSettingsMutations,
 } from '@/src/hooks/useSettings';
 import { TablePageSkeleton } from '@/src/components/PageSkeleton';
@@ -44,7 +52,7 @@ const EMPTY_PAYMENT: PaymentInfo = {
   qrImage: '',
 };
 
-type Tab = 'company' | 'invoicing' | 'workspace' | 'integrations';
+type Tab = 'company' | 'invoicing' | 'quotations' | 'workspace' | 'integrations';
 
 const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
@@ -56,6 +64,11 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
     id: 'invoicing',
     label: 'Invoicing',
     icon: <FileText className="w-5 h-5" weight="duotone" aria-hidden />,
+  },
+  {
+    id: 'quotations',
+    label: 'Quotations',
+    icon: <ClipboardText className="w-5 h-5" weight="duotone" aria-hidden />,
   },
   {
     id: 'workspace',
@@ -75,6 +88,7 @@ export default function SettingsScreen() {
   const { data: paymentMethods } = usePaymentMethods();
   const { data: invoicingSettings, isLoading: loadingInvoicing } = useInvoicingSettings();
   const { data: scopeOfWork } = useScopeOfWork();
+  const { data: quotationSettings } = useQuotationSettings();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab') as Tab | null;
 
@@ -87,6 +101,7 @@ export default function SettingsScreen() {
       paymentMethods={paymentMethods}
       invoicingSettings={invoicingSettings}
       scopeOfWork={scopeOfWork ?? []}
+      quotationSettings={quotationSettings}
       initialTab={tabParam ?? 'company'}
     />
   );
@@ -98,6 +113,7 @@ function SettingsForm({
   paymentMethods: initialPaymentMethods,
   invoicingSettings,
   scopeOfWork,
+  quotationSettings,
   initialTab,
 }: {
   companyProfile: CompanyProfile;
@@ -105,6 +121,7 @@ function SettingsForm({
   paymentMethods: PaymentMethod[];
   invoicingSettings: InvoicingSettings;
   scopeOfWork: string[];
+  quotationSettings: QuotationSettings;
   initialTab: Tab;
 }) {
   const [activeTab, setActiveTab] = useState<Tab>(initialTab);
@@ -123,7 +140,23 @@ function SettingsForm({
     saveScopeOfWork,
     saveInvoicingSettings,
     savePaymentMethods,
+    saveQuotationSettings,
   } = useSettingsMutations();
+  const [qs, setQsLocal] = useState<QuotationSettings>(quotationSettings);
+  const [savedQuotation, setSavedQuotation] = useState(false);
+
+  function setQs<K extends keyof QuotationSettings>(k: K, v: QuotationSettings[K]) {
+    setQsLocal((prev) => ({ ...prev, [k]: v }));
+    setSavedQuotation(false);
+  }
+
+  function handleSaveQuotation() {
+    startTransition(async () => {
+      await saveQuotationSettings(qs);
+      setSavedQuotation(true);
+      setTimeout(() => setSavedQuotation(false), 2000);
+    });
+  }
   const [profile, setProfileLocal] = useState<CompanyProfile>(companyProfile);
   const [payment, setPaymentLocal] = useState<PaymentInfo>(paymentInfo);
   const [inv, setInvLocal] = useState<InvoicingSettings>(invoicingSettings);
@@ -791,6 +824,119 @@ function SettingsForm({
           </section>
         )}
 
+        {/* ── Quotations tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'quotations' && (
+          <section className={sectionCls}>
+            <div className="flex flex-col gap-1 mb-6">
+              <h2 className="text-base font-semibold text-ink">Quotation Defaults</h2>
+              <p className="text-xs text-muted">
+                Every new quotation starts with these. You can still change them per quote.
+              </p>
+            </div>
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className={labelCls} htmlFor="qs-valid">
+                    Valid for (days)
+                  </label>
+                  <input
+                    id="qs-valid"
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={qs.validDays || ''}
+                    onChange={(e) => setQs('validDays', parseInt(e.target.value) || 0)}
+                    className={inputCls}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className={labelCls} htmlFor="qs-deposit">
+                    Deposit to start (%)
+                  </label>
+                  <input
+                    id="qs-deposit"
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="decimal"
+                    value={qs.depositPercent}
+                    onChange={(e) =>
+                      setQs(
+                        'depositPercent',
+                        Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
+                      )
+                    }
+                    className={inputCls}
+                  />
+                  <p className="text-xs text-faint">Set 0 for no deposit.</p>
+                </div>
+              </div>
+              {(
+                [
+                  {
+                    key: 'intro',
+                    label: 'Intro message',
+                    rows: 6,
+                    hint: 'Use {contact}, {client}, {project}, {company}. Leave a blank line for a new paragraph.',
+                  },
+                  {
+                    key: 'terms',
+                    label: 'Terms & conditions',
+                    rows: 5,
+                    hint: 'One term per line.',
+                  },
+                  {
+                    key: 'usageRights',
+                    label: 'Usage rights',
+                    rows: 5,
+                    hint: 'Wrap words in **double stars** to make them bold.',
+                  },
+                  {
+                    key: 'gear',
+                    label: 'Equipment & gear',
+                    rows: 5,
+                    hint: 'One item per line, shown exactly as typed. Leave empty if you list gear per quote.',
+                  },
+                ] as const
+              ).map(({ key, label, rows, hint }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className={labelCls} htmlFor={`qs-${key}`}>
+                    {label}
+                  </label>
+                  <textarea
+                    id={`qs-${key}`}
+                    rows={rows}
+                    value={qs[key]}
+                    onChange={(e) => setQs(key, e.target.value)}
+                    className={`${inputCls} h-auto py-2.5 leading-relaxed resize-y`}
+                  />
+                  <p className="text-xs text-faint">{hint}</p>
+                </div>
+              ))}
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls} htmlFor="qs-taxnote">
+                  Note when no tax is added
+                </label>
+                <input
+                  id="qs-taxnote"
+                  value={qs.taxNote}
+                  onChange={(e) => setQs('taxNote', e.target.value)}
+                  className={inputCls}
+                />
+                <p className="text-xs text-faint">
+                  Shown under the total when a quote has no VAT or WHT.
+                </p>
+              </div>
+            </div>
+            <div className={saveRowCls}>
+              {savedQuotation && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              <button onClick={handleSaveQuotation} disabled={isPending} className={saveBtnCls}>
+                Save quotation defaults
+              </button>
+            </div>
+          </section>
+        )}
+
         {/* ── Workspace tab ─────────────────────────────────────────────────────── */}
         {activeTab === 'workspace' && (
           <div className="flex flex-col gap-6">
@@ -826,7 +972,8 @@ function SettingsForm({
                 <div>
                   <h2 className="text-base font-semibold text-ink">Telegram Bot</h2>
                   <p className="text-xs text-muted mt-0.5">
-                    Send invoices to Telegram. Create a bot via @BotFather and add it to your group.
+                    Send invoices and quotations to Telegram. Create a bot via @BotFather and add it
+                    to your group.
                   </p>
                 </div>
               </div>
@@ -883,6 +1030,41 @@ function SettingsForm({
                     </div>
                     <pre className="text-xs text-muted font-mono leading-relaxed bg-subtle rounded-xl p-4 overflow-x-auto whitespace-pre">{`📄 INV-0042\n📅 Date: 20 Apr 2026\n👤 Client: Jane Smith\n\n📎 PDF attached`}</pre>
                   </div>
+                </div>
+
+                {/* Quotations group */}
+                <div className="rounded-xl bg-subtle p-4 flex flex-col gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+                    <p className="text-sm font-semibold text-ink">Quotations</p>
+                  </div>
+                  <p className="text-xs text-muted -mt-2">
+                    To post quotes in another topic of the same group, fill in only the Topic ID.
+                    Leave both blank to use the invoice chat and topic.
+                  </p>
+                  {[
+                    {
+                      label: 'Chat ID (optional)',
+                      key: 'telegramQuoteChatId',
+                      placeholder: 'Same as invoices',
+                    },
+                    {
+                      label: 'Topic ID (optional)',
+                      key: 'telegramQuoteTopicId',
+                      placeholder: 'e.g. 42',
+                    },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key} className="flex flex-col gap-1.5">
+                      <label className={labelCls}>{label}</label>
+                      <input
+                        type="text"
+                        value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                        onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                        placeholder={placeholder}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 

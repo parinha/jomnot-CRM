@@ -55,13 +55,15 @@ export default function InvoicePrintPage() {
     async function load() {
       await auth.authStateReady();
 
-      const [invoice, clients, company, invoicing, paymentMethodsDoc] = await Promise.all([
-        fetchDoc<Invoice>('invoices', id),
-        fetchAll<Client>('clients'),
-        fetchDocPath<CompanyProfile>('settings/company'),
-        fetchDocPath<Partial<InvoicingSettings>>('settings/invoicing'),
-        fetchDocPath<{ methods: PaymentMethod[] }>('settings/paymentMethods'),
-      ]);
+      const [invoice, clients, company, invoicing, paymentMethodsDoc, preferences] =
+        await Promise.all([
+          fetchDoc<Invoice>('invoices', id),
+          fetchAll<Client>('clients'),
+          fetchDocPath<CompanyProfile>('settings/company'),
+          fetchDocPath<Partial<InvoicingSettings>>('settings/invoicing'),
+          fetchDocPath<{ methods: PaymentMethod[] }>('settings/paymentMethods'),
+          fetchDocPath<Partial<PaymentInfo>>('settings/preferences'),
+        ]);
 
       if (!invoice) {
         setState({ status: 'not-found' });
@@ -83,6 +85,9 @@ export default function InvoicePrintPage() {
         swiftCode: resolvedMethod?.swiftCode ?? inv.swiftCode ?? '',
         currency: resolvedMethod?.currency ?? inv.currency ?? '',
         qrImage: resolvedMethod?.qrImage ?? inv.qrImage ?? '',
+        telegramBotToken: preferences?.telegramBotToken,
+        telegramChatId: preferences?.telegramChatId,
+        telegramTopicId: preferences?.telegramTopicId,
       };
 
       const prefs: AppPreferences = {

@@ -4,6 +4,7 @@ import DashboardShell from '@/src/components/Shell';
 import { InvoicesProvider } from '@/src/contexts/InvoicesContext';
 import { ClientsProvider } from '@/src/contexts/ClientsContext';
 import { SettingsProvider } from '@/src/contexts/SettingsContext';
+import { QuotationsProvider } from '@/src/contexts/QuotationsContext';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -11,9 +12,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AuthGuard>
         <SettingsProvider>
           <InvoicesProvider>
-            <ClientsProvider>
-              <DashboardShell>{children}</DashboardShell>
-            </ClientsProvider>
+            <QuotationsProvider>
+              <ClientsProvider>
+                <DashboardShell>{children}</DashboardShell>
+              </ClientsProvider>
+            </QuotationsProvider>
           </InvoicesProvider>
         </SettingsProvider>
       </AuthGuard>

@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import {
   ArrowClockwise,
+  ClipboardText,
   Eye,
   EyeSlash,
   FilePlus,
+  FileText,
   GearSix,
   House,
   MagnifyingGlass,
@@ -32,11 +34,13 @@ const BOTTOM_TABS: { href: string; label: string; icon: Icon }[] = [
   { href: '/dashboard', label: 'Home', icon: House },
   { href: '/clients', label: 'Clients', icon: UsersThree },
   { href: '/invoices', label: 'Invoices', icon: Receipt },
+  { href: '/quotations', label: 'Quotes', icon: ClipboardText },
   { href: '/settings', label: 'Settings', icon: GearSix },
 ];
 
 const FAB_ACTIONS: { key: string; label: string; href: string; icon: Icon }[] = [
   { key: 'invoice', label: 'Create Invoice', href: '/invoices?new=1', icon: FilePlus },
+  { key: 'quote', label: 'Create Quotation', href: '/quotations?new=1', icon: FileText },
   { key: 'client', label: 'Create Client', href: '/clients?new=1', icon: UserPlus },
 ];
 
