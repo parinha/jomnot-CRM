@@ -186,7 +186,6 @@ function SettingsForm({
   });
 
   const [savedProfile, setSavedProfile] = useState(false);
-  const [savedPayment, setSavedPayment] = useState(false);
   const [savedInvoicing, setSavedInvoicing] = useState(false);
   const [savedTelegram, setSavedTelegram] = useState(false);
 
@@ -204,7 +203,6 @@ function SettingsForm({
   }
 
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const qrInputRef = useRef<HTMLInputElement>(null);
 
   function setP<K extends keyof CompanyProfile>(k: K, v: CompanyProfile[K]) {
     setProfileLocal((prev) => ({ ...prev, [k]: v }));
@@ -212,7 +210,7 @@ function SettingsForm({
   }
   function setPay<K extends keyof PaymentInfo>(k: K, v: PaymentInfo[K]) {
     setPaymentLocal((prev) => ({ ...prev, [k]: v }));
-    setSavedPayment(false);
+    setSavedTelegram(false);
   }
 
   function handleImageUpload(file: File, onResult: (b64: string) => void) {
@@ -229,14 +227,6 @@ function SettingsForm({
       await saveCompanyProfile(profile);
       setSavedProfile(true);
       setTimeout(() => setSavedProfile(false), 2000);
-    });
-  }
-
-  function handleSavePayment() {
-    startTransition(async () => {
-      await saveInvoicingSettings(inv);
-      setSavedPayment(true);
-      setTimeout(() => setSavedPayment(false), 2000);
     });
   }
 
