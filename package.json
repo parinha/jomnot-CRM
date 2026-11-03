@@ -20,6 +20,7 @@
     "*.{json,css,md}": "prettier --write"
   },
   "dependencies": {
+    "@phosphor-icons/react": "2.1.10",
     "firebase": "^12.11.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

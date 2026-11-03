@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from '@phosphor-icons/react';
 import type { Invoice, Client } from '@/src/types';
 import ModalShell from '@/src/components/ModalShell';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
@@ -31,11 +32,11 @@ export default function InvoicePreviewModal({
   return (
     <ModalShell onClose={onClose} maxWidth="max-w-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-line shrink-0">
         <div className="flex items-center gap-3">
           <div>
-            <h2 className="text-base font-bold text-white">{inv?.number ?? '—'}</h2>
-            <p className="text-xs text-white/40 mt-0.5">{client?.name ?? '—'}</p>
+            <h2 className="text-base font-bold text-ink">{inv?.number ?? '—'}</h2>
+            <p className="text-xs text-muted mt-0.5">{client?.name ?? '—'}</p>
           </div>
           {sc && (
             <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}>
@@ -45,45 +46,35 @@ export default function InvoicePreviewModal({
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition"
+          className="p-2 rounded-xl text-muted hover:bg-black/[0.04] hover:text-ink transition"
         >
-          <svg
-            className="w-5 h-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="w-5 h-5" weight="bold" aria-hidden />
         </button>
       </div>
 
       {/* Body */}
       {!inv ? (
-        <div className="flex-1 flex items-center justify-center py-10 text-white/40 text-sm">
+        <div className="flex-1 flex items-center justify-center py-10 text-muted text-sm">
           Invoice not found.
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-4">
           {/* Line items */}
           <div>
-            <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-              Line Items
-            </p>
+            <p className="text-sm font-semibold text-ink mb-2">Line Items</p>
             <div className="flex flex-col gap-1">
               {inv.items.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-center justify-between py-2 border-b border-white/[0.05]"
+                  className="flex items-center justify-between py-2 border-b border-line"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-white truncate">{it.description || '—'}</p>
-                    <p className="text-xs text-white/40">
+                    <p className="text-sm text-ink truncate">{it.description || '—'}</p>
+                    <p className="text-xs text-muted">
                       {it.qty} × {fmt(it.unitPrice)}
                     </p>
                   </div>
-                  <span className="text-sm font-semibold text-white shrink-0 ml-3">
+                  <span className="text-sm font-semibold text-ink shrink-0 ml-3">
                     {fmt(it.qty * it.unitPrice)}
                   </span>
                 </div>
@@ -92,13 +83,13 @@ export default function InvoicePreviewModal({
           </div>
 
           {/* Totals */}
-          <div className="bg-white/[0.05] rounded-xl p-4 flex flex-col gap-2">
-            <div className="flex justify-between text-sm text-white/60">
+          <div className="bg-subtle rounded-2xl p-4 flex flex-col gap-2">
+            <div className="flex justify-between text-sm text-muted">
               <span>Subtotal</span>
-              <span className="font-medium text-white">{fmt(subtotal)}</span>
+              <span className="font-medium text-ink">{fmt(subtotal)}</span>
             </div>
             {whtAmount !== null && (
-              <div className="flex justify-between text-sm text-amber-400/80">
+              <div className="flex justify-between text-sm text-amber-600">
                 <span>
                   {taxConfig.enabled ? taxConfig.label : 'WHT'} (
                   {taxConfig.enabled ? taxConfig.rate : 15}%)
@@ -109,17 +100,17 @@ export default function InvoicePreviewModal({
                 </span>
               </div>
             )}
-            <div className="flex justify-between text-sm font-bold text-white border-t border-white/10 pt-2 mt-1">
+            <div className="flex justify-between text-sm font-bold text-ink border-t border-line pt-2 mt-1">
               <span>Net Total</span>
               <span>{fmt(netTotal)}</span>
             </div>
             {depositAmount !== null && (
               <>
-                <div className="flex justify-between text-sm text-green-400/80">
+                <div className="flex justify-between text-sm text-brand">
                   <span>Deposit ({inv.depositPercent}%)</span>
                   <span>{fmt(depositAmount)}</span>
                 </div>
-                <div className="flex justify-between text-sm font-semibold text-white/80">
+                <div className="flex justify-between text-sm font-semibold text-ink-2">
                   <span>Balance Due</span>
                   <span>{fmt(balanceDue ?? 0)}</span>
                 </div>
@@ -130,39 +121,37 @@ export default function InvoicePreviewModal({
           {/* Meta */}
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <p className="text-white/40 uppercase tracking-wider mb-0.5">Date</p>
-              <p className="text-white">{inv.date}</p>
+              <p className="text-muted mb-0.5">Date</p>
+              <p className="text-ink">{inv.date}</p>
             </div>
             <div>
-              <p className="text-white/40 uppercase tracking-wider mb-0.5">Terms</p>
-              <p className="text-white">{inv.paymentTerms || '—'}</p>
+              <p className="text-muted mb-0.5">Terms</p>
+              <p className="text-ink">{inv.paymentTerms || '—'}</p>
             </div>
           </div>
 
           {inv.notes && (
             <div>
-              <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-1">
-                Notes
-              </p>
-              <p className="text-sm text-white/70 whitespace-pre-wrap">{inv.notes}</p>
+              <p className="text-sm font-semibold text-ink mb-1">Notes</p>
+              <p className="text-sm text-ink-2 whitespace-pre-wrap">{inv.notes}</p>
             </div>
           )}
         </div>
       )}
 
       {/* Footer */}
-      <div className="px-6 py-4 border-t border-white/[0.08] shrink-0 flex justify-end gap-3">
+      <div className="px-6 py-4 border-t border-line shrink-0 flex justify-end gap-3">
         <a
           href={inv ? `/invoices/${inv.id}` : '#'}
           target="_blank"
           rel="noopener noreferrer"
-          className="h-11 px-5 rounded-xl bg-[#FFC206]/15 border border-[#FFC206]/30 text-[#FFC206] text-sm font-semibold hover:bg-[#FFC206]/25 transition flex items-center"
+          className="h-11 px-5 rounded-full bg-brand-soft border border-brand/40 text-brand text-sm font-semibold hover:bg-brand/15 transition flex items-center"
         >
           Open PDF
         </a>
         <button
           onClick={onClose}
-          className="h-11 px-5 rounded-xl border border-white/20 text-sm font-medium text-white/70 hover:bg-white/10 transition"
+          className="h-11 px-5 rounded-full border border-line-strong text-sm font-medium text-ink-2 hover:bg-black/[0.04] transition"
         >
           Close
         </button>

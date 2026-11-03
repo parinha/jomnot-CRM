@@ -1,5 +1,6 @@
 'use client';
 
+import { Receipt, WarningCircle } from '@phosphor-icons/react';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/src/components/AuthProvider';
@@ -36,60 +37,43 @@ function LoginForm() {
 
   if (loading || user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900">
-        <div className="w-6 h-6 rounded-full border-2 border-[#FFC206] border-t-transparent animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
+        <div className="w-6 h-6 rounded-full border-2 border-brand border-t-transparent animate-spin" />
       </div>
     );
   }
 
+  const inputCls =
+    'h-12 rounded-2xl border border-line bg-subtle px-4 text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-brand/40 focus:bg-surface focus:border-brand transition text-sm';
+
   return (
-    <div
-      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900"
-      style={{
-        paddingTop: 'max(1rem, env(safe-area-inset-top, 0px))',
-        paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
-        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
-        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
-      }}
-    >
-      {/* Ambient glow */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-3xl" />
+    <div className="min-h-dvh flex flex-col bg-brand">
+      {/* Green hero */}
+      <div
+        className="flex flex-col items-center justify-center text-center px-6 pt-14 pb-12"
+        style={{ paddingTop: 'max(3.5rem, calc(env(safe-area-inset-top, 0px) + 2rem))' }}
+      >
+        <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center shadow-float">
+          <Receipt className="w-9 h-9 text-brand" weight="duotone" aria-hidden />
+        </div>
+        <h1 className="text-3xl font-semibold text-white mt-5">EasyInvoices24</h1>
+        <p className="text-white/85 mt-1">Invoicing made simple</p>
       </div>
 
-      <div className="w-full max-w-sm relative">
-        {/* Glass card */}
-        <div className="bg-white/[0.06] backdrop-blur-2xl border border-white/[0.12] rounded-3xl p-8 shadow-2xl">
-          {/* Logo / icon */}
-          <div className="flex justify-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-[#FFC206] flex items-center justify-center shadow-lg shadow-amber-500/30">
-              <svg
-                className="w-7 h-7 text-zinc-900"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-            </div>
-          </div>
-
-          <div className="mb-7 text-center">
-            <h1 className="text-2xl font-bold text-white">Welcome back</h1>
-            <p className="text-sm text-white/50 mt-1">Sign in to your studio</p>
+      {/* White sheet */}
+      <div
+        className="flex-1 bg-surface rounded-t-[32px] px-6 pt-8"
+        style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 0px))' }}
+      >
+        <div className="w-full max-w-sm mx-auto">
+          <div className="mb-6">
+            <h2 className="text-2xl font-semibold text-ink">Welcome back 👋</h2>
+            <p className="text-sm text-muted mt-1">Sign in to your studio</p>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="email"
-                className="text-xs font-semibold text-white/60 uppercase tracking-wider"
-              >
+              <label htmlFor="email" className="text-sm font-medium text-ink-2">
                 Email
               </label>
               <input
@@ -99,15 +83,12 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="h-12 rounded-xl border border-white/20 bg-white/10 px-4 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition text-sm backdrop-blur-sm"
+                className={inputCls}
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="password"
-                className="text-xs font-semibold text-white/60 uppercase tracking-wider"
-              >
+              <label htmlFor="password" className="text-sm font-medium text-ink-2">
                 Password
               </label>
               <input
@@ -117,20 +98,25 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="h-12 rounded-xl border border-white/20 bg-white/10 px-4 text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition text-sm backdrop-blur-sm"
+                className={inputCls}
               />
             </div>
 
             {error && (
-              <div className="flex items-center gap-2 bg-red-500/15 border border-red-500/30 rounded-xl px-4 py-3">
-                <p className="text-sm text-red-300">{error}</p>
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                <WarningCircle
+                  weight="duotone"
+                  className="w-5 h-5 text-red-600 shrink-0"
+                  aria-hidden
+                />
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
             <button
               type="submit"
               disabled={busy}
-              className="mt-2 h-12 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 active:bg-amber-500 disabled:opacity-50 transition shadow-lg shadow-amber-500/20"
+              className="mt-3 h-13 rounded-full bg-brand text-white text-base font-semibold hover:bg-brand-hover active:bg-brand-dark disabled:opacity-50 transition shadow-brand"
             >
               {busy ? 'Signing in…' : 'Sign in'}
             </button>

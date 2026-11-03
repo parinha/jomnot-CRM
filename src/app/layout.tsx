@@ -1,13 +1,26 @@
 import type { Metadata, Viewport } from 'next';
-import { Kantumruy_Pro, Geist_Mono } from 'next/font/google';
+import { Fredoka, Geist_Mono } from 'next/font/google';
+import localFont from 'next/font/local';
 import { Toaster } from 'sonner';
 import './globals.css';
 import ServiceWorkerRegistrar from '@/src/components/ServiceWorkerRegistrar';
 
-const kantumruyPro = Kantumruy_Pro({
-  variable: '--font-kantumruy-pro',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
+// English UI font
+const fredoka = Fredoka({
+  variable: '--font-fredoka',
+  subsets: ['latin', 'latin-ext'],
+});
+
+// Khmer UI font — Fredoka has no Khmer glyphs, so Khmer text falls through to this.
+// Self-hosted Khmer subset of Google Sans (OFL, variable 400–700) instead of
+// next/font/google: Turbopack has no fallback metrics for Google Sans and warns on every build.
+const googleSans = localFont({
+  src: './fonts/GoogleSans-Khmer.woff2',
+  variable: '--font-google-sans',
+  weight: '400 700',
+  display: 'swap',
+  adjustFontFallback: false,
+  declarations: [{ prop: 'unicode-range', value: 'U+1780-17FF, U+19E0-19FF, U+200C-200D, U+25CC' }],
 });
 
 const geistMono = Geist_Mono({
@@ -19,17 +32,17 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#090c14',
+  themeColor: '#00b14f',
 };
 
 export const metadata: Metadata = {
   title: 'EasyInvoices24',
   description:
-    'EasyInvoices24 is a high-performance project management and billing suite designed specifically for the modern content creator.',
+    'EasyInvoices24 is a fast, simple invoicing and billing app designed specifically for the modern content creator.',
   applicationName: 'EasyInvoices24',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
+    statusBarStyle: 'default',
     title: 'EasyInvoices24',
   },
   formatDetection: {
@@ -50,11 +63,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${kantumruyPro.variable} ${geistMono.variable} h-full antialiased`}>
+    <html
+      lang="en"
+      className={`${fredoka.variable} ${googleSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
         <ServiceWorkerRegistrar />
         {children}
-        <Toaster theme="dark" position="top-right" richColors />
+        <Toaster theme="light" position="top-center" richColors />
       </body>
     </html>
   );

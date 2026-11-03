@@ -2,9 +2,7 @@ import type { CSSProperties } from 'react';
 
 // Reusable shimmer block
 export function Shimmer({ className, style }: { className?: string; style?: CSSProperties }) {
-  return (
-    <div className={`animate-pulse rounded-lg bg-white/[0.06] ${className ?? ''}`} style={style} />
-  );
+  return <div className={`animate-pulse rounded-lg bg-subtle ${className ?? ''}`} style={style} />;
 }
 
 // Generic page skeleton: toolbar + N rows

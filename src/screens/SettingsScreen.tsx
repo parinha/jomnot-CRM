@@ -1,5 +1,16 @@
 'use client';
 
+import {
+  Buildings,
+  FileText,
+  ImageSquare,
+  PlugsConnected,
+  QrCode,
+  SignOut,
+  Signature,
+  SlidersHorizontal,
+  TelegramLogo,
+} from '@phosphor-icons/react';
 import { useState, useRef, useTransition } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/src/components/AuthProvider';
@@ -39,78 +50,22 @@ const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
   {
     id: 'company',
     label: 'Company',
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.75}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"
-        />
-      </svg>
-    ),
+    icon: <Buildings className="w-5 h-5" weight="duotone" aria-hidden />,
   },
   {
     id: 'invoicing',
     label: 'Invoicing',
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.75}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-        />
-      </svg>
-    ),
+    icon: <FileText className="w-5 h-5" weight="duotone" aria-hidden />,
   },
   {
     id: 'workspace',
     label: 'Workspace',
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.75}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75"
-        />
-      </svg>
-    ),
+    icon: <SlidersHorizontal className="w-5 h-5" weight="duotone" aria-hidden />,
   },
   {
     id: 'integrations',
     label: 'Integrations',
-    icon: (
-      <svg
-        className="w-4 h-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        strokeWidth={1.75}
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
-        />
-      </svg>
-    ),
+    icon: <PlugsConnected className="w-5 h-5" weight="duotone" aria-hidden />,
   },
 ];
 
@@ -303,700 +258,659 @@ function SettingsForm({
   }
 
   const inputCls =
-    'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full backdrop-blur-sm';
-  const labelCls = 'text-xs font-semibold text-white/50 uppercase tracking-wider';
-  const sectionCls = 'bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl p-6';
+    'h-11 rounded-xl border border-line bg-subtle px-4 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand focus:bg-surface transition w-full';
+  const labelCls = 'text-sm font-medium text-ink-2';
+  const sectionCls = 'bg-surface shadow-card rounded-2xl p-5 md:p-6';
   const saveBtnCls =
-    'h-11 px-6 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shadow-lg shadow-amber-500/15 disabled:opacity-60';
-  const saveRowCls = 'flex items-center justify-end gap-3 mt-6 pt-5 border-t border-white/[0.08]';
+    'h-11 px-6 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shadow-brand disabled:opacity-60';
+  const saveRowCls = 'flex items-center justify-end gap-3 mt-6 pt-5 border-t border-line';
 
   return (
-    <div className="max-w-2xl w-full mx-auto flex flex-col gap-6">
+    // Phones: stacked, tabs scroll sideways. iPad+: sticky side menu + content column.
+    <div className="w-full flex flex-col gap-5 md:grid md:grid-cols-[200px_minmax(0,1fr)] lg:grid-cols-[240px_minmax(0,1fr)] md:gap-x-8 md:gap-y-6 md:items-start">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Settings</h1>
-        <p className="text-sm text-white/45 mt-0.5">
+      <div className="md:col-span-2">
+        <h1 className="text-2xl md:text-3xl font-semibold text-ink">Settings</h1>
+        <p className="text-sm text-muted mt-0.5">
           Manage your company info, invoice defaults, and workspace preferences
         </p>
       </div>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 p-1 bg-white/[0.05] border border-white/[0.09] rounded-2xl">
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => switchTab(tab.id)}
-            className={`flex-1 flex items-center justify-center gap-2 h-9 rounded-xl text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? 'bg-white/15 text-white shadow-sm'
-                : 'text-white/45 hover:text-white/70 hover:bg-white/[0.06]'
-            }`}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Company tab ──────────────────────────────────────────────────────── */}
-      {activeTab === 'company' && (
-        <section className={sectionCls}>
-          <div className="flex flex-col gap-1 mb-6">
-            <h2 className="text-base font-semibold text-white">Company Profile</h2>
-            <p className="text-xs text-white/40">Appears in the header of every invoice.</p>
-          </div>
-          <div className="flex flex-col gap-5">
-            {/* Logo */}
-            <div className="flex flex-col gap-2">
-              <label className={labelCls}>Logo</label>
-              <div className="flex items-center gap-4">
-                {profile.logo ? (
-                  <div className="relative group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={profile.logo}
-                      alt="Logo"
-                      className="h-14 max-w-[160px] object-contain rounded-xl border border-white/20 bg-white/5 p-1"
-                    />
-                    <button
-                      onClick={() => setP('logo', '')}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <div className="h-14 w-28 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-white/25"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  </div>
-                )}
-                <div>
-                  <button
-                    onClick={() => logoInputRef.current?.click()}
-                    className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition"
-                  >
-                    {profile.logo ? 'Replace' : 'Upload logo'}
-                  </button>
-                  <p className="text-xs text-white/35 mt-1.5">PNG, JPG, SVG — invoice header</p>
-                  <input
-                    ref={logoInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleImageUpload(f, (b64) => setP('logo', b64));
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {[
-              { label: 'Company Name', key: 'name', placeholder: 'Acme Studio Co., Ltd.' },
-              { label: 'Phone', key: 'phone', placeholder: '+66 2 000 0000' },
-              { label: 'Website', key: 'website', placeholder: 'www.yourstudio.com' },
-              {
-                label: 'Authorized Signatory Name',
-                key: 'signatoryName',
-                placeholder: 'Full Name',
-              },
-            ].map(({ label, key, placeholder }) => (
-              <div key={key} className="flex flex-col gap-1.5">
-                <label className={labelCls}>{label}</label>
-                <input
-                  type="text"
-                  value={(profile as unknown as Record<string, string>)[key] ?? ''}
-                  onChange={(e) => setP(key as keyof CompanyProfile, e.target.value)}
-                  placeholder={placeholder}
-                  className={inputCls}
-                />
-              </div>
-            ))}
-
-            <div className="flex flex-col gap-1.5">
-              <label className={labelCls}>Address</label>
-              <textarea
-                value={profile.address}
-                onChange={(e) => setP('address', e.target.value)}
-                placeholder="123 Studio Street, Bangkok 10110"
-                rows={3}
-                className={`${inputCls} h-auto py-3 resize-none`}
-              />
-            </div>
-
-            {/* Signature */}
-            <div className="flex flex-col gap-2">
-              <label className={labelCls}>Signatory Signature</label>
-              <div className="flex items-center gap-4">
-                {profile.signatorySignature ? (
-                  <div className="relative group">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={profile.signatorySignature}
-                      alt="Signature"
-                      className="h-14 max-w-[180px] object-contain rounded-xl border border-white/20 bg-white/5 p-1"
-                    />
-                    <button
-                      onClick={() => setP('signatorySignature', '')}
-                      className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ) : (
-                  <div className="h-14 w-36 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-white/25"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"
-                      />
-                    </svg>
-                  </div>
-                )}
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    id="sig-upload"
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleImageUpload(f, (b64) => setP('signatorySignature', b64));
-                      e.target.value = '';
-                    }}
-                  />
-                  <label
-                    htmlFor="sig-upload"
-                    className="cursor-pointer h-10 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 hover:text-white transition inline-flex items-center"
-                  >
-                    {profile.signatorySignature ? 'Replace' : 'Upload signature'}
-                  </label>
-                  <p className="text-xs text-white/35 mt-1.5">Shown on printed invoices</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className={saveRowCls}>
-            {savedProfile && <span className="text-xs text-green-400 font-semibold">Saved ✓</span>}
-            <button onClick={handleSaveProfile} disabled={isPending} className={saveBtnCls}>
-              Save profile
+      {/* Tab bar / side menu */}
+      <nav className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:p-2 md:flex-col md:gap-1 md:sticky md:top-0 md:bg-surface md:shadow-card md:rounded-2xl">
+        {TABS.map((tab) => {
+          const on = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => switchTab(tab.id)}
+              className={`shrink-0 flex items-center gap-2 h-10 px-4 rounded-full text-sm font-semibold transition md:w-full md:h-11 md:rounded-xl md:px-3 ${
+                on
+                  ? 'bg-brand text-white shadow-brand md:bg-brand-soft md:text-brand-ink md:shadow-none'
+                  : 'bg-surface text-ink-2 shadow-card hover:bg-subtle md:bg-transparent md:shadow-none md:text-muted md:hover:text-ink'
+              }`}
+            >
+              <span className={on ? 'md:text-brand' : ''}>{tab.icon}</span>
+              <span>{tab.label}</span>
             </button>
-          </div>
-        </section>
-      )}
+          );
+        })}
+      </nav>
 
-      {/* ── Invoicing tab ─────────────────────────────────────────────────────── */}
-      {activeTab === 'invoicing' && (
-        <section className={sectionCls}>
-          <div className="flex flex-col gap-1 mb-6">
-            <h2 className="text-base font-semibold text-white">Invoicing</h2>
-            <p className="text-xs text-white/40">
-              Payment details, currency, date format, and tax shown on invoices.
-            </p>
-          </div>
-          <div className="flex flex-col gap-8">
-            {/* Payment Methods */}
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <SectionDivider label="Payment Methods" />
-                <button
-                  onClick={openAddPm}
-                  className="h-8 px-3 rounded-xl bg-white/10 border border-white/20 text-xs font-semibold text-white hover:bg-white/20 transition shrink-0"
-                >
-                  + Add Method
-                </button>
-              </div>
-
-              {paymentMethods.length === 0 ? (
-                <p className="text-sm text-white/40 py-2">
-                  No payment methods yet. Add one to show bank info on invoices.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {paymentMethods.map((m) => (
-                    <div
-                      key={m.id}
-                      className="flex items-start gap-3 p-4 rounded-xl bg-white/[0.04] border border-white/10"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm font-semibold text-white">
-                            {m.label || 'Unnamed'}
-                          </span>
-                          {m.isDefault && (
-                            <span className="px-2 py-0.5 rounded-full bg-[#FFC206]/20 text-[#FFC206] text-xs font-semibold">
-                              Default
-                            </span>
-                          )}
-                        </div>
-                        {(m.bankName || m.accountNumber) && (
-                          <p className="text-xs text-white/45 mt-0.5 truncate">
-                            {[m.bankName, m.accountNumber].filter(Boolean).join(' · ')}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {!m.isDefault && (
-                          <button
-                            onClick={() => handleSetDefaultPm(m.id)}
-                            className="h-7 px-2.5 rounded-lg border border-white/15 text-xs text-white/50 hover:text-white hover:bg-white/10 transition"
-                          >
-                            Set default
-                          </button>
-                        )}
-                        <button
-                          onClick={() => openEditPm(m)}
-                          className="h-7 px-2.5 rounded-lg border border-white/15 text-xs text-white/50 hover:text-white hover:bg-white/10 transition"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeletePm(m.id)}
-                          className="h-7 px-2.5 rounded-lg border border-red-500/20 text-xs text-red-400/60 hover:text-red-400 hover:bg-red-500/10 transition"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Payment method add/edit modal */}
-              {pmModalOpen && (
-                <div
-                  className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-                  onClick={() => setPmModalOpen(false)}
-                >
-                  <div
-                    className="w-full max-w-md bg-[#1a1f2e] border border-white/[0.1] rounded-2xl p-5 flex flex-col gap-4"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-white">
-                        {pmEditingId ? 'Edit Payment Method' : 'Add Payment Method'}
-                      </h3>
+      <div className="flex flex-col gap-6 min-w-0 max-w-3xl">
+        {/* ── Company tab ──────────────────────────────────────────────────────── */}
+        {activeTab === 'company' && (
+          <section className={sectionCls}>
+            <div className="flex flex-col gap-1 mb-6">
+              <h2 className="text-base font-semibold text-ink">Company Profile</h2>
+              <p className="text-xs text-muted">Appears in the header of every invoice.</p>
+            </div>
+            <div className="flex flex-col gap-5">
+              {/* Logo */}
+              <div className="flex flex-col gap-2">
+                <label className={labelCls}>Logo</label>
+                <div className="flex items-center gap-4">
+                  {profile.logo ? (
+                    <div className="relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={profile.logo}
+                        alt="Logo"
+                        className="h-14 max-w-[160px] object-contain rounded-xl border border-line-strong bg-surface p-1"
+                      />
                       <button
-                        onClick={() => setPmModalOpen(false)}
-                        className="text-white/40 hover:text-white text-lg leading-none"
+                        onClick={() => setP('logo', '')}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-surface border border-line-strong text-ink text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                       >
                         ×
                       </button>
                     </div>
-
-                    <div className="flex flex-col gap-3">
-                      {(
-                        [
-                          {
-                            label: 'Label',
-                            key: 'label',
-                            placeholder: 'e.g. Bank Transfer, PayPal',
-                          },
-                          {
-                            label: 'Bank Name',
-                            key: 'bankName',
-                            placeholder: 'Advanced Bank Of Asia Ltd.',
-                          },
-                          {
-                            label: 'Account Name',
-                            key: 'accountName',
-                            placeholder: 'Your Company Name',
-                          },
-                          {
-                            label: 'Account Number',
-                            key: 'accountNumber',
-                            placeholder: '000 000 000',
-                          },
-                          { label: 'SWIFT / ABA Code', key: 'swiftCode', placeholder: 'ABAAKHPP' },
-                          {
-                            label: 'Currency',
-                            key: 'currency',
-                            placeholder: 'United States Dollars',
-                          },
-                        ] as { label: string; key: keyof typeof pmForm; placeholder: string }[]
-                      ).map(({ label, key, placeholder }) => (
-                        <div key={key} className="flex flex-col gap-1">
-                          <label className={labelCls}>{label}</label>
-                          <input
-                            type="text"
-                            value={pmForm[key]}
-                            onChange={(e) =>
-                              setPmForm((prev) => ({ ...prev, [key]: e.target.value }))
-                            }
-                            placeholder={placeholder}
-                            className={inputCls}
-                          />
-                        </div>
-                      ))}
-
-                      {/* QR Code */}
-                      <div className="flex flex-col gap-1.5">
-                        <label className={labelCls}>Payment QR Code</label>
-                        <div className="flex items-center gap-3">
-                          {pmForm.qrImage ? (
-                            <div className="relative group shrink-0">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={pmForm.qrImage}
-                                alt="QR"
-                                className="h-16 w-16 object-contain rounded-xl border border-white/20 bg-white/5 p-1"
-                              />
-                              <button
-                                onClick={() => setPmForm((p) => ({ ...p, qrImage: '' }))}
-                                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-900 border border-white/20 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="h-16 w-16 rounded-xl border-2 border-dashed border-white/20 bg-white/5 flex items-center justify-center shrink-0">
-                              <svg
-                                className="w-5 h-5 text-white/25"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
-                                strokeWidth={1.5}
-                              >
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                          <div>
-                            <button
-                              onClick={() => pmInputRef.current?.click()}
-                              className="h-9 px-3 rounded-xl border border-white/20 text-xs text-white/70 hover:bg-white/10 hover:text-white transition"
-                            >
-                              {pmForm.qrImage ? 'Replace QR' : 'Upload QR'}
-                            </button>
-                            <input
-                              ref={pmInputRef}
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                if (f)
-                                  handleImageUpload(f, (b64) =>
-                                    setPmForm((p) => ({ ...p, qrImage: b64 }))
-                                  );
-                                e.target.value = '';
-                              }}
-                            />
-                          </div>
-                        </div>
-                      </div>
+                  ) : (
+                    <div className="h-14 w-28 rounded-xl border-2 border-dashed border-line-strong bg-surface flex items-center justify-center">
+                      <ImageSquare className="w-5 h-5 text-faint" weight="duotone" aria-hidden />
                     </div>
-
-                    <div className="flex gap-2 justify-end pt-1">
-                      <button
-                        onClick={() => setPmModalOpen(false)}
-                        className="h-10 px-4 rounded-xl border border-white/20 text-sm text-white/60 hover:bg-white/10 transition"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={handleSavePm}
-                        disabled={isPending || !pmForm.label.trim()}
-                        className={saveBtnCls}
-                      >
-                        Save
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Currency */}
-            <div className="flex flex-col gap-3">
-              <SectionDivider label="Currency" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Currency Code (ISO 4217)</label>
-                  <input
-                    type="text"
-                    value={inv.currencyCode}
-                    onChange={(e) =>
-                      setInv('currencyCode', e.target.value.toUpperCase().slice(0, 3))
-                    }
-                    placeholder="USD"
-                    maxLength={3}
-                    className={inputCls}
-                  />
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label className={labelCls}>Currency Symbol</label>
-                  <input
-                    type="text"
-                    value={inv.currencySymbol}
-                    onChange={(e) => setInv('currencySymbol', e.target.value.slice(0, 3))}
-                    placeholder="$"
-                    maxLength={3}
-                    className={inputCls}
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-white/35">
-                Common: USD ($) · EUR (€) · GBP (£) · THB (฿) · JPY (¥) · SGD (S$) · KHR (រ)
-              </p>
-            </div>
-
-            {/* Date format */}
-            <div className="flex flex-col gap-3">
-              <SectionDivider label="Date Format" />
-              <div className="grid grid-cols-2 gap-2">
-                {(['DD/Mon/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as const).map((fmt) => (
-                  <button
-                    key={fmt}
-                    type="button"
-                    onClick={() => setInv('dateFormat', fmt)}
-                    className={`h-10 px-3 rounded-xl border text-sm font-medium transition text-left ${inv.dateFormat === fmt ? 'border-[#FFC206]/50 bg-[#FFC206]/10 text-[#FFC206]' : 'border-white/15 text-white/60 hover:bg-white/10 hover:text-white'}`}
-                  >
-                    {fmt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Tax config */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <SectionDivider label="Tax Line" />
-                <button
-                  type="button"
-                  onClick={() => setInv('taxEnabled', !inv.taxEnabled)}
-                  className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${inv.taxEnabled ? 'bg-[#FFC206]' : 'bg-white/20'}`}
-                >
-                  <span
-                    className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
-                    style={{ left: inv.taxEnabled ? '22px' : '2px' }}
-                  />
-                </button>
-              </div>
-              {inv.taxEnabled && (
-                <div className="flex flex-col gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelCls}>Tax Label</label>
-                      <input
-                        type="text"
-                        value={inv.taxLabel}
-                        onChange={(e) => setInv('taxLabel', e.target.value)}
-                        placeholder="VAT"
-                        className={inputCls}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      <label className={labelCls}>Rate (%)</label>
-                      <input
-                        type="number"
-                        value={inv.taxRate}
-                        onChange={(e) => setInv('taxRate', parseFloat(e.target.value) || 0)}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        className={inputCls}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className={labelCls}>Tax Type</label>
-                    <div className="flex gap-2">
-                      {(['additive', 'deductive'] as const).map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setInv('taxType', t)}
-                          className={`flex-1 h-10 rounded-xl border text-sm font-medium transition ${inv.taxType === t ? 'border-[#FFC206]/50 bg-[#FFC206]/10 text-[#FFC206]' : 'border-white/15 text-white/60 hover:bg-white/10 hover:text-white'}`}
-                        >
-                          {t === 'additive' ? 'Additive (VAT / GST)' : 'Deductive (WHT)'}
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-white/35">
-                      {inv.taxType === 'additive'
-                        ? 'Tax is added on top of the subtotal (e.g. VAT, GST).'
-                        : 'Tax is withheld from the payment (e.g. WHT).'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={saveRowCls}>
-            {savedInvoicing && (
-              <span className="text-xs text-green-400 font-semibold">Saved ✓</span>
-            )}
-            <button onClick={handleSaveInvoicing} disabled={isPending} className={saveBtnCls}>
-              Save invoicing settings
-            </button>
-          </div>
-        </section>
-      )}
-
-      {/* ── Workspace tab ─────────────────────────────────────────────────────── */}
-      {activeTab === 'workspace' && (
-        <div className="flex flex-col gap-6">
-          {/* Scope of Work */}
-          <section className={sectionCls}>
-            <div className="flex flex-col gap-1 mb-6">
-              <h2 className="text-base font-semibold text-white">Scope of Work Suggestions</h2>
-              <p className="text-xs text-white/40">
-                Autocomplete suggestions when adding line items to invoices.
-              </p>
-            </div>
-            <ScopeList
-              scopes={scopeOfWork}
-              onChange={(newScopes) => {
-                startTransition(async () => {
-                  await saveScopeOfWork(newScopes);
-                });
-              }}
-            />
-          </section>
-        </div>
-      )}
-
-      {/* ── Integrations tab ──────────────────────────────────────────────────── */}
-      {activeTab === 'integrations' && (
-        <div className="flex flex-col gap-6">
-          {/* Telegram Bot */}
-          <section className={sectionCls}>
-            <div className="flex items-start gap-3 mb-6">
-              <div className="w-9 h-9 rounded-xl bg-sky-500/15 border border-sky-500/20 flex items-center justify-center shrink-0">
-                <svg className="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                </svg>
-              </div>
-              <div>
-                <h2 className="text-base font-semibold text-white">Telegram Bot</h2>
-                <p className="text-xs text-white/40 mt-0.5">
-                  Send invoices to Telegram. Create a bot via @BotFather and add it to your group.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              {/* Bot token */}
-              <div className="flex flex-col gap-1.5">
-                <label className={labelCls}>Bot Token</label>
-                <input
-                  type="text"
-                  value={payment.telegramBotToken ?? ''}
-                  onChange={(e) => setPay('telegramBotToken', e.target.value)}
-                  placeholder="123456:ABCdef..."
-                  className={inputCls}
-                />
-                <p className="text-xs text-white/35">
-                  Shared across all Telegram destinations below.
-                </p>
-              </div>
-
-              {/* Invoices group */}
-              <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                  <p className="text-xs font-semibold text-white/70 uppercase tracking-wide">
-                    Invoices
-                  </p>
-                </div>
-                {[
-                  {
-                    label: 'Chat ID',
-                    key: 'telegramChatId',
-                    placeholder: '-1001234567890 or @username',
-                  },
-                  {
-                    label: 'Topic ID (optional)',
-                    key: 'telegramTopicId',
-                    placeholder: 'Leave blank if not using topics',
-                  },
-                ].map(({ label, key, placeholder }) => (
-                  <div key={key} className="flex flex-col gap-1.5">
-                    <label className={labelCls}>{label}</label>
+                  )}
+                  <div>
+                    <button
+                      onClick={() => logoInputRef.current?.click()}
+                      className="h-10 px-4 rounded-full border border-line-strong text-sm text-ink-2 hover:bg-black/[0.04] hover:text-ink transition"
+                    >
+                      {profile.logo ? 'Replace' : 'Upload logo'}
+                    </button>
+                    <p className="text-xs text-faint mt-1.5">PNG, JPG, SVG — invoice header</p>
                     <input
-                      type="text"
-                      value={(payment as unknown as Record<string, string>)[key] ?? ''}
-                      onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
-                      placeholder={placeholder}
-                      className={inputCls}
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImageUpload(f, (b64) => setP('logo', b64));
+                        e.target.value = '';
+                      }}
                     />
                   </div>
-                ))}
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <label className={labelCls}>Preview</label>
-                    <span className="text-[10px] text-white/25 italic">sample message</span>
+                </div>
+              </div>
+
+              {[
+                { label: 'Company Name', key: 'name', placeholder: 'Acme Studio Co., Ltd.' },
+                { label: 'Phone', key: 'phone', placeholder: '+66 2 000 0000' },
+                { label: 'Website', key: 'website', placeholder: 'www.yourstudio.com' },
+                {
+                  label: 'Authorized Signatory Name',
+                  key: 'signatoryName',
+                  placeholder: 'Full Name',
+                },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <label className={labelCls}>{label}</label>
+                  <input
+                    type="text"
+                    value={(profile as unknown as Record<string, string>)[key] ?? ''}
+                    onChange={(e) => setP(key as keyof CompanyProfile, e.target.value)}
+                    placeholder={placeholder}
+                    className={inputCls}
+                  />
+                </div>
+              ))}
+
+              <div className="flex flex-col gap-1.5">
+                <label className={labelCls}>Address</label>
+                <textarea
+                  value={profile.address}
+                  onChange={(e) => setP('address', e.target.value)}
+                  placeholder="123 Studio Street, Bangkok 10110"
+                  rows={3}
+                  className={`${inputCls} h-auto py-3 resize-none`}
+                />
+              </div>
+
+              {/* Signature */}
+              <div className="flex flex-col gap-2">
+                <label className={labelCls}>Signatory Signature</label>
+                <div className="flex items-center gap-4">
+                  {profile.signatorySignature ? (
+                    <div className="relative group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={profile.signatorySignature}
+                        alt="Signature"
+                        className="h-14 max-w-[180px] object-contain rounded-xl border border-line-strong bg-surface p-1"
+                      />
+                      <button
+                        onClick={() => setP('signatorySignature', '')}
+                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-surface border border-line-strong text-ink text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-14 w-36 rounded-xl border-2 border-dashed border-line-strong bg-surface flex items-center justify-center">
+                      <Signature className="w-5 h-5 text-faint" weight="duotone" aria-hidden />
+                    </div>
+                  )}
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="sig-upload"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImageUpload(f, (b64) => setP('signatorySignature', b64));
+                        e.target.value = '';
+                      }}
+                    />
+                    <label
+                      htmlFor="sig-upload"
+                      className="cursor-pointer h-10 px-4 rounded-full border border-line-strong text-sm text-ink-2 hover:bg-black/[0.04] hover:text-ink transition inline-flex items-center"
+                    >
+                      {profile.signatorySignature ? 'Replace' : 'Upload signature'}
+                    </label>
+                    <p className="text-xs text-faint mt-1.5">Shown on printed invoices</p>
                   </div>
-                  <pre className="text-xs text-white/60 font-mono leading-relaxed bg-white/[0.03] border border-white/[0.07] rounded-xl p-4 overflow-x-auto whitespace-pre">{`📄 INV-0042\n📅 Date: 20 Apr 2026\n👤 Client: Jane Smith\n\n📎 PDF attached`}</pre>
                 </div>
               </div>
             </div>
 
             <div className={saveRowCls}>
-              {savedTelegram && (
-                <span className="text-xs text-green-400 font-semibold">Saved ✓</span>
-              )}
-              <button onClick={handleSaveTelegram} disabled={isPending} className={saveBtnCls}>
-                Save Telegram settings
+              {savedProfile && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              <button onClick={handleSaveProfile} disabled={isPending} className={saveBtnCls}>
+                Save profile
               </button>
             </div>
           </section>
-        </div>
-      )}
+        )}
 
-      {/* Sign out */}
-      <div className="pt-2 pb-4">
-        <button
-          onClick={async () => {
-            await signOut();
-            router.replace('/login');
-          }}
-          className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-red-400/80 hover:bg-red-500/10 hover:text-red-400 active:bg-red-500/15 transition w-full"
-        >
-          <svg
-            className="w-4 h-4 shrink-0"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
+        {/* ── Invoicing tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'invoicing' && (
+          <section className={sectionCls}>
+            <div className="flex flex-col gap-1 mb-6">
+              <h2 className="text-base font-semibold text-ink">Invoicing</h2>
+              <p className="text-xs text-muted">
+                Payment details, currency, date format, and tax shown on invoices.
+              </p>
+            </div>
+            <div className="flex flex-col gap-8">
+              {/* Payment Methods */}
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <SectionDivider label="Payment Methods" />
+                  <button
+                    onClick={openAddPm}
+                    className="h-8 px-3 rounded-xl bg-subtle border border-line-strong text-xs font-semibold text-ink hover:bg-black/[0.04] transition shrink-0"
+                  >
+                    + Add Method
+                  </button>
+                </div>
+
+                {paymentMethods.length === 0 ? (
+                  <p className="text-sm text-muted py-2">
+                    No payment methods yet. Add one to show bank info on invoices.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {paymentMethods.map((m) => (
+                      <div key={m.id} className="flex items-start gap-3 p-4 rounded-xl bg-subtle">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-semibold text-ink">
+                              {m.label || 'Unnamed'}
+                            </span>
+                            {m.isDefault && (
+                              <span className="px-2 py-0.5 rounded-full bg-brand-soft text-brand text-xs font-semibold">
+                                Default
+                              </span>
+                            )}
+                          </div>
+                          {(m.bankName || m.accountNumber) && (
+                            <p className="text-xs text-muted mt-0.5 truncate">
+                              {[m.bankName, m.accountNumber].filter(Boolean).join(' · ')}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!m.isDefault && (
+                            <button
+                              onClick={() => handleSetDefaultPm(m.id)}
+                              className="h-7 px-2.5 rounded-lg border border-line-strong text-xs text-muted hover:text-ink hover:bg-black/[0.04] transition"
+                            >
+                              Set default
+                            </button>
+                          )}
+                          <button
+                            onClick={() => openEditPm(m)}
+                            className="h-7 px-2.5 rounded-lg border border-line-strong text-xs text-muted hover:text-ink hover:bg-black/[0.04] transition"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeletePm(m.id)}
+                            className="h-7 px-2.5 rounded-lg border border-red-200 text-xs text-red-600 hover:text-red-600 hover:bg-red-100 transition"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Payment method add/edit modal */}
+                {pmModalOpen && (
+                  <div
+                    className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40"
+                    onClick={() => setPmModalOpen(false)}
+                  >
+                    <div
+                      className="w-full max-w-md bg-surface shadow-float rounded-3xl p-5 flex flex-col gap-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-bold text-ink">
+                          {pmEditingId ? 'Edit Payment Method' : 'Add Payment Method'}
+                        </h3>
+                        <button
+                          onClick={() => setPmModalOpen(false)}
+                          className="text-muted hover:text-ink text-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      </div>
+
+                      <div className="flex flex-col gap-3">
+                        {(
+                          [
+                            {
+                              label: 'Label',
+                              key: 'label',
+                              placeholder: 'e.g. Bank Transfer, PayPal',
+                            },
+                            {
+                              label: 'Bank Name',
+                              key: 'bankName',
+                              placeholder: 'Advanced Bank Of Asia Ltd.',
+                            },
+                            {
+                              label: 'Account Name',
+                              key: 'accountName',
+                              placeholder: 'Your Company Name',
+                            },
+                            {
+                              label: 'Account Number',
+                              key: 'accountNumber',
+                              placeholder: '000 000 000',
+                            },
+                            {
+                              label: 'SWIFT / ABA Code',
+                              key: 'swiftCode',
+                              placeholder: 'ABAAKHPP',
+                            },
+                            {
+                              label: 'Currency',
+                              key: 'currency',
+                              placeholder: 'United States Dollars',
+                            },
+                          ] as { label: string; key: keyof typeof pmForm; placeholder: string }[]
+                        ).map(({ label, key, placeholder }) => (
+                          <div key={key} className="flex flex-col gap-1">
+                            <label className={labelCls}>{label}</label>
+                            <input
+                              type="text"
+                              value={pmForm[key]}
+                              onChange={(e) =>
+                                setPmForm((prev) => ({ ...prev, [key]: e.target.value }))
+                              }
+                              placeholder={placeholder}
+                              className={inputCls}
+                            />
+                          </div>
+                        ))}
+
+                        {/* QR Code */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className={labelCls}>Payment QR Code</label>
+                          <div className="flex items-center gap-3">
+                            {pmForm.qrImage ? (
+                              <div className="relative group shrink-0">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={pmForm.qrImage}
+                                  alt="QR"
+                                  className="h-16 w-16 object-contain rounded-xl border border-line-strong bg-surface p-1"
+                                />
+                                <button
+                                  onClick={() => setPmForm((p) => ({ ...p, qrImage: '' }))}
+                                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-surface border border-line-strong text-ink text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="h-16 w-16 rounded-xl border-2 border-dashed border-line-strong bg-surface flex items-center justify-center shrink-0">
+                                <QrCode
+                                  className="w-5 h-5 text-faint"
+                                  weight="duotone"
+                                  aria-hidden
+                                />
+                              </div>
+                            )}
+                            <div>
+                              <button
+                                onClick={() => pmInputRef.current?.click()}
+                                className="h-9 px-3 rounded-full border border-line-strong text-xs text-ink-2 hover:bg-black/[0.04] hover:text-ink transition"
+                              >
+                                {pmForm.qrImage ? 'Replace QR' : 'Upload QR'}
+                              </button>
+                              <input
+                                ref={pmInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  if (f)
+                                    handleImageUpload(f, (b64) =>
+                                      setPmForm((p) => ({ ...p, qrImage: b64 }))
+                                    );
+                                  e.target.value = '';
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 justify-end pt-1">
+                        <button
+                          onClick={() => setPmModalOpen(false)}
+                          className="h-10 px-4 rounded-full border border-line-strong text-sm text-muted hover:bg-black/[0.04] transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSavePm}
+                          disabled={isPending || !pmForm.label.trim()}
+                          className={saveBtnCls}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Currency */}
+              <div className="flex flex-col gap-3">
+                <SectionDivider label="Currency" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls}>Currency Code (ISO 4217)</label>
+                    <input
+                      type="text"
+                      value={inv.currencyCode}
+                      onChange={(e) =>
+                        setInv('currencyCode', e.target.value.toUpperCase().slice(0, 3))
+                      }
+                      placeholder="USD"
+                      maxLength={3}
+                      className={inputCls}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className={labelCls}>Currency Symbol</label>
+                    <input
+                      type="text"
+                      value={inv.currencySymbol}
+                      onChange={(e) => setInv('currencySymbol', e.target.value.slice(0, 3))}
+                      placeholder="$"
+                      maxLength={3}
+                      className={inputCls}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-faint">
+                  Common: USD ($) · EUR (€) · GBP (£) · THB (฿) · JPY (¥) · SGD (S$) · KHR (រ)
+                </p>
+              </div>
+
+              {/* Date format */}
+              <div className="flex flex-col gap-3">
+                <SectionDivider label="Date Format" />
+                <div className="grid grid-cols-2 gap-2">
+                  {(['DD/Mon/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'] as const).map(
+                    (fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setInv('dateFormat', fmt)}
+                        className={`h-10 px-3 rounded-xl border text-sm font-medium transition text-left ${inv.dateFormat === fmt ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
+                      >
+                        {fmt}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+
+              {/* Tax config */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <SectionDivider label="Tax Line" />
+                  <button
+                    type="button"
+                    onClick={() => setInv('taxEnabled', !inv.taxEnabled)}
+                    className={`relative w-10 h-5 rounded-full transition-colors shrink-0 ${inv.taxEnabled ? 'bg-brand' : 'bg-line'}`}
+                  >
+                    <span
+                      className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all"
+                      style={{ left: inv.taxEnabled ? '22px' : '2px' }}
+                    />
+                  </button>
+                </div>
+                {inv.taxEnabled && (
+                  <div className="flex flex-col gap-3 rounded-xl bg-subtle p-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelCls}>Tax Label</label>
+                        <input
+                          type="text"
+                          value={inv.taxLabel}
+                          onChange={(e) => setInv('taxLabel', e.target.value)}
+                          placeholder="VAT"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1.5">
+                        <label className={labelCls}>Rate (%)</label>
+                        <input
+                          type="number"
+                          value={inv.taxRate}
+                          onChange={(e) => setInv('taxRate', parseFloat(e.target.value) || 0)}
+                          min={0}
+                          max={100}
+                          step={0.1}
+                          className={inputCls}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5">
+                      <label className={labelCls}>Tax Type</label>
+                      <div className="flex gap-2">
+                        {(['additive', 'deductive'] as const).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setInv('taxType', t)}
+                            className={`flex-1 h-10 rounded-full border text-sm font-medium transition ${inv.taxType === t ? 'border-brand/40 bg-brand-soft text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04] hover:text-ink'}`}
+                          >
+                            {t === 'additive' ? 'Additive (VAT / GST)' : 'Deductive (WHT)'}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-faint">
+                        {inv.taxType === 'additive'
+                          ? 'Tax is added on top of the subtotal (e.g. VAT, GST).'
+                          : 'Tax is withheld from the payment (e.g. WHT).'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={saveRowCls}>
+              {savedInvoicing && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+              <button onClick={handleSaveInvoicing} disabled={isPending} className={saveBtnCls}>
+                Save invoicing settings
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* ── Workspace tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'workspace' && (
+          <div className="flex flex-col gap-6">
+            {/* Scope of Work */}
+            <section className={sectionCls}>
+              <div className="flex flex-col gap-1 mb-6">
+                <h2 className="text-base font-semibold text-ink">Scope of Work Suggestions</h2>
+                <p className="text-xs text-muted">
+                  Autocomplete suggestions when adding line items to invoices.
+                </p>
+              </div>
+              <ScopeList
+                scopes={scopeOfWork}
+                onChange={(newScopes) => {
+                  startTransition(async () => {
+                    await saveScopeOfWork(newScopes);
+                  });
+                }}
+              />
+            </section>
+          </div>
+        )}
+
+        {/* ── Integrations tab ──────────────────────────────────────────────────── */}
+        {activeTab === 'integrations' && (
+          <div className="flex flex-col gap-6">
+            {/* Telegram Bot */}
+            <section className={sectionCls}>
+              <div className="flex items-start gap-3 mb-6">
+                <div className="w-9 h-9 rounded-full bg-sky-50 border border-sky-200 flex items-center justify-center shrink-0">
+                  <TelegramLogo className="w-4 h-4 text-sky-600" weight="duotone" aria-hidden />
+                </div>
+                <div>
+                  <h2 className="text-base font-semibold text-ink">Telegram Bot</h2>
+                  <p className="text-xs text-muted mt-0.5">
+                    Send invoices to Telegram. Create a bot via @BotFather and add it to your group.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-6">
+                {/* Bot token */}
+                <div className="flex flex-col gap-1.5">
+                  <label className={labelCls}>Bot Token</label>
+                  <input
+                    type="text"
+                    value={payment.telegramBotToken ?? ''}
+                    onChange={(e) => setPay('telegramBotToken', e.target.value)}
+                    placeholder="123456:ABCdef..."
+                    className={inputCls}
+                  />
+                  <p className="text-xs text-faint">
+                    Shared across all Telegram destinations below.
+                  </p>
+                </div>
+
+                {/* Invoices group */}
+                <div className="rounded-xl bg-subtle p-4 flex flex-col gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                    <p className="text-sm font-semibold text-ink">Invoices</p>
+                  </div>
+                  {[
+                    {
+                      label: 'Chat ID',
+                      key: 'telegramChatId',
+                      placeholder: '-1001234567890 or @username',
+                    },
+                    {
+                      label: 'Topic ID (optional)',
+                      key: 'telegramTopicId',
+                      placeholder: 'Leave blank if not using topics',
+                    },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key} className="flex flex-col gap-1.5">
+                      <label className={labelCls}>{label}</label>
+                      <input
+                        type="text"
+                        value={(payment as unknown as Record<string, string>)[key] ?? ''}
+                        onChange={(e) => setPay(key as keyof PaymentInfo, e.target.value)}
+                        placeholder={placeholder}
+                        className={inputCls}
+                      />
+                    </div>
+                  ))}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2">
+                      <label className={labelCls}>Preview</label>
+                      <span className="text-[10px] text-faint italic">sample message</span>
+                    </div>
+                    <pre className="text-xs text-muted font-mono leading-relaxed bg-subtle rounded-xl p-4 overflow-x-auto whitespace-pre">{`📄 INV-0042\n📅 Date: 20 Apr 2026\n👤 Client: Jane Smith\n\n📎 PDF attached`}</pre>
+                  </div>
+                </div>
+              </div>
+
+              <div className={saveRowCls}>
+                {savedTelegram && <span className="text-xs text-brand font-semibold">Saved ✓</span>}
+                <button onClick={handleSaveTelegram} disabled={isPending} className={saveBtnCls}>
+                  Save Telegram settings
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {/* Sign out */}
+        <div className="pb-4">
+          <button
+            onClick={async () => {
+              await signOut();
+              router.replace('/login');
+            }}
+            className="flex items-center gap-3 px-4 h-14 rounded-2xl bg-surface shadow-card text-sm font-semibold text-red-600 hover:bg-red-50 active:bg-red-100 transition w-full"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-            />
-          </svg>
-          Sign out
-        </button>
+            <span className="w-9 h-9 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+              <SignOut className="w-5 h-5" weight="duotone" aria-hidden />
+            </span>
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -1005,8 +919,8 @@ function SettingsForm({
 function SectionDivider({ label }: { label: string }) {
   return (
     <div className="flex items-center gap-3">
-      <p className="text-xs font-bold uppercase tracking-widest text-white/40 shrink-0">{label}</p>
-      <div className="flex-1 h-px bg-white/[0.07]" />
+      <p className="text-sm font-semibold text-ink shrink-0">{label}</p>
+      <div className="flex-1 h-px bg-subtle" />
     </div>
   );
 }
@@ -1019,7 +933,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
   const [newValue, setNewValue] = useState('');
 
   const inputCls =
-    'h-11 rounded-xl border border-white/20 bg-white/10 px-4 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition backdrop-blur-sm';
+    'h-11 rounded-xl border border-line bg-subtle px-4 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand focus:bg-surface transition';
 
   function startEdit(i: number) {
     setEditingIdx(i);
@@ -1060,31 +974,31 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
               />
               <button
                 onClick={() => commitEdit(i)}
-                className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0"
+                className="h-11 px-4 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shrink-0"
               >
                 Save
               </button>
               <button
                 onClick={() => setEditingIdx(null)}
-                className="h-11 px-4 rounded-xl border border-white/20 text-sm text-white/70 hover:bg-white/10 transition shrink-0"
+                className="h-11 px-4 rounded-full border border-line-strong text-sm text-ink-2 hover:bg-black/[0.04] transition shrink-0"
               >
                 Cancel
               </button>
             </>
           ) : (
             <>
-              <span className="flex-1 text-sm text-white/75 py-3 px-4 bg-white/[0.06] rounded-xl border border-white/10 truncate">
+              <span className="flex-1 text-sm text-ink-2 py-3 px-4 bg-subtle rounded-xl border border-line truncate">
                 {s}
               </span>
               <button
                 onClick={() => startEdit(i)}
-                className="h-11 px-4 rounded-xl border border-white/20 text-xs font-semibold text-white/60 hover:bg-white/10 hover:text-white transition shrink-0"
+                className="h-11 px-4 rounded-full border border-line-strong text-xs font-semibold text-muted hover:bg-black/[0.04] hover:text-ink transition shrink-0"
               >
                 Edit
               </button>
               <button
                 onClick={() => deleteScope(i)}
-                className="h-11 px-4 rounded-xl border border-red-500/30 text-xs font-semibold text-red-400 hover:bg-red-500/15 transition shrink-0"
+                className="h-11 px-4 rounded-full border border-red-200 text-xs font-semibold text-red-600 hover:bg-red-100 transition shrink-0"
               >
                 Delete
               </button>
@@ -1093,7 +1007,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         </div>
       ))}
 
-      <div className="flex items-center gap-2 mt-2 pt-4 border-t border-white/[0.08]">
+      <div className="flex items-center gap-2 mt-2 pt-4 border-t border-line">
         <input
           value={newValue}
           onChange={(e) => setNewValue(e.target.value)}
@@ -1106,7 +1020,7 @@ function ScopeList({ scopes, onChange }: { scopes: string[]; onChange: (s: strin
         <button
           onClick={addScope}
           disabled={!newValue.trim()}
-          className="h-11 px-4 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-amber-400 transition shrink-0 disabled:opacity-40"
+          className="h-11 px-4 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition shrink-0 disabled:opacity-40"
         >
           Add
         </button>

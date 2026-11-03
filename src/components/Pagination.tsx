@@ -1,3 +1,4 @@
+import { CaretLeft, CaretRight } from '@phosphor-icons/react';
 interface PaginationProps {
   page: number;
   totalPages: number;
@@ -18,30 +19,22 @@ export default function Pagination({
   const end = Math.min(page * pageSize, totalItems);
   return (
     <div className="flex items-center justify-between mt-4 px-1">
-      <p className="text-xs text-white/40">
+      <p className="text-xs text-muted">
         {start}–{end} of {totalItems}
       </p>
       <div className="flex items-center gap-1.5">
         <button
           onClick={() => onPageChange(page - 1)}
           disabled={page === 1}
-          className="h-10 w-10 flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed transition"
+          className="h-10 w-10 flex items-center justify-center rounded-full border border-line-strong bg-subtle text-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-25 disabled:cursor-not-allowed transition"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
+          <CaretLeft className="w-4 h-4" weight="bold" aria-hidden />
         </button>
         {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
           <button
             key={p}
             onClick={() => onPageChange(p)}
-            className={`h-10 w-10 rounded-xl text-xs font-semibold transition ${p === page ? 'bg-[#FFC206] text-zinc-900 shadow-md shadow-amber-500/20' : 'border border-white/15 bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white'}`}
+            className={`h-10 w-10 rounded-full text-xs font-semibold transition ${p === page ? 'bg-brand text-white shadow-brand' : 'border border-line-strong bg-subtle text-muted hover:bg-black/[0.04] hover:text-ink'}`}
           >
             {p}
           </button>
@@ -49,17 +42,9 @@ export default function Pagination({
         <button
           onClick={() => onPageChange(page + 1)}
           disabled={page === totalPages}
-          className="h-10 w-10 flex items-center justify-center rounded-xl border border-white/15 bg-white/[0.06] text-white/60 hover:bg-white/10 hover:text-white disabled:opacity-25 disabled:cursor-not-allowed transition"
+          className="h-10 w-10 flex items-center justify-center rounded-full border border-line-strong bg-subtle text-muted hover:bg-black/[0.04] hover:text-ink disabled:opacity-25 disabled:cursor-not-allowed transition"
         >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-          </svg>
+          <CaretRight className="w-4 h-4" weight="bold" aria-hidden />
         </button>
       </div>
     </div>

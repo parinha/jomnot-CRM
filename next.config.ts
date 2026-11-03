@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // Only bundle the Phosphor icons we actually import
+    optimizePackageImports: ['@phosphor-icons/react'],
+  },
   async headers() {
     return [
       {

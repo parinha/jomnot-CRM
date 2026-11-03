@@ -1,3 +1,4 @@
+import { CaretDown, CaretUp, CaretUpDown } from '@phosphor-icons/react';
 interface SortThProps {
   col: string;
   active: string;
@@ -12,43 +13,19 @@ export default function SortTh({ col, active, dir, onSort, className, children }
   return (
     <th
       onClick={() => onSort(col)}
-      className={`font-medium text-white/45 cursor-pointer select-none hover:text-white/80 transition ${className ?? ''}`}
+      className={`font-medium text-muted cursor-pointer select-none hover:text-ink-2 transition ${className ?? ''}`}
     >
       <span className="inline-flex items-center gap-1">
         {children}
-        <span className={isActive ? 'text-[#FFC206]' : 'text-white/20'}>
+        <span className={isActive ? 'text-brand' : 'text-line-strong'}>
           {isActive ? (
             dir === 'asc' ? (
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
-              </svg>
+              <CaretUp className="w-3.5 h-3.5" weight="bold" aria-hidden />
             ) : (
-              <svg
-                className="w-3.5 h-3.5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2.5}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
+              <CaretDown className="w-3.5 h-3.5" weight="bold" aria-hidden />
             )
           ) : (
-            <svg
-              className="w-3.5 h-3.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4M8 15l4 4 4-4" />
-            </svg>
+            <CaretUpDown className="w-3.5 h-3.5" weight="bold" aria-hidden />
           )}
         </span>
       </span>

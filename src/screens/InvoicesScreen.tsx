@@ -1,5 +1,22 @@
 'use client';
 
+import {
+  CalendarBlank,
+  Check,
+  CheckCircle,
+  CircleNotch,
+  Eye,
+  LockSimple,
+  MagnifyingGlass,
+  PencilSimple,
+  Plus,
+  Printer,
+  Receipt,
+  SealCheck,
+  TelegramLogo,
+  Trash,
+  X,
+} from '@phosphor-icons/react';
 import { useState, useEffect, useRef, createElement, useTransition } from 'react';
 import { toast } from 'sonner';
 import { createRoot } from 'react-dom/client';
@@ -30,6 +47,7 @@ import { PAYMENT_TERMS, PAGE_SIZE, STORAGE_KEYS } from '@/src/config/constants';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import SearchInput from '@/src/components/SearchInput';
 import Pagination from '@/src/components/Pagination';
+import { PageHeader, EmptyCard } from '@/src/components/PageHeader';
 import ModalShell from '@/src/components/ModalShell';
 import ConfirmDeleteModal from '@/src/components/ConfirmDeleteModal';
 import { useInvoiceMutations } from '@/src/hooks/useInvoices';
@@ -57,7 +75,7 @@ function emptyItem(): LineItem {
 type FormState = Omit<Invoice, 'id'>;
 
 const inputCls =
-  'h-11 rounded-xl border border-white/20 bg-white/10 px-3 text-sm text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full';
+  'h-11 rounded-xl border border-line bg-subtle px-3 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand focus:bg-surface transition w-full';
 
 export default function InvoicesScreen() {
   const { data: clients, isLoading } = useClients();
@@ -457,199 +475,194 @@ export default function InvoicesScreen() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Invoices</h1>
-          <p className="text-sm text-white/45 mt-0.5">{invoices.length} total</p>
-        </div>
-        <button
-          onClick={openNew}
-          className="flex items-center gap-2 h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition"
-        >
-          <svg
-            className="w-4 h-4"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          New invoice
-        </button>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        {(
-          [
-            { key: 'all', label: 'All', count: invoices.filter((i) => i.status !== 'paid').length },
-            {
-              key: 'draft',
-              label: 'Draft',
-              count: invoices.filter((i) => i.status === 'draft').length,
-            },
-            {
-              key: 'active',
-              label: 'Active',
-              count: invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length,
-            },
-            {
-              key: 'partial',
-              label: 'Deposit',
-              count: invoices.filter((i) => i.status === 'partial').length,
-            },
-            {
-              key: 'overdue',
-              label: 'Late',
-              count: invoices.filter((i) => i.status === 'overdue').length,
-            },
-            {
-              key: 'paid',
-              label: 'Paid',
-              count: invoices.filter((i) => i.status === 'paid').length,
-            },
-          ] as const
-        ).map(({ key, label, count }) => (
+      <PageHeader
+        title="Invoices"
+        sub={`${invoices.length} total`}
+        action={
           <button
-            key={key}
-            onClick={() => setStatusFilter(key)}
-            className={`flex items-center gap-1.5 h-9 px-3.5 rounded-full text-sm font-semibold transition ${statusFilter === key ? 'bg-[#FFC206] text-zinc-900' : 'bg-white/[0.07] text-white/50 hover:bg-white/[0.12] hover:text-white'}`}
+            onClick={openNew}
+            className="flex items-center gap-2 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
           >
-            {label}
-            <span
-              className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${statusFilter === key ? 'bg-zinc-900/20 text-zinc-900' : 'bg-white/10 text-white/40'}`}
-            >
-              {count}
-            </span>
+            <Plus className="w-4 h-4" weight="bold" aria-hidden />
+            New invoice
           </button>
-        ))}
-      </div>
+        }
+      />
 
-      {/* Search */}
-      <div className="mb-4">
+      {/* Filters: chips scroll sideways on phones, search sits beside them on iPad+ */}
+      <div className="flex flex-col gap-3 mb-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0 md:flex-wrap">
+          {(
+            [
+              {
+                key: 'all',
+                label: 'All',
+                count: invoices.filter((i) => i.status !== 'paid').length,
+              },
+              {
+                key: 'draft',
+                label: 'Draft',
+                count: invoices.filter((i) => i.status === 'draft').length,
+              },
+              {
+                key: 'active',
+                label: 'Active',
+                count: invoices.filter((i) => i.status === 'sent' || i.status === 'partial').length,
+              },
+              {
+                key: 'partial',
+                label: 'Deposit',
+                count: invoices.filter((i) => i.status === 'partial').length,
+              },
+              {
+                key: 'overdue',
+                label: 'Late',
+                count: invoices.filter((i) => i.status === 'overdue').length,
+              },
+              {
+                key: 'paid',
+                label: 'Paid',
+                count: invoices.filter((i) => i.status === 'paid').length,
+              },
+            ] as const
+          ).map(({ key, label, count }) => {
+            const on = statusFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                className={`shrink-0 flex items-center gap-1.5 h-10 pl-4 pr-2 rounded-full text-sm font-semibold transition ${
+                  on
+                    ? 'bg-brand text-white shadow-brand'
+                    : 'bg-surface text-ink-2 shadow-card hover:bg-subtle'
+                }`}
+              >
+                {label}
+                <span
+                  className={`min-w-6 h-6 px-1.5 flex items-center justify-center text-xs font-semibold rounded-full ${
+                    on ? 'bg-white/25 text-white' : 'bg-subtle text-muted'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
         <SearchInput
           value={search}
           onChange={setSearch}
           placeholder="Search by invoice #, client, amount…"
+          className="w-full lg:w-80 shrink-0"
         />
       </div>
 
       {/* Empty states */}
       {invoices.length === 0 ? (
-        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-20 text-white/35">
-          <svg
-            className="w-10 h-10 mb-3 text-white/20"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-            />
-          </svg>
-          <p className="text-sm">No invoices yet. Create your first one.</p>
-        </div>
+        <EmptyCard
+          icon={<Receipt className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          title="No invoices yet"
+          text="Create your first invoice to get paid."
+          action={
+            <button
+              onClick={openNew}
+              className="mt-4 h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition"
+            >
+              New invoice
+            </button>
+          }
+        />
       ) : filteredInvoices.length === 0 ? (
-        <div className="bg-white/[0.05] backdrop-blur-xl border border-white/[0.09] rounded-2xl flex flex-col items-center justify-center py-14 text-white/35">
-          <p className="text-sm">No invoices match your search.</p>
-          <button
-            onClick={() => {
-              setSearch('');
-              setStatusFilter('all');
-            }}
-            className="mt-2 text-xs text-[#FFC206] hover:underline"
-          >
-            Clear filters
-          </button>
-        </div>
+        <EmptyCard
+          icon={<MagnifyingGlass className="w-9 h-9 text-brand" weight="duotone" aria-hidden />}
+          title="Nothing found"
+          text="No invoices match your search or filter."
+          action={
+            <button
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('all');
+              }}
+              className="mt-3 text-sm font-semibold text-brand hover:underline"
+            >
+              Clear filters
+            </button>
+          }
+        />
       ) : (
-        <>
-          {/* Invoice cards */}
-          <div className="flex flex-col gap-3">
-            {pagedInvoices.map((inv) => {
-              const client = clients.find((c) => c.id === inv.clientId);
-              const sub = calcSubtotal(inv);
-              const status = (inv.status ?? 'draft') as InvoiceStatus;
-              const sc = STATUS_CONFIG[status];
-              return (
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 md:gap-4">
+          {pagedInvoices.map((inv) => {
+            const client = clients.find((c) => c.id === inv.clientId);
+            const sub = calcSubtotal(inv);
+            const status = (inv.status ?? 'draft') as InvoiceStatus;
+            const sc = STATUS_CONFIG[status];
+            return (
+              <article
+                key={inv.id}
+                className="bg-surface rounded-2xl shadow-card hover:shadow-float transition-shadow flex flex-col"
+              >
                 <button
-                  key={inv.id}
                   onClick={() => setViewInvId(inv.id)}
-                  className="w-full text-left bg-white/[0.05] border border-white/[0.09] rounded-2xl p-4 active:bg-white/[0.08] transition"
+                  className="flex-1 text-left p-4 flex items-start gap-3 rounded-t-2xl active:bg-subtle transition"
                 >
-                  {/* Top: number + status + edit */}
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <div className="min-w-0">
-                      <p className="font-bold text-white">{inv.number}</p>
-                      <p className="text-xs text-white/50 mt-0.5 truncate">{client?.name ?? '—'}</p>
+                  <span
+                    className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 ${sc.cls}`}
+                  >
+                    <Receipt className="w-5 h-5" weight="duotone" aria-hidden />
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-ink truncate">{inv.number}</p>
+                      <p className="font-semibold text-ink shrink-0 amt">{fmt(sub)}</p>
                     </div>
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${sc.cls}`}>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-sm text-muted truncate">{client?.name ?? '—'}</p>
+                      <span
+                        className={`shrink-0 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${sc.cls}`}
+                      >
                         {sc.label}
                       </span>
-                      <span
-                        role="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(inv);
-                        }}
-                        className="p-1.5 rounded-lg text-white/40 hover:bg-white/10 hover:text-white transition"
-                        title="Edit"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                          />
-                        </svg>
-                      </span>
                     </div>
+                    <p className="text-xs text-faint mt-2 flex items-center gap-1 min-w-0">
+                      <CalendarBlank
+                        className="w-3.5 h-3.5 shrink-0"
+                        weight="duotone"
+                        aria-hidden
+                      />
+                      <span className="shrink-0">{fmtDt(inv.date)}</span>
+                      {inv.projectName && <span className="truncate">· {inv.projectName}</span>}
+                    </p>
                   </div>
-                  {/* Date + amount */}
-                  <div className="flex items-center justify-between mt-2">
-                    <p className="text-xs text-white/35">{fmtDt(inv.date)}</p>
-                    <p className="font-semibold text-white amt">{fmt(sub)}</p>
-                  </div>
-                  {/* Mark Paid */}
-                  {status !== 'paid' && (
-                    <div className="mt-3 pt-3 border-t border-white/[0.07]">
-                      <span
-                        role="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startTransition(() => upsertInvoice({ ...inv, status: 'paid' }));
-                        }}
-                        className="flex items-center justify-center gap-1.5 w-full h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-400 text-xs font-semibold hover:bg-emerald-500/25 active:bg-emerald-500/35 transition"
-                      >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2.5}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                        Mark Paid
-                      </span>
-                    </div>
-                  )}
                 </button>
-              );
-            })}
-          </div>
-        </>
+                <div className="flex items-center gap-2 border-t border-line px-3 py-2.5">
+                  <button
+                    onClick={() => openEdit(inv)}
+                    className="h-9 px-4 rounded-full flex items-center gap-1.5 bg-subtle text-sm font-medium text-ink-2 hover:bg-line active:scale-95 transition"
+                  >
+                    <PencilSimple className="w-4 h-4" weight="duotone" aria-hidden />
+                    Edit
+                  </button>
+                  {status !== 'paid' ? (
+                    <button
+                      onClick={() =>
+                        startTransition(() => upsertInvoice({ ...inv, status: 'paid' }))
+                      }
+                      className="ml-auto h-9 px-4 rounded-full flex items-center gap-1.5 bg-brand text-white text-sm font-semibold shadow-[0_2px_8px_rgb(0_177_79/0.3)] hover:bg-brand-hover active:bg-brand-dark active:scale-95 transition"
+                    >
+                      <CheckCircle className="w-4 h-4" weight="duotone" aria-hidden />
+                      Mark paid
+                    </button>
+                  ) : (
+                    <span className="ml-auto h-9 px-3 flex items-center gap-1.5 text-sm font-semibold text-brand">
+                      <SealCheck className="w-4 h-4" weight="duotone" aria-hidden />
+                      Paid
+                    </span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+        </div>
       )}
 
       <Pagination
@@ -676,31 +689,23 @@ export default function InvoicesScreen() {
           return (
             <ModalShell onClose={() => setViewInvId(null)}>
               {/* Header */}
-              <div className="flex items-start justify-between px-5 py-4 border-b border-white/[0.08] shrink-0">
+              <div className="flex items-start justify-between px-5 py-4 border-b border-line shrink-0">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-base font-bold text-white">{inv.number}</h2>
+                    <h2 className="text-base font-bold text-ink">{inv.number}</h2>
                     <span
                       className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
                     >
                       {sc.label}
                     </span>
                   </div>
-                  <p className="text-xs text-white/40 mt-0.5">{client?.name ?? '—'}</p>
+                  <p className="text-xs text-muted mt-0.5">{client?.name ?? '—'}</p>
                 </div>
                 <button
                   onClick={() => setViewInvId(null)}
-                  className="p-1.5 rounded-xl text-white/40 hover:bg-white/10 hover:text-white transition shrink-0"
+                  className="p-1.5 rounded-xl text-muted hover:bg-black/[0.04] hover:text-ink transition shrink-0"
                 >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="w-5 h-5" weight="bold" aria-hidden />
                 </button>
               </div>
 
@@ -711,15 +716,15 @@ export default function InvoicesScreen() {
                   {inv.items.map((it) => (
                     <div
                       key={it.id}
-                      className="flex items-center justify-between py-2 border-b border-white/[0.05] last:border-0"
+                      className="flex items-center justify-between py-2 border-b border-line last:border-0"
                     >
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white truncate">{it.description || '—'}</p>
-                        <p className="text-xs text-white/40">
+                        <p className="text-sm text-ink truncate">{it.description || '—'}</p>
+                        <p className="text-xs text-muted">
                           {it.qty} × <span className="amt">{fmt(it.unitPrice)}</span>
                         </p>
                       </div>
-                      <span className="text-sm font-semibold text-white shrink-0 ml-3 amt">
+                      <span className="text-sm font-semibold text-ink shrink-0 ml-3 amt">
                         {fmt(it.qty * it.unitPrice)}
                       </span>
                     </div>
@@ -727,13 +732,13 @@ export default function InvoicesScreen() {
                 </div>
 
                 {/* Totals */}
-                <div className="bg-white/[0.05] rounded-xl p-4 flex flex-col gap-2">
+                <div className="bg-subtle rounded-2xl p-4 flex flex-col gap-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-white/60">Subtotal</span>
-                    <span className="font-medium text-white amt">{fmt(sub)}</span>
+                    <span className="text-muted">Subtotal</span>
+                    <span className="font-medium text-ink amt">{fmt(sub)}</span>
                   </div>
                   {wht != null && (
-                    <div className="flex justify-between text-sm text-amber-400/80">
+                    <div className="flex justify-between text-sm text-amber-600">
                       <span>
                         {taxConfig.enabled ? taxConfig.label : 'WHT'} (
                         {taxConfig.enabled ? taxConfig.rate : 15}%)
@@ -744,17 +749,17 @@ export default function InvoicesScreen() {
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm font-bold text-white border-t border-white/10 pt-2 mt-1">
+                  <div className="flex justify-between text-sm font-bold text-ink border-t border-line pt-2 mt-1">
                     <span>Net Total</span>
                     <span className="amt">{fmt(net)}</span>
                   </div>
                   {dep != null && (
                     <>
-                      <div className="flex justify-between text-sm text-green-400/80">
+                      <div className="flex justify-between text-sm text-brand">
                         <span>Deposit ({inv.depositPercent}%)</span>
                         <span className="amt">{fmt(dep)}</span>
                       </div>
-                      <div className="flex justify-between text-sm font-semibold text-white/80">
+                      <div className="flex justify-between text-sm font-semibold text-ink-2">
                         <span>Balance Due</span>
                         <span className="amt">{fmt(bal ?? 0)}</span>
                       </div>
@@ -765,12 +770,12 @@ export default function InvoicesScreen() {
                 {/* Meta */}
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div>
-                    <p className="text-white/40 uppercase tracking-wider mb-0.5">Date</p>
-                    <p className="text-white">{fmtDt(inv.date)}</p>
+                    <p className="text-muted mb-0.5">Date</p>
+                    <p className="text-ink">{fmtDt(inv.date)}</p>
                   </div>
                   <div>
-                    <p className="text-white/40 uppercase tracking-wider mb-0.5">Terms</p>
-                    <p className="text-white">{inv.paymentTerms || '—'}</p>
+                    <p className="text-muted mb-0.5">Terms</p>
+                    <p className="text-ink">{inv.paymentTerms || '—'}</p>
                   </div>
                 </div>
 
@@ -778,9 +783,7 @@ export default function InvoicesScreen() {
 
                 {/* Status change */}
                 <div>
-                  <p className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">
-                    Change Status
-                  </p>
+                  <p className="text-sm font-semibold text-ink mb-2">Change Status</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(['draft', 'sent', 'partial', 'paid', 'overdue'] as InvoiceStatus[]).map(
                       (s) => {
@@ -796,7 +799,7 @@ export default function InvoicesScreen() {
                                 setViewInvId(null);
                               });
                             }}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${isActive ? sconf.cls + ' ring-1 ring-white/20 cursor-default' : 'bg-white/[0.07] text-white/50 hover:bg-white/[0.13] active:bg-white/[0.18]'}`}
+                            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition ${isActive ? sconf.cls + ' ring-1 ring-line-strong cursor-default' : 'bg-subtle text-muted hover:bg-black/[0.04] active:bg-black/[0.07]'}`}
                           >
                             {sconf.label}
                           </button>
@@ -808,7 +811,7 @@ export default function InvoicesScreen() {
               </div>
 
               {/* Action footer */}
-              <div className="px-5 py-4 border-t border-white/[0.08] shrink-0 flex flex-col gap-2">
+              <div className="px-5 py-4 border-t border-line shrink-0 flex flex-col gap-2">
                 {/* Row 1: Edit + PDF + Telegram */}
                 <div className="flex gap-2">
                   <button
@@ -816,68 +819,30 @@ export default function InvoicesScreen() {
                       setViewInvId(null);
                       openEdit(inv);
                     }}
-                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-xl border border-white/20 text-white/70 text-sm font-medium hover:bg-white/10 transition"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full border border-line-strong text-ink-2 text-sm font-medium hover:bg-black/[0.04] transition"
                   >
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
+                    <PencilSimple className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                     Edit
                   </button>
                   <a
                     href={`/invoices/${inv.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-xl bg-[#FFC206]/15 border border-[#FFC206]/30 text-[#FFC206] text-sm font-semibold hover:bg-[#FFC206]/25 transition"
+                    className="flex-1 h-11 flex items-center justify-center gap-1.5 rounded-full bg-brand-soft border border-brand/40 text-brand text-sm font-semibold hover:bg-brand/15 transition"
                   >
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                      />
-                    </svg>
+                    <Printer className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                     PDF
                   </a>
                   <button
                     onClick={() => sendToTelegram(inv)}
                     disabled={sendingTelegram === inv.id}
-                    className="h-11 px-3.5 flex items-center justify-center rounded-xl border border-sky-400/30 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 transition disabled:opacity-50"
+                    className="h-11 px-3.5 flex items-center justify-center rounded-full border border-sky-200 text-sky-600 bg-sky-50 hover:bg-sky-100 transition disabled:opacity-50"
                     title="Send to Telegram"
                   >
                     {sendingTelegram === inv.id ? (
-                      <svg
-                        className="w-4 h-4 animate-spin"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48 2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48 2.83-2.83"
-                        />
-                      </svg>
+                      <CircleNotch className="w-4 h-4 animate-spin" weight="bold" aria-hidden />
                     ) : (
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                      </svg>
+                      <TelegramLogo className="w-4 h-4" weight="duotone" aria-hidden />
                     )}
                   </button>
                 </div>
@@ -890,17 +855,9 @@ export default function InvoicesScreen() {
                         setViewInvId(null);
                       });
                     }}
-                    className="h-11 w-full flex items-center justify-center gap-2 rounded-xl bg-green-500/15 border border-green-400/30 text-green-300 text-sm font-semibold hover:bg-green-500/25 transition"
+                    className="h-11 w-full flex items-center justify-center gap-2 rounded-full bg-brand-soft border border-brand/30 text-brand text-sm font-semibold hover:bg-brand-soft transition"
                   >
-                    <svg
-                      className="w-4 h-4 shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2.5}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                    <Check className="w-4 h-4 shrink-0" weight="bold" aria-hidden />
                     Mark as Paid
                   </button>
                 )}
@@ -910,21 +867,9 @@ export default function InvoicesScreen() {
                     setViewInvId(null);
                     setDeleteId(inv.id);
                   }}
-                  className="h-10 w-full flex items-center justify-center gap-2 rounded-xl border border-red-400/25 text-red-400/80 text-sm hover:bg-red-500/10 hover:text-red-400 transition"
+                  className="h-10 w-full flex items-center justify-center gap-2 rounded-full border border-red-200 text-red-600 text-sm hover:bg-red-100 hover:text-red-600 transition"
                 >
-                  <svg
-                    className="w-4 h-4 shrink-0"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={2}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
+                  <Trash className="w-4 h-4 shrink-0" weight="duotone" aria-hidden />
                   Delete Invoice
                 </button>
               </div>
@@ -935,20 +880,12 @@ export default function InvoicesScreen() {
       {/* ── Invoice form panel ──────────────────────────────────────────────────── */}
       {panelOpen && (
         <ModalShell onClose={closePanel} maxWidth="max-w-2xl">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.08] shrink-0">
-            <h2 className="text-lg font-bold text-white">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-line shrink-0">
+            <h2 className="text-lg font-bold text-ink">
               {editingId ? 'Edit invoice' : 'New invoice'}
             </h2>
-            <button onClick={closePanel} className="text-white/40 hover:text-white transition p-1">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
+            <button onClick={closePanel} className="text-muted hover:text-ink transition p-1">
+              <X className="w-5 h-5" weight="bold" aria-hidden />
             </button>
           </div>
 
@@ -1008,9 +945,9 @@ export default function InvoicesScreen() {
                         className={inputCls}
                       />
                       {clientDropOpen && (
-                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-xl border border-white/[0.1] bg-slate-800/95 backdrop-blur-xl shadow-lg">
+                        <div className="absolute z-50 left-0 right-0 mt-1 max-h-56 overflow-y-auto rounded-2xl border border-line bg-surface shadow-float">
                           {filtered.length === 0 ? (
-                            <div className="px-3 py-2 text-sm text-white/40">No clients found</div>
+                            <div className="px-3 py-2 text-sm text-muted">No clients found</div>
                           ) : (
                             filtered.map((c) => (
                               <button
@@ -1021,11 +958,11 @@ export default function InvoicesScreen() {
                                   setClientSearch('');
                                   setClientDropOpen(false);
                                 }}
-                                className={`w-full text-left px-3 py-2 hover:bg-white/10 transition ${form.clientId === c.id ? 'bg-[#FFC206]/10' : ''}`}
+                                className={`w-full text-left px-3 py-2 hover:bg-black/[0.04] transition ${form.clientId === c.id ? 'bg-brand-soft' : ''}`}
                               >
-                                <div className="text-sm font-medium text-white">{c.name}</div>
+                                <div className="text-sm font-medium text-ink">{c.name}</div>
                                 {(c.contactPerson || c.email || c.phone) && (
-                                  <div className="text-xs text-white/40 truncate">
+                                  <div className="text-xs text-muted truncate">
                                     {[c.contactPerson, c.email, c.phone]
                                       .filter(Boolean)
                                       .join(' · ')}
@@ -1074,7 +1011,7 @@ export default function InvoicesScreen() {
                       <button
                         key={m.id}
                         onClick={() => setField('paymentMethodId', m.id)}
-                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-[#FFC206]/20 border-[#FFC206] text-[#FFC206]' : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-brand-soft border-brand text-brand' : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
                       >
                         {m.label}
                         {m.isDefault && !active && (
@@ -1096,7 +1033,7 @@ export default function InvoicesScreen() {
                     <button
                       key={s}
                       onClick={() => setField('status', s)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? `${sc.cls} border-current` : 'border-white/15 text-white/40 hover:bg-white/10'}`}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? `${sc.cls} border-current` : 'border-line-strong text-muted hover:bg-black/[0.04]'}`}
                     >
                       {sc.label}
                     </button>
@@ -1115,21 +1052,9 @@ export default function InvoicesScreen() {
               return (
                 <div className="relative">
                   {!lineItemsReady && (
-                    <div className="absolute inset-0 z-10 rounded-xl bg-slate-900/70 backdrop-blur-[2px] flex flex-col items-center justify-center gap-2 border border-white/[0.08]">
-                      <svg
-                        className="w-5 h-5 text-white/30"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                        />
-                      </svg>
-                      <p className="text-xs text-white/40 text-center px-4">
+                    <div className="absolute inset-0 z-10 rounded-xl bg-surface-[2px] flex flex-col items-center justify-center gap-2 border border-line">
+                      <LockSimple className="w-5 h-5 text-faint" weight="duotone" aria-hidden />
+                      <p className="text-xs text-muted text-center px-4">
                         Fill in Invoice Number, Date, Project Name &amp; Client first
                       </p>
                     </div>
@@ -1138,24 +1063,16 @@ export default function InvoicesScreen() {
                     className={!lineItemsReady ? 'pointer-events-none select-none opacity-30' : ''}
                   >
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-sm font-medium text-white/70">Line Items</span>
+                      <span className="text-sm font-medium text-ink-2">Line Items</span>
                       <button
                         onClick={addItem}
-                        className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition"
+                        className="flex items-center gap-1 text-xs text-muted hover:text-ink transition"
                       >
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={2}
-                        >
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                        </svg>
+                        <Plus className="w-3.5 h-3.5" weight="bold" aria-hidden />
                         Add row
                       </button>
                     </div>
-                    <div className="rounded-xl border border-white/[0.1] overflow-hidden divide-y divide-white/[0.06]">
+                    <div className="rounded-xl border border-line overflow-hidden divide-y divide-line">
                       {form.items.map((item) => {
                         const nlIdx = item.description.indexOf('\n');
                         const title =
@@ -1179,63 +1096,39 @@ export default function InvoicesScreen() {
                         };
                         const customVal = customScope[item.id] ?? '';
                         return (
-                          <div key={item.id} className="bg-slate-900/60">
+                          <div key={item.id} className="bg-surface">
                             {/* Title row */}
                             <div className="flex items-center gap-2 pr-2">
                               <input
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
                                 placeholder={form.projectName || 'Project / event title…'}
-                                className="flex-1 px-3 pt-2.5 pb-2 text-sm font-medium text-white placeholder:text-white/30 focus:outline-none focus:bg-white/[0.04] bg-transparent"
+                                className="flex-1 px-3 pt-2.5 pb-2 text-sm font-medium text-ink placeholder:text-faint focus:outline-none focus:bg-surface bg-transparent"
                               />
                               <button
                                 onClick={() => removeItem(item.id)}
                                 disabled={form.items.length === 1}
-                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-white/25 hover:text-red-400 hover:bg-red-500/10 disabled:opacity-0 transition"
+                                className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-faint hover:text-red-600 hover:bg-red-100 disabled:opacity-0 transition"
                               >
-                                <svg
-                                  className="w-3.5 h-3.5"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={2}
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M6 18L18 6M6 6l12 12"
-                                  />
-                                </svg>
+                                <X className="w-3.5 h-3.5" weight="bold" aria-hidden />
                               </button>
                             </div>
                             {/* Scope chips area */}
-                            <div className="px-3 pb-2.5 border-t border-white/[0.06]">
+                            <div className="px-3 pb-2.5 border-t border-line">
                               {scopeLines.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 pt-2 pb-1.5">
                                   {scopeLines.map((line) => (
                                     <span
                                       key={line}
-                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFC206] text-zinc-900 text-xs font-bold"
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-brand text-white text-xs font-bold"
                                     >
                                       {line}
                                       <button
                                         type="button"
                                         onClick={() => removeScopeLine(line)}
-                                        className="ml-0.5 text-zinc-700 hover:text-zinc-900 transition"
+                                        className="ml-0.5 text-ink-2 hover:text-ink transition"
                                       >
-                                        <svg
-                                          className="w-2.5 h-2.5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                          strokeWidth={2.5}
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M6 18L18 6M6 6l12 12"
-                                          />
-                                        </svg>
+                                        <X className="w-2.5 h-2.5" weight="bold" aria-hidden />
                                       </button>
                                     </span>
                                   ))}
@@ -1250,21 +1143,9 @@ export default function InvoicesScreen() {
                                         key={sug}
                                         type="button"
                                         onClick={() => addScopeLine(sug)}
-                                        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.08] text-white/50 text-xs hover:bg-white/[0.15] hover:text-white transition"
+                                        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-subtle text-muted text-xs hover:bg-black/[0.04] hover:text-ink transition"
                                       >
-                                        <svg
-                                          className="w-2.5 h-2.5"
-                                          fill="none"
-                                          viewBox="0 0 24 24"
-                                          stroke="currentColor"
-                                          strokeWidth={2.5}
-                                        >
-                                          <path
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            d="M12 4v16m8-8H4"
-                                          />
-                                        </svg>
+                                        <Plus className="w-2.5 h-2.5" weight="bold" aria-hidden />
                                         {sug}
                                       </button>
                                     ))}
@@ -1287,7 +1168,7 @@ export default function InvoicesScreen() {
                                     }
                                   }}
                                   placeholder="Custom scope… (Enter to add)"
-                                  className="flex-1 h-6 text-xs text-white/60 placeholder:text-white/20 focus:outline-none bg-transparent"
+                                  className="flex-1 h-6 text-xs text-muted placeholder:text-faint focus:outline-none bg-transparent"
                                 />
                                 {customVal.trim() && (
                                   <button
@@ -1296,7 +1177,7 @@ export default function InvoicesScreen() {
                                       addScopeLine(customVal);
                                       setCustomScope((prev) => ({ ...prev, [item.id]: '' }));
                                     }}
-                                    className="text-xs text-white/40 hover:text-white transition px-1"
+                                    className="text-xs text-muted hover:text-ink transition px-1"
                                   >
                                     Add
                                   </button>
@@ -1304,9 +1185,9 @@ export default function InvoicesScreen() {
                               </div>
                             </div>
                             {/* Qty / Price / Total row */}
-                            <div className="flex items-center gap-3 px-3 py-2.5 border-t border-white/[0.06] bg-black/20">
+                            <div className="flex items-center gap-3 px-3 py-2.5 border-t border-line bg-black/5">
                               <div className="flex items-center gap-2 shrink-0">
-                                <span className="text-xs text-white/40">Qty</span>
+                                <span className="text-xs text-muted">Qty</span>
                                 <input
                                   type="number"
                                   min={0}
@@ -1314,12 +1195,12 @@ export default function InvoicesScreen() {
                                   onChange={(e) =>
                                     updateItem(item.id, { qty: parseFloat(e.target.value) || 0 })
                                   }
-                                  className="w-14 h-8 rounded-lg border border-white/15 bg-white/[0.06] px-2 text-sm text-center text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                                  className="w-14 h-8 rounded-lg border border-line-strong bg-subtle px-2 text-sm text-center text-ink focus:outline-none focus:ring-1 focus:ring-brand/40"
                                 />
                               </div>
-                              <span className="text-white/25 text-sm">×</span>
+                              <span className="text-faint text-sm">×</span>
                               <div className="flex items-center gap-1.5 flex-1">
-                                <span className="text-xs text-white/40">$</span>
+                                <span className="text-xs text-muted">$</span>
                                 <input
                                   type="number"
                                   min={0}
@@ -1329,10 +1210,10 @@ export default function InvoicesScreen() {
                                       unitPrice: parseFloat(e.target.value) || 0,
                                     })
                                   }
-                                  className="flex-1 h-8 rounded-lg border border-white/15 bg-white/[0.06] px-2 text-sm text-right text-white focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                                  className="flex-1 h-8 rounded-lg border border-line-strong bg-subtle px-2 text-sm text-right text-ink focus:outline-none focus:ring-1 focus:ring-brand/40"
                                 />
                               </div>
-                              <span className="text-sm font-semibold text-white/70 shrink-0">
+                              <span className="text-sm font-semibold text-ink-2 shrink-0">
                                 {fmt(item.qty * item.unitPrice)}
                               </span>
                             </div>
@@ -1341,24 +1222,22 @@ export default function InvoicesScreen() {
                       })}
                     </div>
                     <div className="mt-3 flex flex-col items-end gap-1.5 text-sm">
-                      <div className="flex gap-8 pt-1.5 border-t border-white/[0.1]">
-                        <span className="font-semibold text-white/70">Grand Total</span>
-                        <span className="font-bold text-white w-28 text-right">
-                          {fmt(subtotal)}
-                        </span>
+                      <div className="flex gap-8 pt-1.5 border-t border-line">
+                        <span className="font-semibold text-ink-2">Grand Total</span>
+                        <span className="font-bold text-ink w-28 text-right">{fmt(subtotal)}</span>
                       </div>
                       {form.withWHT && taxConfig.enabled && (
                         <>
-                          <div className="flex gap-8 text-orange-400">
+                          <div className="flex gap-8 text-orange-600">
                             <span>
                               {taxConfig.type === 'deductive' ? 'Less' : 'Add'} {taxConfig.label}{' '}
                               {taxConfig.rate}%
                             </span>
                             <span className="font-medium w-28 text-right">({fmt(whtAmount)})</span>
                           </div>
-                          <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                            <span className="font-semibold text-white/70">Total (USD)</span>
-                            <span className="font-bold text-white w-28 text-right">
+                          <div className="flex gap-8 pt-1.5 border-t border-line mt-0.5">
+                            <span className="font-semibold text-ink-2">Total (USD)</span>
+                            <span className="font-bold text-ink w-28 text-right">
                               {fmt(netTotal)}
                             </span>
                           </div>
@@ -1366,15 +1245,15 @@ export default function InvoicesScreen() {
                       )}
                       {form.depositPercent != null && (
                         <>
-                          <div className="flex gap-8 text-green-400">
+                          <div className="flex gap-8 text-brand">
                             <span>Deposit ({form.depositPercent}%)</span>
                             <span className="font-medium w-28 text-right">
                               − {fmt(depositAmount)}
                             </span>
                           </div>
-                          <div className="flex gap-8 pt-1.5 border-t border-white/[0.1] mt-0.5">
-                            <span className="font-semibold text-white/70">Balance Due</span>
-                            <span className="font-bold text-white w-28 text-right">
+                          <div className="flex gap-8 pt-1.5 border-t border-line mt-0.5">
+                            <span className="font-semibold text-ink-2">Balance Due</span>
+                            <span className="font-bold text-ink w-28 text-right">
                               {fmt(balanceDue)}
                             </span>
                           </div>
@@ -1388,18 +1267,18 @@ export default function InvoicesScreen() {
 
             {/* Tax toggle — only shown if tax is configured in workspace preferences */}
             {taxConfig.enabled && (
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-orange-50 border border-orange-200">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-orange-300">
+                  <p className="text-sm font-semibold text-orange-700">
                     {taxConfig.label} ({taxConfig.rate}%)
                   </p>
-                  <p className="text-xs text-orange-400/70 mt-0.5">
+                  <p className="text-xs text-orange-600 mt-0.5">
                     {taxConfig.type === 'deductive'
                       ? `Gross-up unit prices so the client withholds ${taxConfig.rate}% and you receive the deal amount.`
                       : `Add ${taxConfig.rate}% ${taxConfig.label} on top of the invoice total.`}
                   </p>
                   {form.withWHT && (
-                    <p className="text-xs text-orange-300 mt-2 font-medium">
+                    <p className="text-xs text-orange-700 mt-2 font-medium">
                       Subtotal: {fmt(subtotal)} · {taxConfig.label}: ({fmt(whtAmount)}) · Net:{' '}
                       {fmt(netTotal)}
                     </p>
@@ -1417,10 +1296,10 @@ export default function InvoicesScreen() {
             )}
 
             {/* Deposit toggle */}
-            <div className="flex items-start gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
+            <div className="flex items-start gap-4 p-4 rounded-xl bg-brand-soft border border-brand/30">
               <div className="flex-1">
-                <p className="text-sm font-semibold text-green-300">Deposit / Partial Payment</p>
-                <p className="text-xs text-green-400/70 mt-0.5">
+                <p className="text-sm font-semibold text-brand">Deposit / Partial Payment</p>
+                <p className="text-xs text-brand mt-0.5">
                   Require a deposit upfront; client pays the balance on delivery.
                 </p>
                 {form.depositPercent != null && (
@@ -1436,9 +1315,9 @@ export default function InvoicesScreen() {
                           Math.min(99, Math.max(1, parseInt(e.target.value) || 50))
                         )
                       }
-                      className="w-16 h-8 rounded-xl border border-green-400/30 px-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-green-400 bg-white/10 text-center"
+                      className="w-16 h-8 rounded-xl border border-brand/30 px-2 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-green-400 bg-subtle text-center"
                     />
-                    <span className="text-sm text-green-300">% deposit = {fmt(depositAmount)}</span>
+                    <span className="text-sm text-brand">% deposit = {fmt(depositAmount)}</span>
                   </div>
                 )}
               </div>
@@ -1456,10 +1335,10 @@ export default function InvoicesScreen() {
 
             {/* VAT TIN toggle — only shown when the selected client has a VAT TIN */}
             {clients.find((c) => c.id === form.clientId)?.vat_tin && (
-              <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-start gap-4 p-4 rounded-xl bg-blue-50 border border-blue-200">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-300">Show VAT TIN on Invoice</p>
-                  <p className="text-xs text-blue-400/70 mt-0.5">
+                  <p className="text-sm font-semibold text-blue-700">Show VAT TIN on Invoice</p>
+                  <p className="text-xs text-blue-600 mt-0.5">
                     Display the client&apos;s VAT TIN number in the Bill To section.
                   </p>
                 </div>
@@ -1486,45 +1365,28 @@ export default function InvoicesScreen() {
           </div>
 
           <div
-            className="px-6 py-4 border-t border-white/[0.08] flex flex-col gap-3 shrink-0"
+            className="px-6 py-4 border-t border-line flex flex-col gap-3 shrink-0"
             style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
           >
-            {formError && <p className="text-sm text-red-400">{formError}</p>}
+            {formError && <p className="text-sm text-red-600">{formError}</p>}
             <div className="flex items-center gap-2 justify-end">
               <button
                 onClick={closePanel}
-                className="h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition"
+                className="h-11 px-4 rounded-xl border border-line-strong bg-subtle text-sm text-ink hover:bg-black/[0.04] transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSaveAndPreview}
-                className="flex h-11 px-4 rounded-xl border border-white/20 bg-white/10 text-sm text-white hover:bg-white/15 transition items-center gap-2"
+                className="flex h-11 px-4 rounded-xl border border-line-strong bg-subtle text-sm text-ink hover:bg-black/[0.04] transition items-center gap-2"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </svg>
+                <Eye className="w-4 h-4" weight="duotone" aria-hidden />
                 Save & Preview
               </button>
               <button
                 onClick={handleSave}
                 disabled={isPending}
-                className="h-11 px-5 rounded-xl bg-[#FFC206] text-zinc-900 text-sm font-bold hover:bg-yellow-400 transition disabled:opacity-60"
+                className="h-11 px-5 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover transition disabled:opacity-60"
               >
                 {editingId ? 'Save changes' : 'Create invoice'}
               </button>
@@ -1556,9 +1418,9 @@ function PanelField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-white/70">
+      <label className="text-sm font-medium text-ink-2">
         {label}
-        {required && <span className="text-red-400 ml-0.5">*</span>}
+        {required && <span className="text-red-600 ml-0.5">*</span>}
       </label>
       {children}
     </div>

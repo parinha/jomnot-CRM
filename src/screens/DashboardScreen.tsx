@@ -1,5 +1,22 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import {
+  CalendarBlank,
+  CaretRight,
+  ChartBar,
+  Crown,
+  FilePlus,
+  HourglassMedium,
+  Receipt,
+  TrendDown,
+  TrendUp,
+  UserPlus,
+  UsersThree,
+  Wallet,
+  WarningCircle,
+  type Icon,
+} from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useInvoices } from '@/src/hooks/useInvoices';
 import { useClients } from '@/src/hooks/useClients';
@@ -41,11 +58,11 @@ function ymFullLabel(s: string): string {
 }
 
 const STATUS_COLORS: Record<InvoiceStatus, string> = {
-  paid: '#10b981',
+  paid: '#00b14f',
   sent: '#3b82f6',
   partial: '#f59e0b',
   overdue: '#ef4444',
-  draft: '#6b7280',
+  draft: '#9aa1ab',
 };
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -135,66 +152,132 @@ export default function DashboardScreen() {
     }))
     .filter((d) => d.client);
 
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const collectedPct =
+    thisMonthBilled > 0 ? Math.min(100, Math.round((thisMonthEarned / thisMonthBilled) * 100)) : 0;
+
+  const bothAlerts = overdueInvs.length > 0 && unpaidInvs.length > 0;
+  const alertSpan = bothAlerts ? 'md:col-span-6' : 'md:col-span-12';
+
+  // Phones: single column. iPad and up: 12-column grid.
   return (
-    <div className="px-4 pt-5 pb-28 flex flex-col gap-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-sm text-white/40 mt-0.5">
+    <div className="flex flex-col gap-5 md:grid md:grid-cols-12 md:gap-6">
+      {/* ── Green hero (continues the green header on phones; a banner on iPad+) ── */}
+      <div className="-mx-4 -mt-4 bg-brand px-4 pt-2 pb-20 rounded-b-[28px] md:col-span-12 md:mx-0 md:mt-0 md:rounded-3xl md:px-8 md:pt-7 md:pb-24 relative overflow-hidden">
+        <div
+          aria-hidden
+          className="hidden md:block absolute -right-16 -top-20 w-72 h-72 rounded-full bg-white/10"
+        />
+        <div
+          aria-hidden
+          className="hidden md:block absolute right-24 -bottom-24 w-56 h-56 rounded-full bg-white/[0.07]"
+        />
+        <p className="relative text-white/80 text-sm">
           {new Date().toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'long',
             day: 'numeric',
           })}
         </p>
+        <h1 className="relative text-2xl md:text-3xl font-semibold text-white mt-0.5">
+          {greeting} 👋
+        </h1>
       </div>
 
-      {/* KPI Grid */}
-      <div className="grid grid-cols-2 gap-3">
-        <KPICard
-          label={thisMonthName}
-          sub="Billed"
-          value={fmt(thisMonthBilled)}
-          note={`${thisMonthInvs.length} invoice${thisMonthInvs.length !== 1 ? 's' : ''}`}
+      {/* ── Balance card (overlaps the hero) ────────────────────────────── */}
+      <div className="relative -mt-20 bg-surface rounded-3xl shadow-float p-5 md:col-span-7 lg:col-span-8 md:p-6 md:ml-4 lg:ml-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted flex items-center gap-1.5">
+              <Wallet weight="duotone" className="w-4 h-4 text-brand" aria-hidden />
+              Outstanding
+            </p>
+            <p className="text-3xl font-semibold text-ink mt-1 truncate amt">{fmt(outstanding)}</p>
+            <p className="text-xs text-muted mt-0.5">
+              {outstandingInvs.length} invoice{outstandingInvs.length !== 1 ? 's' : ''} awaiting
+              payment
+            </p>
+          </div>
+          <Link
+            href="/invoices"
+            className="shrink-0 h-9 px-4 rounded-full bg-brand-soft text-brand-ink text-sm font-semibold flex items-center gap-1 hover:bg-brand/15 transition"
+          >
+            View
+            <CaretRight weight="bold" className="w-3.5 h-3.5" aria-hidden />
+          </Link>
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-line grid grid-cols-2 gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted">Billed in {thisMonthName}</p>
+            <p className="text-base font-semibold text-ink truncate amt">{fmt(thisMonthBilled)}</p>
+            <p className="text-[11px] text-faint">
+              {thisMonthInvs.length} invoice{thisMonthInvs.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] text-muted">Collected in {thisMonthName}</p>
+            <p className="text-base font-semibold text-brand truncate amt">
+              {fmt(thisMonthEarned)}
+            </p>
+            <div className="mt-1.5 h-1.5 rounded-full bg-subtle overflow-hidden">
+              <div
+                className="h-full rounded-full bg-brand transition-all"
+                style={{ width: `${collectedPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Shortcut tiles ──────────────────────────────────────────────── */}
+      <div className="relative grid grid-cols-4 gap-2 md:col-span-5 lg:col-span-4 md:-mt-20 md:mr-4 lg:mr-6 md:grid-cols-2 md:content-center md:gap-3 md:bg-surface md:rounded-3xl md:shadow-float md:p-5">
+        <ShortcutTile href="/invoices?new=1" label="New Invoice" icon={FilePlus} tone="green" />
+        <ShortcutTile href="/clients?new=1" label="New Client" icon={UserPlus} tone="sky" />
+        <ShortcutTile href="/invoices" label="Invoices" icon={Receipt} tone="amber" />
+        <ShortcutTile href="/clients" label="Clients" icon={UsersThree} tone="violet" />
+      </div>
+
+      {/* ── Needs attention ─────────────────────────────────────────────── */}
+      {overdueInvs.length > 0 && (
+        <InvoiceAlertList
+          className={alertSpan}
+          title="Overdue"
+          accent="red"
+          icon={WarningCircle}
+          items={overdueInvs}
+          clients={clients}
+          fmt={fmt}
+        />
+      )}
+      {unpaidInvs.length > 0 && (
+        <InvoiceAlertList
+          className={alertSpan}
+          title="Awaiting payment"
           accent="amber"
-          iconD="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+          icon={HourglassMedium}
+          items={unpaidInvs}
+          clients={clients}
+          fmt={fmt}
         />
-        <KPICard
-          label="Collected"
-          sub={thisMonthName}
-          value={fmt(thisMonthEarned)}
-          note={
-            thisMonthBilled > 0
-              ? `${Math.round((thisMonthEarned / thisMonthBilled) * 100)}% of billed`
-              : 'No invoices yet'
-          }
-          accent="green"
-          iconD="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-        <KPICard
-          label={lastMonthName}
-          sub="Billed"
-          value={fmt(lastMonthBilled)}
-          note={momPct !== null ? `${momPct >= 0 ? '+' : ''}${momPct}% vs this month` : 'No data'}
-          accent="sky"
-          iconD="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-        />
-        <KPICard
-          label="Outstanding"
-          sub="Unpaid"
-          value={fmt(outstanding)}
-          note={`${outstandingInvs.length} invoice${outstandingInvs.length !== 1 ? 's' : ''} unpaid`}
-          accent="purple"
-          iconD="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </div>
+      )}
 
-      {/* Revenue Chart */}
-      <RevenueChart data={revenueHistory} maxVal={maxRevenue} fmtShort={fmtShort} />
+      {/* ── Revenue ─────────────────────────────────────────────────────── */}
+      <RevenueChart
+        className={invoices.length > 0 ? 'md:col-span-7 lg:col-span-8' : 'md:col-span-12'}
+        data={revenueHistory}
+        maxVal={maxRevenue}
+        fmtShort={fmtShort}
+        lastMonthName={lastMonthName}
+        lastMonthBilled={fmt(lastMonthBilled)}
+        momPct={momPct}
+      />
 
-      {/* Invoice Status Donut */}
+      {/* ── Invoice status donut ────────────────────────────────────────── */}
       {invoices.length > 0 && (
         <StatusDonut
+          className="md:col-span-5 lg:col-span-4"
           data={statusDist}
           total={invoices.length}
           totalValue={invoices.reduce((s, i) => s + calcSubtotal(i), 0)}
@@ -202,202 +285,185 @@ export default function DashboardScreen() {
         />
       )}
 
-      {/* Overdue Invoices */}
-      {overdueInvs.length > 0 && (
-        <InvoiceAlertList
-          title="Overdue Invoices"
-          accent="red"
-          iconD="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          items={overdueInvs}
-          clients={clients}
-          fmt={fmt}
-        />
-      )}
-
-      {/* Awaiting Payment */}
-      {unpaidInvs.length > 0 && (
-        <InvoiceAlertList
-          title="Awaiting Payment"
-          accent="amber"
-          iconD="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-          items={unpaidInvs}
-          clients={clients}
-          fmt={fmt}
-        />
-      )}
-
-      {/* Late Projects */}
-
-      {/* Top Clients */}
+      {/* ── Top clients ─────────────────────────────────────────────────── */}
       {topClients.length > 0 && (
-        <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4">
-          <h3 className="text-sm font-semibold text-white mb-1">Top Clients</h3>
-          <p className="text-[10px] text-white/30 mb-4">Last 3 months by billed amount</p>
-          <div className="flex flex-col gap-3">
+        <section className="bg-surface rounded-2xl shadow-card p-4 md:p-5 md:col-span-12">
+          <SectionTitle title="Top clients" sub="Last 3 months by billed amount" />
+          <div className="flex flex-col gap-3.5 mt-3 md:grid md:grid-cols-2 md:gap-x-10 md:gap-y-4">
             {topClients.map(({ client, total, pct }, i) => (
-              <div key={client!.id} className="flex flex-col gap-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[10px] font-bold text-white/30 w-4 shrink-0">
-                      {i + 1}
-                    </span>
-                    <div className="w-6 h-6 rounded-lg bg-[#FFC206]/20 text-[#FFC206] flex items-center justify-center text-[10px] font-bold shrink-0">
-                      {client!.name.charAt(0).toUpperCase()}
-                    </div>
-                    <span className="text-xs font-medium text-white truncate">{client!.name}</span>
-                  </div>
-                  <span className="text-xs font-bold text-white shrink-0 ml-2 amt">
-                    {fmt(total)}
-                  </span>
+              <div key={client!.id} className="flex items-center gap-3">
+                <div className="relative w-10 h-10 rounded-full bg-brand-soft text-brand-ink flex items-center justify-center text-sm font-bold shrink-0">
+                  {client!.name.charAt(0).toUpperCase()}
+                  {i === 0 && (
+                    <Crown
+                      weight="duotone"
+                      className="absolute -top-1.5 -right-1 w-4 h-4 text-amber-500"
+                      aria-hidden
+                    />
+                  )}
                 </div>
-                <div className="ml-6 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[#FFC206]/60 transition-all"
-                    style={{ width: `${pct}%` }}
-                  />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-ink truncate">{client!.name}</span>
+                    <span className="text-sm font-semibold text-ink shrink-0 amt">
+                      {fmt(total)}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1.5 rounded-full bg-subtle overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-brand transition-all"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-        </div>
+        </section>
       )}
 
-      {/* Empty state */}
+      {/* ── Empty state ─────────────────────────────────────────────────── */}
       {invoices.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-white/30">
-          <svg
-            className="w-12 h-12 mb-3 text-white/10"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-            />
-          </svg>
-          <p className="text-sm">No data yet. Create your first invoice.</p>
+        <div className="flex flex-col items-center justify-center py-12 text-center md:col-span-12">
+          <div className="w-20 h-20 rounded-full bg-brand-soft flex items-center justify-center mb-4">
+            <ChartBar className="w-10 h-10 text-brand" weight="duotone" aria-hidden />
+          </div>
+          <p className="text-base font-semibold text-ink">No data yet</p>
+          <p className="text-sm text-muted mt-1">Create your first invoice to see your numbers.</p>
         </div>
       )}
     </div>
   );
 }
 
-// ── KPI Card ──────────────────────────────────────────────────────────────────
+// ── Section title ─────────────────────────────────────────────────────────────
 
-function KPICard({
-  label,
-  sub,
-  value,
-  note,
-  accent,
-  iconD,
-}: {
-  label: string;
-  sub: string;
-  value: string;
-  note: string;
-  accent: 'amber' | 'green' | 'sky' | 'purple';
-  iconD: string;
-}) {
-  const A = {
-    amber: {
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
-      icon: 'text-amber-400',
-      lbl: 'text-amber-300/80',
-    },
-    green: {
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
-      icon: 'text-emerald-400',
-      lbl: 'text-emerald-300/80',
-    },
-    sky: {
-      bg: 'bg-sky-500/10',
-      border: 'border-sky-500/20',
-      icon: 'text-sky-400',
-      lbl: 'text-sky-300/80',
-    },
-    purple: {
-      bg: 'bg-violet-500/10',
-      border: 'border-violet-500/20',
-      icon: 'text-violet-400',
-      lbl: 'text-violet-300/80',
-    },
-  }[accent];
-
+function SectionTitle({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) {
   return (
-    <div className={`rounded-2xl p-4 border ${A.bg} ${A.border}`}>
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <p className={`text-[10px] font-bold uppercase tracking-wider ${A.lbl}`}>{label}</p>
-          <p className="text-[10px] text-white/30">{sub}</p>
-        </div>
-        <svg
-          className={`w-4 h-4 ${A.icon} shrink-0`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={1.75}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d={iconD} />
-        </svg>
+    <div className="flex items-start justify-between gap-3">
+      <div>
+        <h3 className="text-base font-semibold text-ink">{title}</h3>
+        {sub && <p className="text-xs text-muted mt-0.5">{sub}</p>}
       </div>
-      <p className="text-lg font-bold text-white leading-tight truncate amt">{value}</p>
-      <p className="text-[10px] text-white/40 mt-1 truncate">{note}</p>
+      {right}
     </div>
+  );
+}
+
+// ── Shortcut tile (Grab-style service grid) ───────────────────────────────────
+
+const TILE_TONES = {
+  green: 'bg-brand-soft text-brand',
+  sky: 'bg-sky-50 text-sky-600',
+  amber: 'bg-amber-50 text-amber-600',
+  violet: 'bg-violet-50 text-violet-600',
+} as const;
+
+function ShortcutTile({
+  href,
+  label,
+  icon: TileIcon,
+  tone,
+}: {
+  href: string;
+  label: string;
+  icon: Icon;
+  tone: keyof typeof TILE_TONES;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex flex-col items-center gap-2 py-2 rounded-2xl active:scale-95 transition-transform"
+    >
+      <span
+        className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-card ${TILE_TONES[tone]}`}
+      >
+        <TileIcon weight="duotone" className="w-7 h-7" aria-hidden />
+      </span>
+      <span className="text-xs font-medium text-ink-2 text-center leading-tight">{label}</span>
+    </Link>
   );
 }
 
 // ── Revenue Bar Chart ─────────────────────────────────────────────────────────
 
 function RevenueChart({
+  className = '',
   data,
   maxVal,
   fmtShort,
+  lastMonthName,
+  lastMonthBilled,
+  momPct,
 }: {
+  className?: string;
   data: { label: string; billed: number; earned: number }[];
   maxVal: number;
   fmtShort: (n: number) => string;
+  lastMonthName: string;
+  lastMonthBilled: string;
+  momPct: number | null;
 }) {
-  const BAR_H = 96;
+  const BAR_H = 112;
+  const up = (momPct ?? 0) >= 0;
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-white">Revenue — Last 6 Months</h3>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <span className="w-2.5 h-2 rounded-sm bg-[#FFC206]/60 inline-block" />
-            Billed
+    <section className={`bg-surface rounded-2xl shadow-card p-4 md:p-5 ${className}`}>
+      <SectionTitle
+        title="Revenue"
+        sub="Last 6 months"
+        right={
+          <div className="flex items-center gap-3 pt-1">
+            <span className="flex items-center gap-1.5 text-[11px] text-muted">
+              <span className="w-2.5 h-2.5 rounded-full bg-line-strong inline-block" />
+              Billed
+            </span>
+            <span className="flex items-center gap-1.5 text-[11px] text-muted">
+              <span className="w-2.5 h-2.5 rounded-full bg-brand inline-block" />
+              Collected
+            </span>
+          </div>
+        }
+      />
+
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-subtle px-3 py-2">
+        <CalendarBlank weight="duotone" className="w-4 h-4 text-muted shrink-0" aria-hidden />
+        <p className="text-xs text-muted flex-1 min-w-0 truncate">
+          {lastMonthName}: <span className="font-semibold text-ink amt">{lastMonthBilled}</span>
+        </p>
+        {momPct !== null && (
+          <span
+            className={`flex items-center gap-0.5 text-xs font-semibold ${up ? 'text-brand' : 'text-red-600'}`}
+          >
+            {up ? (
+              <TrendUp weight="bold" className="w-3.5 h-3.5" aria-hidden />
+            ) : (
+              <TrendDown weight="bold" className="w-3.5 h-3.5" aria-hidden />
+            )}
+            {up ? '+' : ''}
+            {momPct}% this month
           </span>
-          <span className="flex items-center gap-1 text-[10px] text-white/40">
-            <span className="w-2.5 h-2 rounded-sm bg-emerald-500/60 inline-block" />
-            Earned
-          </span>
-        </div>
+        )}
       </div>
-      <div className="flex items-end gap-1.5" style={{ height: BAR_H + 20 }}>
+
+      <div className="flex items-end gap-2 mt-4" style={{ height: BAR_H + 22 }}>
         {data.map((d, i) => {
           const bH = maxVal > 0 ? Math.round((d.billed / maxVal) * BAR_H) : 0;
           const eH = maxVal > 0 ? Math.round((d.earned / maxVal) * BAR_H) : 0;
           const isCurrentMonth = i === data.length - 1;
           return (
-            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-              <div className="w-full flex items-end gap-0.5" style={{ height: BAR_H }}>
+            <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="w-full flex items-end justify-center gap-1" style={{ height: BAR_H }}>
                 <div
-                  className={`flex-1 rounded-t transition-all ${isCurrentMonth ? 'bg-[#FFC206]/80' : 'bg-[#FFC206]/40'}`}
-                  style={{ height: bH > 0 ? bH : 0 }}
+                  className={`w-full max-w-3 rounded-full transition-all ${isCurrentMonth ? 'bg-ink-2/30' : 'bg-line'}`}
+                  style={{ height: bH }}
                 />
                 <div
-                  className={`flex-1 rounded-t transition-all ${isCurrentMonth ? 'bg-emerald-400/80' : 'bg-emerald-500/40'}`}
-                  style={{ height: eH > 0 ? eH : 0 }}
+                  className={`w-full max-w-3 rounded-full transition-all ${isCurrentMonth ? 'bg-brand' : 'bg-brand/45'}`}
+                  style={{ height: eH }}
                 />
               </div>
               <span
-                className={`text-[9px] ${isCurrentMonth ? 'text-white/70 font-semibold' : 'text-white/30'}`}
+                className={`text-[11px] ${isCurrentMonth ? 'text-brand font-semibold' : 'text-faint'}`}
               >
                 {d.label}
               </span>
@@ -405,22 +471,21 @@ function RevenueChart({
           );
         })}
       </div>
-      <div className="flex justify-between mt-2">
-        <span className="text-[9px] text-white/20">$0</span>
-        <span className="text-[9px] text-white/20">{fmtShort(maxVal)}</span>
-      </div>
-    </div>
+      <p className="text-[11px] text-faint text-right mt-1">Peak {fmtShort(maxVal)}</p>
+    </section>
   );
 }
 
 // ── Invoice Status Donut ──────────────────────────────────────────────────────
 
 function StatusDonut({
+  className = '',
   data,
   total,
   totalValue,
   fmt,
 }: {
+  className?: string;
   data: { status: string; count: number; amount: number; label: string }[];
   total: number;
   totalValue: number;
@@ -443,20 +508,18 @@ function StatusDonut({
   }, []);
 
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4">
-      <h3 className="text-sm font-semibold text-white mb-4">Invoice Breakdown</h3>
-      <div className="flex items-center gap-5">
+    <section className={`bg-surface rounded-2xl shadow-card p-4 md:p-5 ${className}`}>
+      <SectionTitle title="Invoice breakdown" sub="All invoices by status" />
+      <div className="flex items-center gap-5 mt-3">
         {/* Donut */}
         <div className="shrink-0">
-          <svg viewBox="0 0 100 100" className="w-32 h-32">
-            <circle
-              cx={cx}
-              cy={cy}
-              r={r}
-              fill="none"
-              stroke="rgba(255,255,255,0.05)"
-              strokeWidth={13}
-            />
+          <svg
+            viewBox="0 0 100 100"
+            className="w-32 h-32"
+            role="img"
+            aria-label="Invoices by status"
+          >
+            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#f1f3f5" strokeWidth={13} />
             <g transform={`rotate(-90 ${cx} ${cy})`}>
               {segs.map((seg, i) => (
                 <circle
@@ -465,7 +528,7 @@ function StatusDonut({
                   cy={cy}
                   r={r}
                   fill="none"
-                  stroke={STATUS_COLORS[seg.status as InvoiceStatus] ?? '#6b7280'}
+                  stroke={STATUS_COLORS[seg.status as InvoiceStatus] ?? '#9aa1ab'}
                   strokeWidth={13}
                   strokeDasharray={`${seg.len} ${circ - seg.len}`}
                   strokeDashoffset={-seg.acc}
@@ -475,15 +538,15 @@ function StatusDonut({
             </g>
             <text
               x={cx}
-              y={cy - 4}
+              y={cy - 2}
               textAnchor="middle"
-              fill="white"
-              fontSize="16"
-              fontWeight="bold"
+              fill="#1a1d21"
+              fontSize="18"
+              fontWeight="600"
             >
               {total}
             </text>
-            <text x={cx} y={cy + 9} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize="7">
+            <text x={cx} y={cy + 11} textAnchor="middle" fill="#6b7280" fontSize="8">
               invoices
             </text>
           </svg>
@@ -494,94 +557,90 @@ function StatusDonut({
           {segs.map((seg) => (
             <div key={seg.status} className="flex items-center gap-2">
               <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: STATUS_COLORS[seg.status as InvoiceStatus] ?? '#6b7280' }}
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: STATUS_COLORS[seg.status as InvoiceStatus] ?? '#9aa1ab' }}
               />
-              <span className="text-xs text-white/60 flex-1 truncate">{seg.label}</span>
-              <span className="text-xs font-bold text-white shrink-0">{seg.count}</span>
+              <span className="text-sm text-ink-2 flex-1 truncate">{seg.label}</span>
+              <span className="text-sm font-semibold text-ink shrink-0">{seg.count}</span>
             </div>
           ))}
-          <div className="mt-1 pt-2 border-t border-white/[0.07]">
-            <p className="text-[10px] text-white/30 mb-0.5">Total value</p>
-            <p className="text-sm font-bold text-white amt">{fmt(totalValue)}</p>
+          <div className="mt-1 pt-2 border-t border-line">
+            <p className="text-[11px] text-muted mb-0.5">Total value</p>
+            <p className="text-base font-semibold text-ink amt">{fmt(totalValue)}</p>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
 // ── Invoice Alert List ────────────────────────────────────────────────────────
 
 function InvoiceAlertList({
+  className = '',
   title,
   accent,
-  iconD,
+  icon: AlertIcon,
   items,
   clients,
   fmt,
 }: {
+  className?: string;
   title: string;
   accent: 'red' | 'amber';
-  iconD: string;
+  icon: Icon;
   items: Invoice[];
   clients: ReturnType<typeof useClients>['data'];
   fmt: (n: number) => string;
 }) {
   const A = {
-    red: {
-      bg: 'bg-red-500/10',
-      border: 'border-red-500/20',
-      icon: 'text-red-400',
-      title: 'text-red-300',
-    },
-    amber: {
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
-      icon: 'text-amber-400',
-      title: 'text-amber-300',
-    },
+    red: { chip: 'bg-red-50 text-red-600', count: 'bg-red-50 text-red-600' },
+    amber: { chip: 'bg-amber-50 text-amber-600', count: 'bg-amber-50 text-amber-700' },
   }[accent];
 
   return (
-    <div className={`rounded-2xl p-4 border ${A.bg} ${A.border}`}>
-      <div className="flex items-center gap-2 mb-3">
-        <svg
-          className={`w-4 h-4 ${A.icon} shrink-0`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d={iconD} />
-        </svg>
-        <h3 className={`text-sm font-semibold ${A.title}`}>{title}</h3>
-        <span className="ml-auto text-xs font-bold px-1.5 py-0.5 rounded-full bg-white/10 text-white/40">
+    <section className={`bg-surface rounded-2xl shadow-card p-4 md:p-5 ${className}`}>
+      <div className="flex items-center gap-2.5">
+        <span className={`w-9 h-9 rounded-full flex items-center justify-center ${A.chip}`}>
+          <AlertIcon weight="duotone" className="w-5 h-5" aria-hidden />
+        </span>
+        <h3 className="text-base font-semibold text-ink">{title}</h3>
+        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${A.count}`}>
           {items.length}
         </span>
+        <Link
+          href="/invoices"
+          className="ml-auto text-sm font-semibold text-brand flex items-center gap-0.5"
+        >
+          See all
+          <CaretRight weight="bold" className="w-3.5 h-3.5" aria-hidden />
+        </Link>
       </div>
-      <div className="flex flex-col divide-y divide-white/[0.05]">
+      <div className="flex flex-col divide-y divide-line mt-2">
         {items.map((inv) => {
           const client = clients.find((c) => c.id === inv.clientId);
           return (
             <Link
               href="/invoices"
               key={inv.id}
-              className="flex items-center justify-between py-2.5 first:pt-0 last:pb-0 active:opacity-70 transition-opacity"
+              className="flex items-center gap-3 py-3 last:pb-0 active:opacity-70 transition-opacity"
             >
-              <div className="min-w-0">
-                <p className="text-xs font-semibold text-white">{inv.number}</p>
-                <p className="text-[10px] text-white/40">
+              <div className="w-10 h-10 rounded-full bg-subtle flex items-center justify-center shrink-0">
+                <Receipt weight="duotone" className="w-5 h-5 text-muted" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">{inv.number}</p>
+                <p className="text-xs text-muted truncate">
                   {client?.name ?? '—'} · {inv.date}
                 </p>
               </div>
-              <span className="text-xs font-bold text-white shrink-0 ml-3 amt">
+              <span className="text-sm font-semibold text-ink shrink-0 amt">
                 {fmt(calcSubtotal(inv))}
               </span>
             </Link>
           );
         })}
       </div>
-    </div>
+    </section>
   );
 }

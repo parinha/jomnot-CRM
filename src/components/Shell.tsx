@@ -3,6 +3,21 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+import {
+  ArrowClockwise,
+  Eye,
+  EyeSlash,
+  FilePlus,
+  GearSix,
+  House,
+  MagnifyingGlass,
+  Plus,
+  Receipt,
+  UserPlus,
+  UsersThree,
+  X,
+  type Icon,
+} from '@phosphor-icons/react';
 import type { CompanyProfile, InvoiceStatus } from '@/src/types';
 import { STATUS_CONFIG } from '@/src/config/statusConfig';
 import { fmtCurrency } from '@/src/lib/formatters';
@@ -13,46 +28,17 @@ import { useCompanyProfile, useAppPreferences } from '@/src/hooks/useSettings';
 
 // ── Navigation config ────────────────────────────────────────────────────────
 
-const BOTTOM_TABS = [
-  {
-    href: '/dashboard',
-    label: 'Home',
-    d: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
-  },
-  {
-    href: '/clients',
-    label: 'Clients',
-    d: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
-  },
-  {
-    href: '/invoices',
-    label: 'Invoices',
-    d: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    d: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
-  },
-] as const;
+const BOTTOM_TABS: { href: string; label: string; icon: Icon }[] = [
+  { href: '/dashboard', label: 'Home', icon: House },
+  { href: '/clients', label: 'Clients', icon: UsersThree },
+  { href: '/invoices', label: 'Invoices', icon: Receipt },
+  { href: '/settings', label: 'Settings', icon: GearSix },
+];
 
-const FAB_ACTIONS = [
-  {
-    key: 'invoice',
-    label: 'Create Invoice',
-    href: '/invoices?new=1',
-    iconD:
-      'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
-    color: 'bg-blue-500/20 border-blue-400/40 text-blue-300',
-  },
-  {
-    key: 'client',
-    label: 'Create Client',
-    href: '/clients?new=1',
-    iconD: 'M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z',
-    color: 'bg-purple-500/20 border-purple-400/40 text-purple-300',
-  },
-] as const;
+const FAB_ACTIONS: { key: string; label: string; href: string; icon: Icon }[] = [
+  { key: 'invoice', label: 'Create Invoice', href: '/invoices?new=1', icon: FilePlus },
+  { key: 'client', label: 'Create Client', href: '/clients?new=1', icon: UserPlus },
+];
 
 // ── Shell ────────────────────────────────────────────────────────────────────
 
@@ -89,6 +75,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
   const router = useRouter();
   const pathname = usePathname();
+  const isHome = pathname === '/dashboard';
   const [query, setQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
@@ -181,266 +168,326 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   };
   const initial = (profile.name || 'S').charAt(0).toUpperCase();
 
+  // Header switches between the green Home hero and a clean white app bar
+  // (iPad and up always uses the white app bar; the green hero lives in the Home content)
+  const iconBtn = isHome
+    ? 'text-white/90 hover:bg-white/15 active:bg-white/25 md:text-ink-2 md:hover:bg-black/[0.04] md:active:bg-black/[0.07]'
+    : 'text-ink-2 hover:bg-black/[0.04] active:bg-black/[0.07]';
+
   return (
-    <div
-      className="h-dvh flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-zinc-900"
-      data-amounts-hidden={!amountsVisible}
-    >
-      {/* Ambient background glow */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-slate-600/10 rounded-full blur-3xl" />
-      </div>
+    <div className="h-dvh flex bg-canvas" data-amounts-hidden={!amountsVisible}>
+      {/* ── Sidebar (iPad and up) ────────────────────────────────────────── */}
+      <Sidebar pathname={pathname} profile={profile} initial={initial} />
 
-      {/* ── Topbar ───────────────────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-30 bg-black/30 backdrop-blur-xl border-b border-white/[0.08] shrink-0"
-        style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
-      >
-        <div
-          className="h-14 flex items-center gap-2.5"
-          style={{
-            paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
-            paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
-          }}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* ── Topbar ───────────────────────────────────────────────────────── */}
+        <header
+          className={`sticky top-0 z-30 shrink-0 transition-colors ${
+            isHome
+              ? 'bg-brand md:bg-surface md:border-b md:border-line'
+              : 'bg-surface border-b border-line'
+          }`}
+          style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
         >
-          {/* Company identity */}
-          <div className="flex items-center gap-2 shrink-0">
-            {profile.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.logo} alt="Logo" className="h-7 w-7 object-contain rounded-lg" />
-            ) : (
-              <div className="h-7 w-7 rounded-lg bg-[#FFC206] flex items-center justify-center text-zinc-900 text-xs font-bold shadow-sm shadow-amber-500/30 shrink-0">
-                {initial}
-              </div>
-            )}
-            <span className="text-sm font-semibold text-white truncate max-w-[120px]">
-              {profile.name || 'Studio'}
-            </span>
-          </div>
-
-          {/* Search */}
-          <div ref={searchRef} className="relative flex-1 min-w-0">
-            <svg
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"
-              />
-            </svg>
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setShowResults(true);
-              }}
-              onFocus={() => {
-                if (query) setShowResults(true);
-              }}
-              onKeyDown={onSearchKeyDown}
-              placeholder="Search…"
-              className="w-full h-10 pl-10 pr-10 rounded-xl border border-white/15 bg-white/10 text-sm text-white placeholder:text-white/35 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent backdrop-blur-sm transition"
-              style={{ fontSize: '16px' }}
-            />
-
-            {query && (
-              <button
-                onClick={() => {
-                  setQuery('');
-                  setShowResults(false);
-                }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-white/40 hover:text-white/70 transition"
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
+          <div
+            className="h-16 flex items-center gap-2.5"
+            style={{
+              paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+              paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))',
+            }}
+          >
+            {/* Company identity (phones; the sidebar shows it on iPad+) */}
+            <div className="flex items-center gap-2 shrink-0 md:hidden">
+              {profile.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={profile.logo}
+                  alt="Logo"
+                  className="h-9 w-9 object-contain rounded-full bg-white p-0.5 shadow-card"
+                />
+              ) : (
+                <div
+                  className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                    isHome ? 'bg-white text-brand shadow-card' : 'bg-brand text-white'
+                  }`}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+                  {initial}
+                </div>
+              )}
+              <span
+                className={`hidden sm:block text-base font-semibold truncate max-w-[140px] ${
+                  isHome ? 'text-white' : 'text-ink'
+                }`}
+              >
+                {profile.name || 'Studio'}
+              </span>
+            </div>
 
-            {/* Search results dropdown */}
-            {showResults && query && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-zinc-900/95 backdrop-blur-2xl rounded-2xl border border-white/10 shadow-2xl z-50 overflow-hidden max-h-[420px] overflow-y-auto">
-                {matchedClients.length === 0 && matchedInvoices.length === 0 ? (
-                  <p className="px-4 py-6 text-sm text-white/40 text-center">
-                    No results for &quot;{query}&quot;
-                  </p>
-                ) : (
-                  <>
-                    {matchedClients.length > 0 && (
-                      <div>
-                        <p className="px-4 py-2.5 text-[10px] font-semibold text-white/40 uppercase tracking-wider border-b border-white/[0.06]">
-                          Clients
-                        </p>
-                        {matchedClients.map((c) => (
-                          <button
-                            key={c.id}
-                            onClick={() => go('/clients')}
-                            className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] active:bg-white/[0.1] transition text-left"
-                          >
-                            <div className="w-9 h-9 rounded-xl bg-[#FFC206]/20 text-[#FFC206] flex items-center justify-center text-xs font-bold shrink-0">
-                              {c.name.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-white truncate">{c.name}</p>
-                              <p className="text-xs text-white/40 truncate">
-                                {c.email || c.phone || '—'}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {matchedInvoices.length > 0 && (
-                      <div
-                        className={matchedClients.length > 0 ? 'border-t border-white/[0.06]' : ''}
-                      >
-                        <p className="px-4 py-2.5 text-[10px] font-semibold text-white/40 uppercase tracking-wider border-b border-white/[0.06]">
-                          Invoices
-                        </p>
-                        {matchedInvoices.map((inv) => {
-                          const client = clients.find((c) => c.id === inv.clientId);
-                          const total = calcSubtotal(inv);
-                          const status = (inv.status ?? 'draft') as InvoiceStatus;
-                          const sc = STATUS_CONFIG[status];
-                          return (
+            {/* Search */}
+            <div ref={searchRef} className="relative flex-1 min-w-0 md:max-w-xl">
+              <MagnifyingGlass
+                weight="duotone"
+                aria-hidden
+                className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 pointer-events-none ${
+                  isHome ? 'text-brand md:text-muted' : 'text-muted'
+                }`}
+              />
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setShowResults(true);
+                }}
+                onFocus={() => {
+                  if (query) setShowResults(true);
+                }}
+                onKeyDown={onSearchKeyDown}
+                placeholder="Search invoices, clients…"
+                className={`w-full h-11 pl-11 pr-10 rounded-full text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 transition ${
+                  isHome
+                    ? 'bg-white shadow-card focus:ring-white/60 md:bg-subtle md:shadow-none md:focus:ring-brand/40 md:focus:bg-surface'
+                    : 'bg-subtle focus:ring-brand/40 focus:bg-surface'
+                }`}
+                style={{ fontSize: '16px' }}
+              />
+
+              {query && (
+                <button
+                  onClick={() => {
+                    setQuery('');
+                    setShowResults(false);
+                  }}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full text-muted hover:bg-black/[0.05] transition"
+                >
+                  <X weight="bold" className="w-4 h-4" aria-hidden />
+                </button>
+              )}
+
+              {/* Search results dropdown */}
+              {showResults && query && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-surface rounded-2xl border border-line shadow-float z-50 overflow-hidden max-h-[420px] overflow-y-auto">
+                  {matchedClients.length === 0 && matchedInvoices.length === 0 ? (
+                    <p className="px-4 py-6 text-sm text-muted text-center">
+                      No results for &quot;{query}&quot;
+                    </p>
+                  ) : (
+                    <>
+                      {matchedClients.length > 0 && (
+                        <div>
+                          <p className="px-4 pt-3 pb-1.5 text-xs font-semibold text-muted">
+                            Clients
+                          </p>
+                          {matchedClients.map((c) => (
                             <button
-                              key={inv.id}
-                              onClick={() => go('/invoices')}
-                              className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-white/[0.06] active:bg-white/[0.1] transition text-left"
+                              key={c.id}
+                              onClick={() => go('/clients')}
+                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-subtle active:bg-black/[0.06] transition text-left"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                                <svg
-                                  className="w-4 h-4 text-white/60"
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                  strokeWidth={2}
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                                  />
-                                </svg>
+                              <div className="w-10 h-10 rounded-full bg-brand-soft text-brand-ink flex items-center justify-center text-sm font-bold shrink-0">
+                                {c.name.charAt(0).toUpperCase()}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-white">{inv.number}</p>
-                                  <span
-                                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${sc.cls}`}
-                                  >
-                                    {sc.label}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-white/40 truncate">
-                                  {client?.name ?? '—'} · {fmtCurrency(total, prefs.currencyCode)}
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-ink truncate">{c.name}</p>
+                                <p className="text-xs text-muted truncate">
+                                  {c.email || c.phone || '—'}
                                 </p>
                               </div>
                             </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Topbar actions */}
-          <div className="flex items-center gap-1 shrink-0">
-            <button
-              onClick={handleRefresh}
-              title="Refresh"
-              className="flex items-center justify-center w-9 h-9 rounded-xl text-white/50 hover:text-white hover:bg-white/10 active:bg-white/15 transition"
-            >
-              <svg
-                className={`w-4 h-4 transition-transform ${refreshing ? 'animate-spin' : ''}`}
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-            <button
-              onClick={toggleAmountsVisible}
-              title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
-              className="flex items-center justify-center w-9 h-9 rounded-xl text-white/50 hover:text-white hover:bg-white/10 active:bg-white/15 transition"
-            >
-              {amountsVisible ? (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
-                  />
-                </svg>
+                          ))}
+                        </div>
+                      )}
+                      {matchedInvoices.length > 0 && (
+                        <div className={matchedClients.length > 0 ? 'border-t border-line' : ''}>
+                          <p className="px-4 pt-3 pb-1.5 text-xs font-semibold text-muted">
+                            Invoices
+                          </p>
+                          {matchedInvoices.map((inv) => {
+                            const client = clients.find((c) => c.id === inv.clientId);
+                            const total = calcSubtotal(inv);
+                            const status = (inv.status ?? 'draft') as InvoiceStatus;
+                            const sc = STATUS_CONFIG[status];
+                            return (
+                              <button
+                                key={inv.id}
+                                onClick={() => go('/invoices')}
+                                className="w-full flex items-center gap-3 px-4 py-3 hover:bg-subtle active:bg-black/[0.06] transition text-left"
+                              >
+                                <div className="w-10 h-10 rounded-full bg-brand-soft flex items-center justify-center shrink-0">
+                                  <Receipt
+                                    weight="duotone"
+                                    className="w-5 h-5 text-brand"
+                                    aria-hidden
+                                  />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-ink">{inv.number}</p>
+                                    <span
+                                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${sc.cls}`}
+                                    >
+                                      {sc.label}
+                                    </span>
+                                  </div>
+                                  <p className="text-xs text-muted truncate">
+                                    {client?.name ?? '—'} · {fmtCurrency(total, prefs.currencyCode)}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
-            </button>
+            </div>
+
+            {/* Topbar actions */}
+            <div className="flex items-center gap-0.5 shrink-0 md:ml-auto">
+              <button
+                onClick={toggleAmountsVisible}
+                title={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+                aria-label={amountsVisible ? 'Hide amounts' : 'Show amounts'}
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition ${iconBtn}`}
+              >
+                {amountsVisible ? (
+                  <Eye weight="duotone" className="w-5 h-5" aria-hidden />
+                ) : (
+                  <EyeSlash weight="duotone" className="w-5 h-5" aria-hidden />
+                )}
+              </button>
+              <button
+                onClick={handleRefresh}
+                title="Refresh"
+                aria-label="Refresh"
+                className={`flex items-center justify-center w-10 h-10 rounded-full transition ${iconBtn}`}
+              >
+                <ArrowClockwise
+                  weight="bold"
+                  className={`w-5 h-5 ${refreshing ? 'animate-spin' : ''}`}
+                  aria-hidden
+                />
+              </button>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto overscroll-y-contain main-content-pad relative">
-        {children}
-      </main>
+        {/* ── Main content ─────────────────────────────────────────────────── */}
+        <main className="flex-1 overflow-y-auto overscroll-y-contain main-content-pad relative">
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
+        </main>
+      </div>
 
-      {/* Mobile FAB */}
+      {/* Phone-only: floating create button + bottom tab bar */}
       <MobileFAB />
-
-      {/* ── Bottom tab bar ───────────────────────────────────────────────── */}
       <BottomTabBar pathname={pathname} />
     </div>
   );
 }
 
-// ── Mobile floating action button ────────────────────────────────────────────
+// ── Sidebar (iPad and up) ────────────────────────────────────────────────────
+// iPad portrait (md): slim icon rail. iPad landscape / desktop (lg): full sidebar with labels.
+
+function Sidebar({
+  pathname,
+  profile,
+  initial,
+}: {
+  pathname: string | null;
+  profile: CompanyProfile;
+  initial: string;
+}) {
+  return (
+    <aside
+      className="hidden md:flex shrink-0 flex-col w-[88px] lg:w-64 bg-surface border-r border-line"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))',
+        paddingLeft: 'env(safe-area-inset-left, 0px)',
+      }}
+    >
+      {/* Identity */}
+      <div className="h-16 flex items-center justify-center lg:justify-start gap-3 px-3 lg:px-5 shrink-0">
+        {profile.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={profile.logo}
+            alt="Logo"
+            className="h-10 w-10 object-contain rounded-full bg-white p-0.5 shadow-card shrink-0"
+          />
+        ) : (
+          <div className="h-10 w-10 rounded-full bg-brand text-white flex items-center justify-center text-base font-bold shrink-0">
+            {initial}
+          </div>
+        )}
+        <div className="hidden lg:block min-w-0">
+          <p className="text-base font-semibold text-ink truncate">{profile.name || 'Studio'}</p>
+          <p className="text-xs text-muted">EasyInvoices24</p>
+        </div>
+      </div>
+
+      {/* Primary action */}
+      <div className="px-3 lg:px-4 pt-2 pb-4">
+        <Link
+          href="/invoices?new=1"
+          title="New invoice"
+          className="flex items-center justify-center gap-2 h-12 w-12 lg:w-full mx-auto rounded-full bg-brand text-white text-sm font-semibold shadow-brand hover:bg-brand-hover active:bg-brand-dark transition"
+        >
+          <Plus weight="bold" className="w-5 h-5 shrink-0" aria-hidden />
+          <span className="hidden lg:inline">New invoice</span>
+        </Link>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex flex-col gap-1 px-2 lg:px-3">
+        {BOTTOM_TABS.map(({ href, label, icon: NavIcon }) => {
+          const active = pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={[
+                'flex flex-col lg:flex-row items-center gap-1 lg:gap-3 rounded-2xl py-2.5 lg:px-3 transition-colors',
+                active
+                  ? 'bg-brand-soft text-brand-ink'
+                  : 'text-muted hover:bg-subtle hover:text-ink',
+              ].join(' ')}
+            >
+              <NavIcon
+                weight="duotone"
+                className={`w-6 h-6 shrink-0 ${active ? 'text-brand' : ''}`}
+                aria-hidden
+              />
+              <span
+                className={`text-[11px] lg:text-sm leading-none ${active ? 'font-semibold' : 'font-medium'}`}
+              >
+                {label}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
+
+      {/* Secondary action */}
+      <div className="mt-auto px-2 lg:px-3">
+        <Link
+          href="/clients?new=1"
+          title="New client"
+          className="flex flex-col lg:flex-row items-center gap-1 lg:gap-3 rounded-2xl py-2.5 lg:px-3 text-muted hover:bg-subtle hover:text-ink transition-colors"
+        >
+          <UserPlus weight="duotone" className="w-6 h-6 shrink-0" aria-hidden />
+          <span className="text-[11px] lg:text-sm font-medium leading-none">New client</span>
+        </Link>
+      </div>
+    </aside>
+  );
+}
+
+// ── Floating action button (phones) ──────────────────────────────────────────
 
 function MobileFAB() {
   const [open, setOpen] = useState(false);
@@ -453,28 +500,27 @@ function MobileFAB() {
 
   return (
     <>
-      {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-black/25 screen-in md:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
       <div
-        className="fixed right-4 z-50 flex flex-col items-end gap-3"
-        style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px) + 12px)' }}
+        className="fixed right-4 z-50 flex flex-col items-end gap-3 md:hidden"
+        style={{ bottom: 'calc(64px + env(safe-area-inset-bottom, 0px) + 14px)' }}
       >
         {open && (
-          <div className="flex flex-col items-end gap-2">
-            {FAB_ACTIONS.map(({ key, label, href, iconD, color }) => (
+          <div className="flex flex-col items-end gap-2.5">
+            {FAB_ACTIONS.map(({ key, label, href, icon: ActionIcon }) => (
               <button
                 key={key}
                 onClick={() => handleAction(href)}
-                className={`flex items-center gap-2.5 h-11 pl-3.5 pr-4 rounded-2xl border backdrop-blur-xl shadow-lg text-sm font-semibold transition-all active:scale-95 ${color}`}
+                className="flex items-center gap-3 h-12 pl-2 pr-5 rounded-full bg-surface shadow-float text-sm font-semibold text-ink transition-all active:scale-95"
               >
-                <svg
-                  className="w-4 h-4 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d={iconD} />
-                </svg>
+                <span className="w-9 h-9 rounded-full bg-brand-soft flex items-center justify-center">
+                  <ActionIcon weight="duotone" className="w-5 h-5 text-brand" aria-hidden />
+                </span>
                 {label}
               </button>
             ))}
@@ -482,18 +528,14 @@ function MobileFAB() {
         )}
         <button
           onClick={() => setOpen((v) => !v)}
-          className="w-14 h-14 rounded-full bg-[#FFC206] text-zinc-900 flex items-center justify-center transition-transform active:scale-95"
-          style={{ boxShadow: '0 4px 20px rgba(255,194,6,0.4)' }}
+          aria-label={open ? 'Close menu' : 'Create new'}
+          className="w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center shadow-brand transition-transform hover:bg-brand-hover active:scale-95"
         >
-          <svg
+          <Plus
+            weight="bold"
             className={`w-6 h-6 transition-transform duration-200 ${open ? 'rotate-45' : ''}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2.5}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
+            aria-hidden
+          />
         </button>
       </div>
     </>
@@ -505,31 +547,30 @@ function MobileFAB() {
 function BottomTabBar({ pathname }: { pathname: string | null }) {
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-30 bg-black/80 backdrop-blur-2xl border-t border-white/[0.08]"
+      className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-surface border-t border-line shadow-[0_-2px_12px_rgb(16_24_40/0.05)]"
       style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
-      <div className="flex h-14">
-        {BOTTOM_TABS.map(({ href, label, d }) => {
+      <div className="flex h-16 max-w-xl mx-auto">
+        {BOTTOM_TABS.map(({ href, label, icon: TabIcon }) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
               className={[
-                'flex-1 flex flex-col items-center justify-center gap-0.5 transition-colors',
-                active ? 'text-[#FFC206]' : 'text-white/40 active:text-white/70',
+                'relative flex-1 flex flex-col items-center justify-center gap-1 transition-colors',
+                active ? 'text-brand' : 'text-faint active:text-ink-2',
               ].join(' ')}
             >
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={active ? 2.5 : 1.75}
+              {active && (
+                <span className="absolute top-0 h-[3px] w-8 rounded-b-full bg-brand" aria-hidden />
+              )}
+              <TabIcon weight="duotone" className="w-6 h-6 shrink-0" aria-hidden />
+              <span
+                className={`text-[11px] leading-none ${active ? 'font-semibold' : 'font-medium'}`}
               >
-                <path strokeLinecap="round" strokeLinejoin="round" d={d} />
-              </svg>
-              <span className="text-[9px] font-semibold leading-none tracking-wide">{label}</span>
+                {label}
+              </span>
             </Link>
           );
         })}

@@ -5,12 +5,12 @@ export default function manifest(): MetadataRoute.Manifest {
     name: 'EasyInvoices24',
     short_name: 'EasyInvoices24',
     description:
-      'EasyInvoices24 is a high-performance project management and billing suite designed specifically for the modern content creator.',
+      'EasyInvoices24 is a fast, simple invoicing and billing app designed specifically for the modern content creator.',
     start_url: '/invoices',
     display: 'standalone',
     orientation: 'any',
-    background_color: '#090c14',
-    theme_color: '#090c14',
+    background_color: '#f4f5f7',
+    theme_color: '#00b14f',
     icons: [
       {
         src: '/favicon-16x16.png',

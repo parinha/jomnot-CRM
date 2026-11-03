@@ -16,8 +16,6 @@ export const DEFAULT_SCOPES = [
 
 // ── localStorage keys for UI preferences ──────────────────────────────────────
 export const STORAGE_KEYS = {
-  tableCliCol: 'tbl_cli_col',
-  tableCliDir: 'tbl_cli_dir',
   tableCliPage: 'tbl_cli_page',
   tableInvCol: 'tbl_inv_col',
   tableInvDir: 'tbl_inv_dir',

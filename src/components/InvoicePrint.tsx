@@ -1,5 +1,13 @@
 'use client';
 
+import {
+  Check,
+  CircleNotch,
+  House,
+  Printer,
+  ShareNetwork,
+  TelegramLogo,
+} from '@phosphor-icons/react';
 import { useState, createElement } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
@@ -148,30 +156,18 @@ export default function InvoicePrint({
   return (
     <>
       {/* Screen toolbar */}
-      <div className="no-print fixed top-0 inset-x-0 z-10 bg-zinc-800 text-white">
-        <div className="flex items-center justify-between px-3 sm:px-6 py-2">
+      <div className="no-print fixed top-0 inset-x-0 z-10 bg-surface text-ink shadow-card">
+        <div className="flex items-center justify-between px-3 sm:px-6 py-2.5">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href="/invoices"
-              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 active:bg-white/30 transition shrink-0"
+              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-subtle text-ink text-sm font-medium hover:bg-black/[0.06] active:bg-black/[0.09] transition shrink-0"
               title="Back to invoices"
             >
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-                />
-              </svg>
+              <House className="w-5 h-5 shrink-0" weight="duotone" aria-hidden />
               <span className="hidden sm:inline">Home</span>
             </Link>
-            <span className="font-medium truncate text-sm">{invoice.number}</span>
+            <span className="font-semibold truncate text-base">{invoice.number}</span>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -180,34 +176,14 @@ export default function InvoicePrint({
               onClick={sendToTelegram}
               disabled={sendingTelegram}
               title="Send to Telegram"
-              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-xl bg-[#229ED9] text-white text-sm font-medium hover:bg-[#1a8bbf] active:bg-[#1578a0] disabled:opacity-60 transition"
+              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-[#229ED9] text-white text-sm font-medium hover:bg-[#1a8bbf] active:bg-[#1578a0] disabled:opacity-60 transition"
             >
               {sendingTelegram ? (
-                <svg className="w-5 h-5 animate-spin shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-                </svg>
+                <CircleNotch className="w-5 h-5 animate-spin shrink-0" weight="bold" aria-hidden />
               ) : telegramStatus === 'ok' ? (
-                <svg
-                  className="w-5 h-5 shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+                <Check className="w-5 h-5 shrink-0" weight="bold" aria-hidden />
               ) : (
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.944 0A12 12 0 1 0 24 12 12.016 12.016 0 0 0 11.944 0zm5.935 7.242-2.013 9.486c-.147.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.658-.643.136-.953l11.566-4.461c.537-.194 1.006.131.88.735z" />
-                </svg>
+                <TelegramLogo className="w-5 h-5 shrink-0" weight="duotone" aria-hidden />
               )}
               <span className="hidden sm:inline">
                 {sendingTelegram ? 'Sending…' : telegramStatus === 'ok' ? 'Sent!' : 'Telegram'}
@@ -221,49 +197,25 @@ export default function InvoicePrint({
                 setTimeout(() => window.print(), 0);
               }}
               title="Save as PDF / Print"
-              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-xl bg-white text-zinc-900 text-sm font-medium hover:bg-zinc-100 active:bg-zinc-200 transition"
+              className="flex items-center gap-2 h-11 w-11 sm:w-auto sm:px-4 justify-center rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand-hover active:bg-brand-dark shadow-brand transition"
             >
-              <svg
-                className="w-5 h-5 shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"
-                />
-              </svg>
+              <Printer className="w-5 h-5 shrink-0" weight="duotone" aria-hidden />
               <span className="hidden sm:inline">Save as PDF</span>
             </button>
           </div>
         </div>
 
         {ios && (
-          <div className="flex items-center justify-center gap-1.5 px-4 pb-2 text-zinc-400 text-xs">
-            <svg
-              className="w-3.5 h-3.5 shrink-0"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"
-              />
-            </svg>
-            To save PDF: tap <strong className="text-white mx-0.5">Share</strong> →{' '}
-            <strong className="text-white mx-0.5">Print</strong>
+          <div className="flex items-center justify-center gap-1.5 px-4 pb-2.5 text-muted text-xs">
+            <ShareNetwork className="w-3.5 h-3.5 shrink-0" weight="duotone" aria-hidden />
+            To save PDF: tap <strong className="text-ink mx-0.5">Share</strong> →{' '}
+            <strong className="text-ink mx-0.5">Print</strong>
           </div>
         )}
       </div>
 
       <div
-        className="no-print min-h-screen bg-zinc-200 overflow-x-auto py-10 px-4"
+        className="no-print min-h-screen bg-canvas overflow-x-auto py-10 px-4"
         style={{ paddingTop: ios ? '6.5rem' : '5rem' }}
       >
         <div className="flex justify-center min-w-[210mm]">

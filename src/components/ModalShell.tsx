@@ -36,23 +36,23 @@ export default function ModalShell({ onClose, maxWidth = 'max-w-md', children }:
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-end md:items-center justify-center bg-black/40 md:p-6"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className={`w-full ${maxWidth} bg-zinc-900 border border-white/[0.08] rounded-t-2xl shadow-2xl flex flex-col max-h-[92vh] animate-sheet-up`}
+        className={`w-full ${maxWidth} bg-surface rounded-t-[28px] md:rounded-3xl shadow-float flex flex-col max-h-[92vh] md:max-h-[85vh] animate-sheet-up`}
         style={dragY > 0 ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined}
       >
         {/* drag handle — mobile only; touch events scoped here so form scroll isn't intercepted */}
         <div
-          className="flex justify-center pt-3 pb-1 shrink-0 touch-none"
+          className="flex justify-center pt-3 pb-1 shrink-0 touch-none md:hidden"
           onTouchStart={onTouchStart}
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <div className="w-10 h-1 rounded-full bg-white/20" />
+          <div className="w-10 h-1.5 rounded-full bg-line-strong" />
         </div>
         {children}
       </div>

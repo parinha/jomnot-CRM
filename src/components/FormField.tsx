@@ -10,7 +10,7 @@ interface FormFieldProps {
 }
 
 const inputCls =
-  'h-11 rounded-xl border border-zinc-200 px-4 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FFC206] focus:border-transparent transition w-full bg-white';
+  'h-11 rounded-xl border border-line px-4 text-sm text-ink placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand focus:bg-surface transition w-full bg-subtle focus:bg-surface';
 
 export default function FormField({
   label,
@@ -24,7 +24,7 @@ export default function FormField({
 }: FormFieldProps) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-xs font-semibold text-zinc-600 uppercase tracking-wide">
+      <label htmlFor={id} className="text-sm font-medium text-ink-2">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
